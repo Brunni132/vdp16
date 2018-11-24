@@ -23,7 +23,7 @@ class VDP {
 				uSamplerPalettes: null,
 				uSamplerSprites: null
 			},
-			xyzBuffer: null,
+			xyzpBuffer: null,
 			uvBuffer: null,
 			bufferUsage: 0,
 		};
@@ -50,6 +50,9 @@ class VDP {
 	startFrame() {
 		const gl = this.gl;
 
+		gl.enable(gl.BLEND);
+		gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
 		// Set clear color to black, fully opaque
 		gl.clearColor(0.0, 0.0, 0.5, 1.0);
 		gl.clearDepth(1.0);                 // Clear everything
@@ -66,13 +69,13 @@ class VDP {
 		const gl = this.gl;
 		const TOTAL_VERTICES = MAX_SPRITES * 4;
 
-		this.spriteProgram.xyzBuffer = gl.createBuffer();
-		gl.bindBuffer(gl.ARRAY_BUFFER, this.spriteProgram.xyzBuffer);
+		this.spriteProgram.xyzpBuffer = gl.createBuffer();
+		gl.bindBuffer(gl.ARRAY_BUFFER, this.spriteProgram.xyzpBuffer);
 		// TODO Florian -- STREAM_DRAW
-		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(TOTAL_VERTICES * 3), gl.STATIC_DRAW);
+		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(TOTAL_VERTICES * 4), gl.STATIC_DRAW);
 
 		this.spriteProgram.uvBuffer = gl.createBuffer();
-		gl.bindBuffer(gl.ARRAY_BUFFER, this.spriteProgram.xyzBuffer);
+		gl.bindBuffer(gl.ARRAY_BUFFER, this.spriteProgram.uvBuffer);
 		// TODO Florian -- STREAM_DRAW
 		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(TOTAL_VERTICES * 2), gl.STATIC_DRAW);
 	}

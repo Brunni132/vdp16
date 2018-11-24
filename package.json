@@ -4,6 +4,7 @@
   "description": "TODO",
   "main": "index.js",
   "dependencies": {
+    "pngjs": "^3.3.3"
   },
   "devDependencies": {
     "nodemon": "^1.17.5",

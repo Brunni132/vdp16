@@ -1,11 +1,11 @@
 
-export function drawSprite(vdp, xStart, yStart, xEnd, yEnd, uStart, vStart, uEnd, vEnd) {
+export function drawSprite(vdp, xStart, yStart, xEnd, yEnd, uStart, vStart, uEnd, vEnd, palNo) {
 	const gl = vdp.gl;
 	const positions = [
-		xStart, yStart, 0,
-		xEnd, yStart, 0,
-		xStart, yEnd, 0,
-		xEnd, yEnd, 0,
+		xStart, yStart, 0, palNo,
+		xEnd, yStart, 0, palNo,
+		xStart, yEnd, 0, palNo,
+		xEnd, yEnd, 0, palNo,
 	];
 
 	const textureCoordinates = [
@@ -17,20 +17,20 @@ export function drawSprite(vdp, xStart, yStart, xEnd, yEnd, uStart, vStart, uEnd
 
 	// TODO Florian -- batching, reuse the array instead of creating a new one
 	// TODO Florian -- try STREAM_DRAW
-	gl.bindBuffer(gl.ARRAY_BUFFER, vdp.spriteProgram.xyzBuffer);
+	gl.bindBuffer(gl.ARRAY_BUFFER, vdp.spriteProgram.xyzpBuffer);
 	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
 	gl.bindBuffer(gl.ARRAY_BUFFER, vdp.spriteProgram.uvBuffer);
 	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(textureCoordinates), gl.STATIC_DRAW);
 
 	gl.useProgram(vdp.spriteProgram.program);
 	{
-		const numComponents = 3;  // pull out 2 values per iteration
+		const numComponents = 4;  // pull out 4 values per iteration
 		const type = gl.FLOAT;    // the data in the buffer is 32bit floats
 		const normalize = false;  // don't normalize
 		const stride = 0;         // how many bytes to get from one set of values to the next
 															// 0 = use type and numComponents above
 		const offset = 0;         // how many bytes inside the buffer to start from
-		gl.bindBuffer(gl.ARRAY_BUFFER, vdp.spriteProgram.xyzBuffer);
+		gl.bindBuffer(gl.ARRAY_BUFFER, vdp.spriteProgram.xyzpBuffer);
 		gl.vertexAttribPointer(vdp.spriteProgram.attribLocations.vertexPosition, numComponents, type, normalize, stride, offset);
 		gl.enableVertexAttribArray(vdp.spriteProgram.attribLocations.vertexPosition);
 	}
