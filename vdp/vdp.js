@@ -8,14 +8,46 @@ const MAX_SPRITES = 128;
 class VDP {
 	constructor(canvas, done) {
 		// Members
+		this.bufferArrays = {
+			xyzp: null,
+			uv: null,
+			mapInfo1: null,
+			mapInfo2: null,
+			mapInfo3: null
+		};
+		this.buffers = {
+			xyzp: null,
+			uv: null,
+			mapInfo1: null,
+			mapInfo2: null,
+			mapInfo3: null
+		};
 		this.gl = null;
+		this.mapProgram = {
+			program: null,
+			attribLocations: {
+				// For blending: use dst := framebuffer * (1 - outAlpha) + outFrag * 1 ; outFrag.rgb = texture.rgb * blendingFactor ; outFrag.a = texture.a
+				xyzp: null, // x, y position, base z, base palette no
+				mapInfo1: null, // u, v map base, u, v tileset base
+				mapInfo2: null, // map width, map height, tileset width, tileset height
+				mapInfo3: null  // tile width, tile height
+			},
+			uniformLocations: {
+				projectionMatrix: null,
+				modelViewMatrix: null,
+				uSamplerMaps: null,
+				uSamplerPalettes: null,
+				uSamplerSprites: null,
+			},
+		};
+		this.mapTexture = null;
 		this.modelViewMatrix = null;
 		this.projectionMatrix = null;
 		this.spriteProgram = {
 			program: null,
 			attribLocations: {
-				vertexPosition: null,
-				textureCoord: null
+				xyzp: null,
+				uv: null
 			},
 			uniformLocations: {
 				projectionMatrix: null,
@@ -23,9 +55,6 @@ class VDP {
 				uSamplerPalettes: null,
 				uSamplerSprites: null
 			},
-			xyzpBuffer: null,
-			uvBuffer: null,
-			bufferUsage: 0,
 		};
 		this.spriteTexture = null;
 		this.paletteTexture = null;
@@ -42,7 +71,10 @@ class VDP {
 			this.spriteTexture = tex;
 			loadTexture(this.gl, 'palette.png', (tex) => {
 				this.paletteTexture = tex;
-				done();
+				loadTexture(this.gl, 'maps.png', (tex) => {
+					this.mapTexture = tex;
+					done();
+				});
 			});
 		});
 	}
@@ -53,7 +85,7 @@ class VDP {
 		gl.enable(gl.BLEND);
 		gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
-		// Set clear color to black, fully opaque
+		// TODO Florian -- Set clear color to palette[0, 0]
 		gl.clearColor(0.0, 0.0, 0.5, 1.0);
 		gl.clearDepth(1.0);                 // Clear everything
 		gl.enable(gl.DEPTH_TEST);           // Enable depth testing
@@ -61,21 +93,19 @@ class VDP {
 
 		// Clear the canvas before we start drawing on it.
 		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
-		this.spriteProgram.bufferUsage = 0;
 	}
 
 	_initBuffers() {
 		const gl = this.gl;
 		const TOTAL_VERTICES = MAX_SPRITES * 4;
 
-		this.spriteProgram.xyzpBuffer = gl.createBuffer();
-		gl.bindBuffer(gl.ARRAY_BUFFER, this.spriteProgram.xyzpBuffer);
+		this.buffers.xyzp = gl.createBuffer();
+		gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.xyzp);
 		// TODO Florian -- STREAM_DRAW
 		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(TOTAL_VERTICES * 4), gl.STATIC_DRAW);
 
-		this.spriteProgram.uvBuffer = gl.createBuffer();
-		gl.bindBuffer(gl.ARRAY_BUFFER, this.spriteProgram.uvBuffer);
+		this.buffers.uv = gl.createBuffer();
+		gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.uv);
 		// TODO Florian -- STREAM_DRAW
 		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(TOTAL_VERTICES * 2), gl.STATIC_DRAW);
 	}

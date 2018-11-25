@@ -1,55 +1,6 @@
-import {mat4} from "./gl-matrix";
-import {createDataTexture8} from "./vdp/utils";
 import {loadVdp} from "./vdp/vdp";
 
 main();
-
-
-function initBuffers(gl) {
-
-	const positions = [
-		0.0,  0.0,  0,
-		318.0,  0.0, 0,
-		0.0, 240.0,  0,
-		318.0, 240.0, 0,
-	];
-
-	const colors = [
-		1.0,  1.0,  1.0,  1.0,    // white
-		1.0,  0.0,  0.0,  1.0,    // red
-		0.0,  1.0,  0.0,  1.0,    // green
-		0.0,  0.0,  1.0,  1.0,    // blue
-	];
-
-	const textureCoordinates = [
-		// Front
-		0.0,  0.0,
-		1.0,  0.0,
-		0.0,  1.0,
-		1.0,  1.0,
-	];
-
-	// Now pass the list of positions into WebGL to build the
-	// shape. We do this by creating a Float32Array from the
-	// JavaScript array, then use it to fill the current buffer.
-	const positionBuffer = gl.createBuffer();
-	gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
-
-	const colorBuffer = gl.createBuffer();
-	gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
-	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
-
-	const textureCoordBuffer = gl.createBuffer();
-	gl.bindBuffer(gl.ARRAY_BUFFER, textureCoordBuffer);
-	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(textureCoordinates), gl.STATIC_DRAW);
-
-	return {
-		position: positionBuffer,
-		color: colorBuffer,
-		textureCoord: textureCoordBuffer
-	};
-}
 
 //
 // start here
@@ -94,6 +45,6 @@ function main() {
 		// gl.bindTexture(gl.TEXTURE_2D, dataTex);
 
 		vdp.drawSprite(0, 0, 160, 160, 0, 0, 8, 8, 1);
-		// vdp.drawSprite(80, 0, 160+80, 160, 0, 0, 8, 8);
+		vdp.drawSprite(70, 50, 160+70, 160+50, 0, 0, 8, 8);
 	});
 }

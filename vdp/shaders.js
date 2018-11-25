@@ -1,8 +1,8 @@
 import {initShaderProgram} from "./utils";
 
-const SCREEN_WIDTH = 320, SCREEN_HEIGHT = 240;
-const SPRITE_TEX_W = 1024, SPRITE_TEX_H = 1024;
-const PALETTE_TEX_W = 256, PALETTE_TEX_H = 256;
+export const SCREEN_WIDTH = 320, SCREEN_HEIGHT = 240;
+export const SPRITE_TEX_W = 1024, SPRITE_TEX_H = 1024;
+export const PALETTE_TEX_W = 256, PALETTE_TEX_H = 256;
 
 // int readU8(sampler2D sampler, int x) {
 // 	int texelXY = int(x / 4);
@@ -31,9 +31,9 @@ export function initSpriteShaders(vdp) {
 	// Vertex shader program
 	const vsSource = `
 			// The 3 first are the vertex position, the 4th is the palette ID
-			attribute vec4 aVertexPosition;
+			attribute vec4 aXyzp;
 			// The 2 first are the texture position
-			attribute vec2 aTextureCoord;
+			attribute vec2 aUv;
 	
 			uniform mat4 uModelViewMatrix;
 			uniform mat4 uProjectionMatrix;
@@ -43,9 +43,9 @@ export function initSpriteShaders(vdp) {
 			uniform sampler2D uSamplerSprites, uSamplerPalettes;
 		
 			void main(void) {
-				gl_Position = uProjectionMatrix * uModelViewMatrix * vec4(aVertexPosition.xyz, 1);
-				vPaletteNo = (aVertexPosition.w / ${PALETTE_TEX_H - 1}.0);
-				vTextureCoord = aTextureCoord;
+				gl_Position = uProjectionMatrix * uModelViewMatrix * vec4(aXyzp.xyz, 1);
+				vPaletteNo = (aXyzp.w / ${PALETTE_TEX_H - 1}.0);
+				vTextureCoord = aUv;
 			}
 		`;
 	const fsSource = `
@@ -83,8 +83,8 @@ export function initSpriteShaders(vdp) {
 	vdp.spriteProgram = {
 		program: shaderProgram,
 		attribLocations: {
-			vertexPosition: gl.getAttribLocation(shaderProgram, 'aVertexPosition'),
-			textureCoord: gl.getAttribLocation(shaderProgram, 'aTextureCoord'),
+			xyzp: gl.getAttribLocation(shaderProgram, 'aXyzp'),
+			uv: gl.getAttribLocation(shaderProgram, 'aUv'),
 		},
 		uniformLocations: {
 			projectionMatrix: gl.getUniformLocation(shaderProgram, 'uProjectionMatrix'),
