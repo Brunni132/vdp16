@@ -1,36 +1,26 @@
-import {loadTexture} from "./utils";
+import {loadTexture, readFromTexture32} from "./utils";
 import {mat4} from "../gl-matrix";
-import {initSpriteShaders} from "./shaders";
-import {drawSprite} from "./sprites";
-
-const MAX_SPRITES = 128;
+import {drawSprite, initSpriteShaders} from "./sprites";
+import {drawMap, initMapShaders} from "./maps";
 
 class VDP {
 	constructor(canvas, done) {
 		// Members
-		this.bufferArrays = {
-			xyzp: null,
-			uv: null,
-			mapInfo1: null,
-			mapInfo2: null,
-			mapInfo3: null
-		};
-		this.buffers = {
-			xyzp: null,
-			uv: null,
-			mapInfo1: null,
-			mapInfo2: null,
-			mapInfo3: null
-		};
 		this.gl = null;
 		this.mapProgram = {
 			program: null,
+			buffers: {
+				xyzp: null,
+				mapInfo1: null,
+				mapInfo2: null,
+				mapInfo3: null
+			},
 			attribLocations: {
 				// For blending: use dst := framebuffer * (1 - outAlpha) + outFrag * 1 ; outFrag.rgb = texture.rgb * blendingFactor ; outFrag.a = texture.a
 				xyzp: null, // x, y position, base z, base palette no
 				mapInfo1: null, // u, v map base, u, v tileset base
 				mapInfo2: null, // map width, map height, tileset width, tileset height
-				mapInfo3: null  // tile width, tile height
+				mapInfo3: null  // tile width, tile height, UV drawing (should be 0…1)
 			},
 			uniformLocations: {
 				projectionMatrix: null,
@@ -38,13 +28,21 @@ class VDP {
 				uSamplerMaps: null,
 				uSamplerPalettes: null,
 				uSamplerSprites: null,
-			},
+			}
 		};
 		this.mapTexture = null;
 		this.modelViewMatrix = null;
 		this.projectionMatrix = null;
 		this.spriteProgram = {
 			program: null,
+			arrayBuffers: {
+				xyzp: null,
+				uv: null,
+			},
+			buffers: {
+				xyzp: null,
+				uv: null,
+			},
 			attribLocations: {
 				xyzp: null,
 				uv: null
@@ -60,18 +58,27 @@ class VDP {
 		this.paletteTexture = null;
 
 		// Methods
+		this.drawMap = drawMap.bind(null, this);
 		this.drawSprite = drawSprite.bind(null, this);
 
 		this._initContext(canvas);
+		initMapShaders(this);
 		initSpriteShaders(this);
-		this._initBuffers();
 		this._initMatrices();
 
-		loadTexture(this.gl, 'sprites.png', (tex) => {
+		const gl = this.gl;
+		loadTexture(gl, 'test.png', (tex) => {
+			const array = new Uint8Array(16 * 16);
+			readFromTexture32(gl, tex, 0, 0, 4, 16, array);
+			for (let i = 0; i < 16 * 16; i++)
+				if (array[i]) console.log(`TEMP array${i} = ${array[i]}`);
+		});
+
+		loadTexture(gl, 'sprites.png', (tex) => {
 			this.spriteTexture = tex;
-			loadTexture(this.gl, 'palette.png', (tex) => {
+			loadTexture(gl, 'palette.png', (tex) => {
 				this.paletteTexture = tex;
-				loadTexture(this.gl, 'maps.png', (tex) => {
+				loadTexture(gl, 'maps.png', (tex) => {
 					this.mapTexture = tex;
 					done();
 				});
@@ -93,21 +100,6 @@ class VDP {
 
 		// Clear the canvas before we start drawing on it.
 		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-	}
-
-	_initBuffers() {
-		const gl = this.gl;
-		const TOTAL_VERTICES = MAX_SPRITES * 4;
-
-		this.buffers.xyzp = gl.createBuffer();
-		gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.xyzp);
-		// TODO Florian -- STREAM_DRAW
-		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(TOTAL_VERTICES * 4), gl.STATIC_DRAW);
-
-		this.buffers.uv = gl.createBuffer();
-		gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.uv);
-		// TODO Florian -- STREAM_DRAW
-		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(TOTAL_VERTICES * 2), gl.STATIC_DRAW);
 	}
 
 	_initContext(canvas) {

@@ -1,4 +1,18 @@
 
+export function createDataTexture8(gl, width, height) {
+	const texture = gl.createTexture();
+	gl.bindTexture(gl.TEXTURE_2D, texture);
+	// const ext = gl.getExtension('WEBGL_depth_texture');
+	// alert(gl.texImage2D(gl.TEXTURE_2D, 0, gl.DEPTH_COMPONENT, width, height, 0, gl.DEPTH_COMPONENT, gl.UNSIGNED_INT, null));
+	if (width % 4 !== 0) alert(`createDataTexture8: ${width} MUST be mod 4`);
+	gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width / 4, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+	return texture;
+}
+
 
 //
 // creates a shader of the given type, uploads the source and
@@ -102,17 +116,23 @@ export function loadTexture(gl, url, done) {
 	return texture;
 }
 
-export function createDataTexture8(gl, width, height) {
-	const texture = gl.createTexture();
-	gl.bindTexture(gl.TEXTURE_2D, texture);
-	// const ext = gl.getExtension('WEBGL_depth_texture');
-	// alert(gl.texImage2D(gl.TEXTURE_2D, 0, gl.DEPTH_COMPONENT, width, height, 0, gl.DEPTH_COMPONENT, gl.UNSIGNED_INT, null));
-	if (width % 4 !== 0) alert(`createDataTexture8: ${width} MUST be mod 4`);
-	gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width / 4, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-	return texture;
+export function makeBuffer(gl, verticesCount) {
+	const result = gl.createBuffer();
+	gl.bindBuffer(gl.ARRAY_BUFFER, result);
+	// TODO Florian -- STREAM_DRAW
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(verticesCount), gl.STATIC_DRAW);
+	return result;
+}
+
+// 32 bit pixels only!
+export function readFromTexture32(gl, texture, x, y, w, h, buffer) {
+	// make a framebuffer
+	const	fb = gl.createFramebuffer();
+	gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+	gl.framebufferTexture2D(
+		gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0,
+		gl.TEXTURE_2D, texture, 0);
+	gl.readPixels(x, y, w, h, gl.RGBA, gl.UNSIGNED_BYTE, buffer);
+	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 }
 

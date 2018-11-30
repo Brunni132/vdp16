@@ -44,7 +44,14 @@ function main() {
 		// gl.activeTexture(gl.TEXTURE1);
 		// gl.bindTexture(gl.TEXTURE_2D, dataTex);
 
-		vdp.drawSprite(0, 0, 160, 160, 0, 0, 8, 8, 1);
-		vdp.drawSprite(70, 50, 160+70, 160+50, 0, 0, 8, 8);
+		// vdp.drawSprite(0, 0, 160, 160, 0, 0, 8, 8, 1);
+		// vdp.drawSprite(70, 50, 160+70, 160+50, 0, 0, 8, 8);
+		vdp.drawMap(
+			0, 0, // UV map
+			0, 0, // UV tileset
+			4, 4, // Map size
+			2, 2, // Tileset size
+			8, 8, // Tile size
+			0);
 	});
 }
