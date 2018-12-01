@@ -15,7 +15,8 @@
   },
   "scripts": {
     "build": "webpack",
-    "server": "webpack-dev-server"
+    "server": "webpack-dev-server",
+    "convert-gfx": "node tools/gfxConverter/index.js"
   },
   "author": "",
   "license": "ISC",

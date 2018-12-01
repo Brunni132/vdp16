@@ -67,16 +67,9 @@ class VDP {
 		this._initMatrices();
 
 		const gl = this.gl;
-		loadTexture(gl, 'test.png', (tex) => {
-			const array = new Uint8Array(16 * 16);
-			readFromTexture32(gl, tex, 0, 0, 4, 16, array);
-			for (let i = 0; i < 16 * 16; i++)
-				if (array[i]) console.log(`TEMP array${i} = ${array[i]}`);
-		});
-
 		loadTexture(gl, 'sprites.png', (tex) => {
 			this.spriteTexture = tex;
-			loadTexture(gl, 'palette.png', (tex) => {
+			loadTexture(gl, 'palettes.png', (tex) => {
 				this.paletteTexture = tex;
 				loadTexture(gl, 'maps.png', (tex) => {
 					this.mapTexture = tex;
