@@ -56,7 +56,6 @@ function main() {
 
 		// Only using 8 components, assuming that the last is always 1 (which is OK for affine transformations)
 		const mat = mat3.create();
-
 		mat3.translate(mat, mat, [16, 16]);
 		mat3.rotate(mat, mat, Math.PI / 2);
 		mat3.translate(mat, mat, [-SCREEN_WIDTH / 2, -SCREEN_HEIGHT / 2]);
@@ -67,17 +66,17 @@ function main() {
 			gl.RGBA, gl.FLOAT,
 			mat);
 
+
 		// gl.activeTexture(gl.TEXTURE1);
 		// gl.bindTexture(gl.TEXTURE_2D, dataTex);
 
-		// vdp.drawSprite(
-		// 	0, 0, 24, 24,
-		// 	0, 0, 24, 24,
-		// 	0);
+		vdp.drawSprite(
+			10, 10, 10+24*2, 10+24*2,
+			0, 0, 24, 24,
+			0);
 
-		// mat4.translate(vdp.modelViewMatrix, vdp.modelViewMatrix, [10, 0, 0]);
-		mat4.scale(vdp.modelViewMatrix, vdp.modelViewMatrix, [0.5, 1]);
-		// mat4.rotateZ(vdp.modelViewMatrix, vdp.modelViewMatrix, 0.8);
+
+		// mat4.scale(vdp.modelViewMatrix, vdp.modelViewMatrix, [1, 1, 1]);
 
 		// vdp.drawSprite(0, 0, 160, 160, 0, 0, 8, 8, 1);
 		// vdp.drawSprite(70, 50, 160+70, 160+50, 0, 0, 8, 8);

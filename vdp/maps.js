@@ -14,8 +14,6 @@ const MAX_BGS = 8;
 export function initMapShaders(vdp) {
 	const gl = vdp.gl;
 	// Vertex shader program
-	// TODO Florian -- Add a field for the "high z priority"
-	// TODO Florian -- Try to use internal transformation for the map rotation/scale
 	const vsSource = `
 			attribute vec4 aXyzp;
 			attribute vec4 aMapInfo1;
@@ -48,8 +46,7 @@ export function initMapShaders(vdp) {
 			}
 		
 			void main(void) {
-				// gl_Position = uProjectionMatrix * uModelViewMatrix * vec4(aXyzp.xyz, 1);
-				gl_Position = uProjectionMatrix * vec4(aXyzp.xyz, 1);
+				gl_Position = uProjectionMatrix * uModelViewMatrix * vec4(aXyzp.xyz, 1);
 				vPaletteNo = (aXyzp.w / ${PALETTE_TEX_H - 1}.0);
 				vMapStart = aMapInfo1.xy;
 				vTilesetStart = aMapInfo1.zw;
@@ -59,9 +56,9 @@ export function initMapShaders(vdp) {
 				vTileSize = aMapInfo3.xy;
 				vTextureCoord = aMapInfo3.zw;
 				vOtherInfo = aMapInfo4.xy;
-				// If 0, use one transformation map-wide
-				if (aMapInfo4.x < 1.0) {
-					vTransformationMatrix = readLinescrollBuffer(int(aMapInfo4.x), 0);
+				// If 0-255, use one transformation map-wide from the first line
+				if (aMapInfo4.x < 256.0) {
+					vTransformationMatrix = readLinescrollBuffer(0, int(aMapInfo4.x) * 2);
 				} else {
 					vTransformationMatrix = mat3(
 						1, 0, 0,
@@ -142,10 +139,10 @@ export function initMapShaders(vdp) {
 			void main(void) {
 				mat3 transformationMatrix;
 				// Per-line info
-				if (vOtherInfo.x >= 1.0) {
+				if (vOtherInfo.x >= 256.0) {
 					float y = float(${SCREEN_HEIGHT}) - gl_FragCoord.y;
 					// 2 colors (8 float values) per matrix
-					transformationMatrix = readLinescrollBuffer(int(vOtherInfo.x), int(y * 2.0));
+					transformationMatrix = readLinescrollBuffer(int(vOtherInfo.x) - 256, int(y * 2.0));
 				}
 				else {
 					transformationMatrix = vTransformationMatrix;
