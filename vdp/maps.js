@@ -6,15 +6,21 @@ const MAX_BGS = 8;
 export function initMapShaders(vdp) {
 	const gl = vdp.gl;
 	// Vertex shader program
+	// TODO Florian -- Add a field for the "high z priority"
+	// TODO Florian -- Try to use internal transformation for the map rotation/scale
 	const vsSource = `
-			attribute vec4 aXyzp, aMapInfo1, aMapInfo2, aMapInfo3;
+			attribute vec4 aXyzp;
+			attribute vec4 aMapInfo1;
+			attribute vec4 aMapInfo2;
+			attribute vec4 aMapInfo3;
 			uniform mat4 uModelViewMatrix, uProjectionMatrix;
 	
 			varying vec2 vTextureCoord;
 			varying float vPaletteNo;
 			// TODO Florian -- use vec4 and extract in fragment program
 			varying vec2 vMapStart, vMapSize;
-			varying vec2 vTilesetStart, vTilesetSize;
+			varying vec2 vTilesetStart;
+			varying float vTilesetWidth, vHighPrioTileZ;
 			varying vec2 vTileSize;
 			
 			uniform sampler2D uSamplerMaps, uSamplerSprites, uSamplerPalettes;
@@ -22,6 +28,12 @@ export function initMapShaders(vdp) {
 			void main(void) {
 				gl_Position = uProjectionMatrix * uModelViewMatrix * vec4(aXyzp.xyz, 1);
 				vPaletteNo = (aXyzp.w / ${PALETTE_TEX_H - 1}.0);
+				vMapStart = aMapInfo1.xy;
+				vTilesetStart = aMapInfo1.zw;
+				vMapSize = aMapInfo2.xy;
+				vTilesetWidth = aMapInfo2.z;
+				vHighPrioTileZ = aMapInfo2.w;
+				vTileSize = aMapInfo3.xy;
 				vTextureCoord = aMapInfo3.zw;
 			}
 		`;
@@ -31,12 +43,27 @@ export function initMapShaders(vdp) {
 			varying highp vec2 vTextureCoord;
 			varying highp float vPaletteNo;
 			varying vec2 vMapStart, vMapSize;
-			varying vec2 vTilesetStart, vTilesetSize;
+			// tilesetSize is in tiles!
+			varying vec2 vTilesetStart;
+			varying float vTilesetWidth, vHighPrioTileZ;
 			varying vec2 vTileSize;
 			uniform sampler2D uSamplerMaps, uSamplerSprites, uSamplerPalettes;
 			
-			float readMap(float x, float y) {
-				return 0;
+			int intMod(int x, int y) {
+				return int(mod(float(x), float(y)));
+			}
+			
+			int readMap(int x, int y) {
+				x = int(mod(float(x), vMapSize.x) + vMapStart.x);
+				y = int(mod(float(y), vMapSize.y) + vMapStart.y);
+				return 2;
+			}
+			
+			vec2 positionInTexture(int tileNo) {
+				vec2 base = vTilesetStart;
+				float rowNo = float(tileNo / int(vTilesetWidth));
+				float colNo = mod(float(tileNo), vTilesetWidth);
+				return base + vec2(colNo * vTileSize.x, rowNo * vTileSize.y);
 			}
 	
 			// Returns a value between 0 and 1, ready to map a color in palette (0..255)
@@ -55,10 +82,14 @@ export function initMapShaders(vdp) {
 			}
 		
 			void main(void) {
-				float mapTile = readMap(vTextureCoord.x, vTextureCoord.y);
-				
-				float texel = readTexel(vTextureCoord.x, vTextureCoord.y);
-				
+				// TODO: divide position because we want a map position
+				int mapTileNo = readMap(int(vTextureCoord.x / vTileSize.x), int(vTextureCoord.y / vTileSize.y));
+
+				// Position of tile no in sprite texture, now we need to add the offset
+				vec2 tilesetPos = positionInTexture(mapTileNo)
+					+ vec2(mod(vTextureCoord.x, vTileSize.x), mod(vTextureCoord.y, vTileSize.y));
+				float texel = readTexel(tilesetPos.x, tilesetPos.y);
+
 				gl_FragColor = readPalette(texel, vPaletteNo);
 			}
 		`;
@@ -93,7 +124,7 @@ export function drawMap(vdp, uMap, vMap, uTileset, vTileset, mapWidth, mapHeight
 	const gl = vdp.gl;
 	const prog = vdp.mapProgram;
 
-	// x, y position, base z, base palette no
+	// x, y position, z for normal-prio tiles, base palette no
 	const positions = [
 		0, 0, 0, palNo,
 		SCREEN_WIDTH, 0, 0, palNo,
@@ -107,19 +138,19 @@ export function drawMap(vdp, uMap, vMap, uTileset, vTileset, mapWidth, mapHeight
 		uMap, vMap, uTileset, vTileset,
 		uMap, vMap, uTileset, vTileset
 	];
-	// map width, map height, tileset width, tileset height
+	// map width, map height, tileset width, z for hi-prio tiles
 	const infos2 = [
-		mapWidth, mapHeight, tilesetWidth, tilesetHeight,
-		mapWidth, mapHeight, tilesetWidth, tilesetHeight,
-		mapWidth, mapHeight, tilesetWidth, tilesetHeight,
-		mapWidth, mapHeight, tilesetWidth, tilesetHeight
+		mapWidth, mapHeight, tilesetWidth, 0,
+		mapWidth, mapHeight, tilesetWidth, 0,
+		mapWidth, mapHeight, tilesetWidth, 0,
+		mapWidth, mapHeight, tilesetWidth, 0
 	];
 	// tile width, tile height, drawing uv
 	const infos3 = [
 		tileWidth, tileHeight, 0, 0,
-		tileWidth, tileHeight, 1, 0,
-		tileWidth, tileHeight, 0, 1,
-		tileWidth, tileHeight, 1, 1
+		tileWidth, tileHeight, SCREEN_WIDTH, 0,
+		tileWidth, tileHeight, 0, SCREEN_HEIGHT,
+		tileWidth, tileHeight, SCREEN_WIDTH, SCREEN_HEIGHT
 	];
 
 	gl.bindBuffer(gl.ARRAY_BUFFER, prog.buffers.xyzp);
