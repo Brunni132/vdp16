@@ -1,49 +1,65 @@
 const assert = require('assert');
 const fs = require('fs'), PNG = require('pngjs').PNG;
 
-module.exports = class Texture {
-	constructor(width, height, bitDepth) {
+class Texture {
+	/**
+	 * @param name {string}
+	 * @param width {number}
+	 * @param height {number}
+	 * @param bitDepth {number}
+	 */
+	constructor(name, width, height, bitDepth) {
+		this.name = name;
 		this.width = width;
 		this.height = height;
 		this.bpp = bitDepth / 8;
 
 		assert(this.bpp === 1 || this.bpp === 2 || this.bpp === 4);
-		assert(this.width % this.bpp === 0);
+		assert(this.width % this.bpp === 0, `${this.width} % ${this.bpp} !== 0`);
 		this.pixelData = new Array(this.width * this.height);
 	}
 
-	static blank(width, height, bitDepth) {
-		return new Texture(width, height, bitDepth);
+	/**
+	 * @param name {string}
+	 * @param width {number}
+	 * @param height {number}
+	 * @param bitDepth {number}
+	 * @returns {Texture}
+	 */
+	static blank(name, width, height, bitDepth) {
+		return new Texture(name, width, height, bitDepth);
 	}
 
 	// Read a png and interprets it as a 8 bit texture (each RGBA component is one pixel in the resulting texture, which has 4x the width of the original texture)
-	static readFromPng8(srcFileName) {
+	static fromPng8(srcFileName) {
 		const data = fs.readFileSync(srcFileName);
 		const png = PNG.sync.read(data);
-		const result = new Texture(png.width * 4, png.height, 8);
+		const result = new Texture(srcFileName, png.width * 4, png.height, 8);
 		for (let x = 0; x < png.height * png.width * 4; x++) {
 			result.pixelData[x] = png.data[x];
 		}
 		return result;
 	}
 
-	static readFromPng16(srcFileName) {
+	static fromPng16(srcFileName) {
 		const data = fs.readFileSync(srcFileName);
 		const png = PNG.sync.read(data);
-		const result = new Texture(png.width, png.height, 16);
+		const result = new Texture(srcFileName, png.width, png.height, 16);
+		let y = 0;
 		for (let x = 0; x < png.height * png.width * 4; x += 2) {
-			result.pixelData[x] = png.data[x] + (png.data[x + 1] << 8);
+			result.pixelData[y++] = png.data[x] + (png.data[x + 1] << 8);
 		}
 		return result;
 	}
 
 	// Read a png as a 32 bit texture directly. Same width as original.
-	static readFromPng32(srcFileName) {
+	static fromPng32(srcFileName) {
 		const data = fs.readFileSync(srcFileName);
 		const png = PNG.sync.read(data);
-		const result = new Texture(png.width, png.height, 32);
+		const result = new Texture(srcFileName, png.width, png.height, 32);
+		let y = 0;
 		for (let x = 0; x < png.height * png.width * 4; x += 4) {
-			result.pixelData[x] = png.data[x] + (png.data[x + 1] << 8) + (png.data[x + 2] << 16) + (png.data[x + 3] << 24);
+			result.pixelData[y++] = png.data[x] + (png.data[x + 1] << 8) + (png.data[x + 2] << 16) + (png.data[x + 3] << 24);
 		}
 		return result;
 	}
@@ -55,9 +71,10 @@ module.exports = class Texture {
 	}
 
 	forEachPixel(cb) {
+		let z = 0;
 		for (let y = 0; y < this.height; y++)
 			for (let x = 0; x < this.width; x++) {
-				cb(this.pixelData[x], x, y);
+				cb(this.pixelData[z++], x, y);
 			}
 	}
 
@@ -66,7 +83,7 @@ module.exports = class Texture {
 	}
 
 	makeSubtexture(x, y, width, height) {
-		const result = Texture.blank(width, height, this.bpp * 8);
+		const result = Texture.blank(this.name + '[]', width, height, this.bpp * 8);
 		for (let j = 0; j < result.height; j++) {
 			for (let i = 0; i < result.width; i++) {
 				result.setPixel(i, j, this.getPixel(i + x, j + y));
@@ -76,7 +93,8 @@ module.exports = class Texture {
 	}
 
 	setPixel(x, y, pix) {
-		if ((pix >> (this.bpp * 8)) !== 0) {
+		// To treat as unsigned
+		if (this.bpp < 4 && (pix >> (this.bpp * 8)) !== 0) {
 			throw new Error(`${pix} too big to be written to a ${this.bpp * 8}bpp texture`);
 		}
 		this.pixelData[Math.floor(y) * this.width + Math.floor(x)] = pix;
@@ -95,11 +113,13 @@ module.exports = class Texture {
 		let dstIdx = 0;
 		for (let x = 0; x < this.height * this.width; x++) {
 			mapPng.data[dstIdx++] = this.pixelData[x] & 0xff;
-			if (this.bpp >= 2) mapPng.data[dstIdx++] = (this.pixelData[x] >> 8) & 0xff;
-			if (this.bpp >= 3) mapPng.data[dstIdx++] = (this.pixelData[x] >> 16) & 0xff;
-			if (this.bpp >= 4) mapPng.data[dstIdx++] = (this.pixelData[x] >> 24) & 0xff;
+			if (this.bpp >= 2) mapPng.data[dstIdx++] = (this.pixelData[x] >>> 8) & 0xff;
+			if (this.bpp >= 3) mapPng.data[dstIdx++] = (this.pixelData[x] >>> 16) & 0xff;
+			if (this.bpp >= 4) mapPng.data[dstIdx++] = (this.pixelData[x] >>> 24) & 0xff;
 		}
 
 		mapPng.pack().pipe(fs.createWriteStream(destFileName));
 	}
-};
+}
+
+module.exports = Texture;
