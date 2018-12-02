@@ -107,7 +107,8 @@ class Texture {
 			width: Math.floor(this.width * this.bpp / 4),
 			height: this.height,
 			filterType: -1,
-			colorType: 6
+			colorType: 6,
+			deflateLevel: 0
 		});
 
 		let dstIdx = 0;

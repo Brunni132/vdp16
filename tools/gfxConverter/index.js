@@ -164,16 +164,12 @@ class MasterSpriteTexture {
 		// Use only one palette
 		const defaultPal = this.spriteEntries[0].designPalette;
 		const result = new Texture('sample', this.texture.width, this.texture.height, 32);
-		result.forEachPixel((pix, x, y) => {
-			if (pix)
-				console.log(`TEMP `, x, y, defaultPal.colorData[pix]);
+		this.texture.forEachPixel((pix, x, y) => {
 			result.setPixel(x, y, defaultPal.colorData[pix]);
 		});
 		result.writeToPng(fileName);
 	}
 }
-
-
 
 const mapTex = Texture.blank('maps', 2048, 1024, 16);
 const spriteTex = Texture.blank('sprites', 4096, 1024, 8);

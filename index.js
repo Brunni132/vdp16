@@ -1,4 +1,5 @@
 import {loadVdp} from "./vdp/vdp";
+import {readFromTexture32} from "./vdp/utils";
 
 main();
 
@@ -28,21 +29,26 @@ function main() {
 		// 	dataTexData
 		// );
 
-		const dataTexData = new Uint8Array(8);
-		for (let i = 0; i < 8; i++) {
-			dataTexData[i] = i % 8;
-		}
-		gl.bindTexture(gl.TEXTURE_2D, vdp.spriteTexture);
-		gl.texSubImage2D(gl.TEXTURE_2D, 0,
-			0, 0,
-			2, 1,
-			gl.RGBA, gl.UNSIGNED_BYTE,
-			dataTexData);
+		// const dataTexData = new Uint8Array(8);
+		// for (let i = 0; i < 8; i++) {
+		// 	dataTexData[i] = i % 8;
+		// }
+		// gl.bindTexture(gl.TEXTURE_2D, vdp.spriteTexture);
+		// gl.texSubImage2D(gl.TEXTURE_2D, 0,
+		// 	0, 0,
+		// 	2, 1,
+		// 	gl.RGBA, gl.UNSIGNED_BYTE,
+		// 	dataTexData);
 
 		vdp.startFrame();
 
 		// gl.activeTexture(gl.TEXTURE1);
 		// gl.bindTexture(gl.TEXTURE_2D, dataTex);
+
+		// vdp.drawSprite(
+		// 	0, 0, 24, 24,
+		// 	0, 0, 24, 24,
+		// 	0);
 
 		// vdp.drawSprite(0, 0, 160, 160, 0, 0, 8, 8, 1);
 		// vdp.drawSprite(70, 50, 160+70, 160+50, 0, 0, 8, 8);

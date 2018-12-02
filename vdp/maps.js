@@ -34,6 +34,10 @@ export function initMapShaders(vdp) {
 			varying vec2 vTilesetStart, vTilesetSize;
 			varying vec2 vTileSize;
 			uniform sampler2D uSamplerMaps, uSamplerSprites, uSamplerPalettes;
+			
+			float readMap(float x, float y) {
+				return 0;
+			}
 	
 			// Returns a value between 0 and 1, ready to map a color in palette (0..255)
 			float readTexel(float x, float y) {
@@ -51,7 +55,10 @@ export function initMapShaders(vdp) {
 			}
 		
 			void main(void) {
+				float mapTile = readMap(vTextureCoord.x, vTextureCoord.y);
+				
 				float texel = readTexel(vTextureCoord.x, vTextureCoord.y);
+				
 				gl_FragColor = readPalette(texel, vPaletteNo);
 			}
 		`;
