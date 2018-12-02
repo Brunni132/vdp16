@@ -1,5 +1,7 @@
 import {loadVdp} from "./vdp/vdp";
-import {readFromTexture32} from "./vdp/utils";
+import {mat3, mat4} from "./gl-matrix";
+import {readFromTexture16, readFromTexture32} from "./vdp/utils";
+import {SCREEN_HEIGHT, SCREEN_WIDTH} from "./vdp/shaders";
 
 main();
 
@@ -42,6 +44,29 @@ function main() {
 
 		vdp.startFrame();
 
+		const mapData = new Uint8Array(16 * 2);
+		readFromTexture32(vdp.gl, vdp.mapTexture, 0, 0, 4/2, 4, mapData);
+		for (let i = 0; i < 16; i++) mapData[i*2] = i;
+		gl.bindTexture(gl.TEXTURE_2D, vdp.mapTexture);
+		gl.texSubImage2D(gl.TEXTURE_2D, 0,
+			0, 0,
+			4/2, 4,
+			gl.RGBA, gl.UNSIGNED_BYTE,
+			mapData);
+
+		// Only using 8 components, assuming that the last is always 1 (which is OK for affine transformations)
+		const mat = mat3.create();
+
+		mat3.translate(mat, mat, [16, 16]);
+		mat3.rotate(mat, mat, Math.PI / 2);
+		mat3.translate(mat, mat, [-SCREEN_WIDTH / 2, -SCREEN_HEIGHT / 2]);
+		gl.bindTexture(gl.TEXTURE_2D, vdp.otherTexture);
+		gl.texSubImage2D(gl.TEXTURE_2D, 0,
+			0, 0,
+			2, 1,
+			gl.RGBA, gl.FLOAT,
+			mat);
+
 		// gl.activeTexture(gl.TEXTURE1);
 		// gl.bindTexture(gl.TEXTURE_2D, dataTex);
 
@@ -50,14 +75,18 @@ function main() {
 		// 	0, 0, 24, 24,
 		// 	0);
 
+		// mat4.translate(vdp.modelViewMatrix, vdp.modelViewMatrix, [10, 0, 0]);
+		mat4.scale(vdp.modelViewMatrix, vdp.modelViewMatrix, [0.5, 1]);
+		// mat4.rotateZ(vdp.modelViewMatrix, vdp.modelViewMatrix, 0.8);
+
 		// vdp.drawSprite(0, 0, 160, 160, 0, 0, 8, 8, 1);
 		// vdp.drawSprite(70, 50, 160+70, 160+50, 0, 0, 8, 8);
 		vdp.drawMap(
 			0, 0, // UV map
 			0, 0, // UV tileset
 			4, 4, // Map size
-			2, 2, // Tileset size
+			16, 3, // Tileset size
 			8, 8, // Tile size
-			0);
+			0, 0);
 	});
 }

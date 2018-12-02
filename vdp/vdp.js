@@ -1,7 +1,8 @@
-import {loadTexture, readFromTexture32} from "./utils";
+import {createDataTexture32, createDataTextureFloat, loadTexture, readFromTexture32} from "./utils";
 import {mat4} from "../gl-matrix";
 import {drawSprite, initSpriteShaders} from "./sprites";
 import {drawMap, initMapShaders} from "./maps";
+import {OTHER_TEX_W} from "./shaders";
 
 class VDP {
 	constructor(canvas, done) {
@@ -54,8 +55,9 @@ class VDP {
 				uSamplerSprites: null
 			},
 		};
-		this.spriteTexture = null;
 		this.paletteTexture = null;
+		this.spriteTexture = null;
+		this.otherTexture = null;
 
 		// Methods
 		this.drawMap = drawMap.bind(null, this);
@@ -73,6 +75,8 @@ class VDP {
 				this.paletteTexture = tex;
 				loadTexture(gl, 'maps.png', (tex) => {
 					this.mapTexture = tex;
+
+					this.otherTexture = createDataTextureFloat(gl, OTHER_TEX_W, OTHER_TEX_W);
 					done();
 				});
 			});
@@ -116,8 +120,11 @@ class VDP {
 		// as the destination to receive the result.
 		mat4.ortho(this.projectionMatrix, 0.0, 320.0, 240.0, 0.0, 0.1, 100);
 
+		// Normally set in modelViewMatrix, but we want to allow an empty model view matrix
+		mat4.translate(this.projectionMatrix, this.projectionMatrix, [-0.0, 0.0, -0.1]);
+
 		this.modelViewMatrix = mat4.create();
-		mat4.translate(this.modelViewMatrix, this.modelViewMatrix, [-0.0, 0.0, -0.1]);
+		// mat4.translate(this.modelViewMatrix, this.modelViewMatrix, [-0.0, 0.0, -0.1]);
 	}
 }
 

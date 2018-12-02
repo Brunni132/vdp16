@@ -1,5 +1,13 @@
 import {initShaderProgram, makeBuffer} from "./utils";
-import {PALETTE_TEX_H, PALETTE_TEX_W, SCREEN_HEIGHT, SCREEN_WIDTH, SPRITE_TEX_H, SPRITE_TEX_W} from "./shaders";
+import {
+	MAP_TEX_H, MAP_TEX_W, OTHER_TEX_H, OTHER_TEX_W,
+	PALETTE_TEX_H,
+	PALETTE_TEX_W,
+	SCREEN_HEIGHT,
+	SCREEN_WIDTH,
+	SPRITE_TEX_H,
+	SPRITE_TEX_W
+} from "./shaders";
 
 const MAX_BGS = 8;
 
@@ -13,8 +21,9 @@ export function initMapShaders(vdp) {
 			attribute vec4 aMapInfo1;
 			attribute vec4 aMapInfo2;
 			attribute vec4 aMapInfo3;
+			attribute vec4 aMapInfo4;
 			uniform mat4 uModelViewMatrix, uProjectionMatrix;
-	
+
 			varying vec2 vTextureCoord;
 			varying float vPaletteNo;
 			// TODO Florian -- use vec4 and extract in fragment program
@@ -22,11 +31,25 @@ export function initMapShaders(vdp) {
 			varying vec2 vTilesetStart;
 			varying float vTilesetWidth, vHighPrioTileZ;
 			varying vec2 vTileSize;
+			varying mat3 vTransformationMatrix;
+			// [0] = linescroll buffer, if 0 use vTransformationMatrix always, [1] = whether to wrap around
+			varying vec2 vOtherInfo;
 			
-			uniform sampler2D uSamplerMaps, uSamplerSprites, uSamplerPalettes;
+			uniform sampler2D uSamplerMaps, uSamplerSprites, uSamplerPalettes, uSamplerOthers;
+		
+			mat3 readLinescrollBuffer(int bufferNo, int horizOffset) {
+				float vOfs = float(bufferNo) / ${OTHER_TEX_H - 1}.0;
+				vec4 first = texture2D(uSamplerOthers, vec2(float(horizOffset) / ${OTHER_TEX_W - 1}.0, vOfs));
+				vec4 second = texture2D(uSamplerOthers, vec2(float(horizOffset + 1) / ${OTHER_TEX_W - 1}.0, vOfs));
+				return mat3(
+					first.xy, first.z,
+					vec2(first.a, second.r), first.g,
+					second.ba, 1.0);
+			}
 		
 			void main(void) {
-				gl_Position = uProjectionMatrix * uModelViewMatrix * vec4(aXyzp.xyz, 1);
+				// gl_Position = uProjectionMatrix * uModelViewMatrix * vec4(aXyzp.xyz, 1);
+				gl_Position = uProjectionMatrix * vec4(aXyzp.xyz, 1);
 				vPaletteNo = (aXyzp.w / ${PALETTE_TEX_H - 1}.0);
 				vMapStart = aMapInfo1.xy;
 				vTilesetStart = aMapInfo1.zw;
@@ -35,6 +58,16 @@ export function initMapShaders(vdp) {
 				vHighPrioTileZ = aMapInfo2.w;
 				vTileSize = aMapInfo3.xy;
 				vTextureCoord = aMapInfo3.zw;
+				vOtherInfo = aMapInfo4.xy;
+				// If 0, use one transformation map-wide
+				if (aMapInfo4.x < 1.0) {
+					vTransformationMatrix = readLinescrollBuffer(int(aMapInfo4.x), 0);
+				} else {
+					vTransformationMatrix = mat3(
+						1, 0, 0,
+						0, 1, 0,
+						0, 0, 1);
+				}
 			}
 		`;
 	const fsSource = `
@@ -47,16 +80,41 @@ export function initMapShaders(vdp) {
 			varying vec2 vTilesetStart;
 			varying float vTilesetWidth, vHighPrioTileZ;
 			varying vec2 vTileSize;
-			uniform sampler2D uSamplerMaps, uSamplerSprites, uSamplerPalettes;
+			varying mat3 vTransformationMatrix;
+			varying vec2 vOtherInfo;
+			
+			uniform mat4 uModelViewMatrix;
+			uniform sampler2D uSamplerMaps, uSamplerSprites, uSamplerPalettes, uSamplerOthers;
 			
 			int intMod(int x, int y) {
 				return int(mod(float(x), float(y)));
 			}
 			
+			// y > 0! x can be negative or positive
+			int intDiv(float x, float y) {
+				if (x >= 0.0) return int(x / y);
+				return int((x - y) / y);
+			}
+
+			mat3 readLinescrollBuffer(int bufferNo, int horizOffset) {
+				float vOfs = float(bufferNo) / ${OTHER_TEX_H - 1}.0;
+				vec4 first = texture2D(uSamplerOthers, vec2(float(horizOffset) / ${OTHER_TEX_W - 1}.0, vOfs));
+				vec4 second = texture2D(uSamplerOthers, vec2(float(horizOffset + 1) / ${OTHER_TEX_W - 1}.0, vOfs));
+				return mat3(
+					first.xy, first.z,
+					vec2(first.a, second.r), first.g,
+					second.ba, 1.0);
+			}
+			
 			int readMap(int x, int y) {
 				x = int(mod(float(x), vMapSize.x) + vMapStart.x);
 				y = int(mod(float(y), vMapSize.y) + vMapStart.y);
-				return 2;
+				
+				int texelId = x / 2;
+				int texelC = x - texelId * 2;
+				vec4 read = texture2D(uSamplerMaps, vec2(float(texelId) / ${MAP_TEX_W - 1}.0, float(y) / ${MAP_TEX_H - 1}.0));
+				if (texelC == 0) return int(read.r * 255.0) + int(read.g * 255.0) * 256;
+				return int(read.b * 255.0) + int(read.a * 255.0) * 256;
 			}
 			
 			vec2 positionInTexture(int tileNo) {
@@ -82,12 +140,30 @@ export function initMapShaders(vdp) {
 			}
 		
 			void main(void) {
-				// TODO: divide position because we want a map position
-				int mapTileNo = readMap(int(vTextureCoord.x / vTileSize.x), int(vTextureCoord.y / vTileSize.y));
+				mat3 transformationMatrix;
+				// Per-line info
+				if (vOtherInfo.x >= 1.0) {
+					float y = float(${SCREEN_HEIGHT}) - gl_FragCoord.y;
+					// 2 colors (8 float values) per matrix
+					transformationMatrix = readLinescrollBuffer(int(vOtherInfo.x), int(y * 2.0));
+				}
+				else {
+					transformationMatrix = vTransformationMatrix;
+				}
+			
+				vec2 texCoord = (transformationMatrix * vec3(vTextureCoord.x, vTextureCoord.y, 1)).xy;
+				int mapX = intDiv(texCoord.x, vTileSize.x), mapY = intDiv(texCoord.y, vTileSize.y);
+				
+				// Out of bounds?
+				if (vOtherInfo.y < 1.0 && (mapX < 0 || mapY < 0 || mapX >= int(vMapSize.x) || mapY >= int(vMapSize.y))) {
+					discard;
+				}
+				
+				int mapTileNo = readMap(mapX, mapY);
 
 				// Position of tile no in sprite texture, now we need to add the offset
 				vec2 tilesetPos = positionInTexture(mapTileNo)
-					+ vec2(mod(vTextureCoord.x, vTileSize.x), mod(vTextureCoord.y, vTileSize.y));
+					+ vec2(mod(texCoord.x, vTileSize.x), mod(texCoord.y, vTileSize.y));
 				float texel = readTexel(tilesetPos.x, tilesetPos.y);
 
 				gl_FragColor = readPalette(texel, vPaletteNo);
@@ -103,12 +179,14 @@ export function initMapShaders(vdp) {
 			mapInfo1: gl.getAttribLocation(shaderProgram, 'aMapInfo1'),
 			mapInfo2: gl.getAttribLocation(shaderProgram, 'aMapInfo2'),
 			mapInfo3: gl.getAttribLocation(shaderProgram, 'aMapInfo3'),
+			mapInfo4: gl.getAttribLocation(shaderProgram, 'aMapInfo4')
 		},
 		buffers: {
 			xyzp: makeBuffer(gl, TOTAL_VERTICES * 4),
 			mapInfo1: makeBuffer(gl, TOTAL_VERTICES * 4),
 			mapInfo2: makeBuffer(gl, TOTAL_VERTICES * 4),
-			mapInfo3: makeBuffer(gl, TOTAL_VERTICES * 4)
+			mapInfo3: makeBuffer(gl, TOTAL_VERTICES * 4),
+			mapInfo4: makeBuffer(gl, TOTAL_VERTICES * 4)
 		},
 		uniformLocations: {
 			projectionMatrix: gl.getUniformLocation(shaderProgram, 'uProjectionMatrix'),
@@ -116,11 +194,12 @@ export function initMapShaders(vdp) {
 			uSamplerMaps: gl.getUniformLocation(shaderProgram, 'uSamplerMaps'),
 			uSamplerSprites: gl.getUniformLocation(shaderProgram, 'uSamplerSprites'),
 			uSamplerPalettes: gl.getUniformLocation(shaderProgram, 'uSamplerPalettes'),
+			uSamplerOthers: gl.getUniformLocation(shaderProgram, 'uSamplerOthers'),
 		},
 	};
 }
 
-export function drawMap(vdp, uMap, vMap, uTileset, vTileset, mapWidth, mapHeight, tilesetWidth, tilesetHeight, tileWidth, tileHeight, palNo) {
+export function drawMap(vdp, uMap, vMap, uTileset, vTileset, mapWidth, mapHeight, tilesetWidth, tilesetHeight, tileWidth, tileHeight, palNo, linescrollBuffer) {
 	const gl = vdp.gl;
 	const prog = vdp.mapProgram;
 
@@ -152,6 +231,14 @@ export function drawMap(vdp, uMap, vMap, uTileset, vTileset, mapWidth, mapHeight
 		tileWidth, tileHeight, 0, SCREEN_HEIGHT,
 		tileWidth, tileHeight, SCREEN_WIDTH, SCREEN_HEIGHT
 	];
+	// linescroll buffer (row no in otherTexture), whether to wrap around map size (0=off, 1=on)
+	const wrap = 0;
+	const infos4 = [
+		linescrollBuffer, wrap, 0, 0,
+		linescrollBuffer, wrap, 0, 0,
+		linescrollBuffer, wrap, 0, 0,
+		linescrollBuffer, wrap, 0, 0
+	];
 
 	gl.bindBuffer(gl.ARRAY_BUFFER, prog.buffers.xyzp);
 	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
@@ -161,6 +248,8 @@ export function drawMap(vdp, uMap, vMap, uTileset, vTileset, mapWidth, mapHeight
 	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(infos2), gl.STATIC_DRAW);
 	gl.bindBuffer(gl.ARRAY_BUFFER, prog.buffers.mapInfo3);
 	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(infos3), gl.STATIC_DRAW);
+	gl.bindBuffer(gl.ARRAY_BUFFER, prog.buffers.mapInfo4);
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(infos4), gl.STATIC_DRAW);
 
 	gl.useProgram(prog.program);
 	{
@@ -192,6 +281,12 @@ export function drawMap(vdp, uMap, vMap, uTileset, vTileset, mapWidth, mapHeight
 		gl.vertexAttribPointer(prog.attribLocations.mapInfo3, num, type, normalize, stride, offset);
 		gl.enableVertexAttribArray(prog.attribLocations.mapInfo3);
 	}
+	{
+		const num = 4, type = gl.FLOAT, normalize = false, stride = 0, offset = 0;
+		gl.bindBuffer(gl.ARRAY_BUFFER, prog.buffers.mapInfo4);
+		gl.vertexAttribPointer(prog.attribLocations.mapInfo4, num, type, normalize, stride, offset);
+		gl.enableVertexAttribArray(prog.attribLocations.mapInfo4);
+	}
 
 	// Tell WebGL we want to affect texture unit 0
 	gl.activeTexture(gl.TEXTURE0);
@@ -201,11 +296,14 @@ export function drawMap(vdp, uMap, vMap, uTileset, vTileset, mapWidth, mapHeight
 	gl.bindTexture(gl.TEXTURE_2D, vdp.paletteTexture);
 	gl.activeTexture(gl.TEXTURE2);
 	gl.bindTexture(gl.TEXTURE_2D, vdp.mapTexture);
+	gl.activeTexture(gl.TEXTURE3);
+	gl.bindTexture(gl.TEXTURE_2D, vdp.otherTexture);
 
 	// Tell the shader we bound the texture to texture unit 0
 	gl.uniform1i(prog.uniformLocations.uSamplerSprites, 0);
 	gl.uniform1i(prog.uniformLocations.uSamplerPalettes, 1);
 	gl.uniform1i(prog.uniformLocations.uSamplerMaps, 2);
+	gl.uniform1i(prog.uniformLocations.uSamplerOthers, 3);
 
 	// Set the shader uniforms
 	gl.uniformMatrix4fv(prog.uniformLocations.projectionMatrix, false, vdp.projectionMatrix);

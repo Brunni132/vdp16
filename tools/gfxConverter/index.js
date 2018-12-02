@@ -195,6 +195,8 @@ for (let j = 0; j < palettes.length; j++) {
 	palettes[j].copyToTexture32(paletteTex, 0, j);
 }
 
+// mapTex.forEachPixel((_, x, y) => mapTex.setPixel(x, y, 1));
+
 // console.log(`TEMP `, palettes[0].colorData[0]);
 // console.log(`TEMP `, palettes[0].colorData[1]);
 // console.log(`TEMP `, palettes[0].colorData[2]);
