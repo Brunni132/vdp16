@@ -6,7 +6,7 @@ import {OTHER_TEX_W} from "./shaders";
 
 class VDP {
 	constructor(canvas, done) {
-		// Members
+		/** @type {CanvasRenderingContext2D} */
 		this.gl = null;
 		this.mapProgram = {
 			program: null,
@@ -31,8 +31,11 @@ class VDP {
 				uSamplerSprites: null,
 			}
 		};
+		/** @type {number} */
 		this.mapTexture = null;
+		/** @type {mat4} */
 		this.modelViewMatrix = null;
+		/** @type {mat4} */
 		this.projectionMatrix = null;
 		this.spriteProgram = {
 			program: null,
@@ -55,8 +58,11 @@ class VDP {
 				uSamplerSprites: null
 			},
 		};
+		/** @type {number} */
 		this.paletteTexture = null;
+		/** @type {number} */
 		this.spriteTexture = null;
+		/** @type {number} */
 		this.otherTexture = null;
 
 		// Methods

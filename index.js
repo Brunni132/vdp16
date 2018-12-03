@@ -1,6 +1,13 @@
 import {loadVdp} from "./vdp/vdp";
 import {mat3, mat4} from "./gl-matrix";
-import {readFromTexture, readFromTexture16, readFromTexture32, readFromTextureU16, writeToTextureU8} from "./vdp/utils";
+import {
+	readFromTexture,
+	readFromTexture16,
+	readFromTexture32, readFromTextureFloat,
+	readFromTextureU16,
+	readFromTextureU8, writeToTextureFloat, writeToTextureU16,
+	writeToTextureU8
+} from "./vdp/utils";
 import {SCREEN_HEIGHT, SCREEN_WIDTH} from "./vdp/shaders";
 
 main();
@@ -13,73 +20,28 @@ function main() {
   loadVdp(canvas, (vdp) => {
   	const gl = vdp.gl;
 
-		// Create a general-purpose texture
-		// const dataTex = createDataTexture8(gl, 4096, 1024);
-		// const dataTexData = new Uint8Array(8);
-		// dataTexData[0] = 0;
-		// dataTexData[1] = 1;
-		// dataTexData[2] = 10;
-		// dataTexData[3] = 255;
-		// dataTexData[4] = 0;
-		// dataTexData[5] = 0;
-		// dataTexData[6] = 3;
-		// dataTexData[7] = 1;
-		// gl.texSubImage2D(gl.TEXTURE_2D, 0,
-		// 	0, 0, // offs
-		// 	2, 1, // size
-		// 	gl.RGBA, gl.UNSIGNED_BYTE,
-		// 	dataTexData
-		// );
-
-		// const dataTexData = new Uint8Array(8);
-		// for (let i = 0; i < 8; i++) {
-		// 	dataTexData[i] = i % 8;
-		// }
-		// gl.bindTexture(gl.TEXTURE_2D, vdp.spriteTexture);
-		// gl.texSubImage2D(gl.TEXTURE_2D, 0,
-		// 	0, 0,
-		// 	2, 1,
-		// 	gl.RGBA, gl.UNSIGNED_BYTE,
-		// 	dataTexData);
-
 		vdp.startFrame();
 
-		// const mapData = new Uint8Array(16 * 2);
-		// readFromTexture32(vdp.gl, vdp.mapTexture, 0, 0, 4/2, 4, mapData);
-		// for (let i = 0; i < 16; i++) mapData[i*2] = i;
-		// gl.bindTexture(gl.TEXTURE_2D, vdp.mapTexture);
-		// gl.texSubImage2D(gl.TEXTURE_2D, 0,
-		// 	0, 0,
-		// 	4/2, 4,
-		// 	gl.RGBA, gl.UNSIGNED_BYTE,
-		// 	mapData);
-
-		const mapData = readFromTextureU16(vdp.gl, vdp.mapTexture, 0, 0, 4, 4);
+		// 2x4 RGBA texels = 4x4 16-bit words
+		const mapData = readFromTextureU16(gl, vdp.mapTexture, 0, 0, 2, 4);
 		for (let i = 0; i < 16; i++) mapData[i] = i;
-		writeToTextureU8(vdp.gl, vdp.mapTexture, 0, 0, 2, 4, new Uint8Array(mapData.buffer));
+		writeToTextureU16(gl, vdp.mapTexture, 0, 0, 2, 4, mapData);
 
 		// Only using 8 components, assuming that the last is always 1 (which is OK for affine transformations)
 		const mat = mat3.create();
 		mat3.translate(mat, mat, [16, 16]);
 		mat3.rotate(mat, mat, Math.PI / 2);
 		mat3.translate(mat, mat, [-SCREEN_WIDTH / 2, -SCREEN_HEIGHT / 2]);
-		console.log(`TEMP `, mat);
-		gl.bindTexture(gl.TEXTURE_2D, vdp.otherTexture);
-		gl.texSubImage2D(gl.TEXTURE_2D, 0,
-			0, 0,
-			2, 1,
-			gl.RGBA, gl.FLOAT,
-			mat);
+		writeToTextureFloat(gl, vdp.otherTexture, 0, 0, 2, 1, mat);
 
-
-		// gl.activeTexture(gl.TEXTURE1);
-		// gl.bindTexture(gl.TEXTURE_2D, dataTex);
+		// 2x1 RGBA texels = 8x1 float words
+		const testRead = readFromTextureFloat(gl, vdp.otherTexture, 0, 0, 2, 1);
+		console.log(`TEMP read from float `, testRead);
 
 		vdp.drawSprite(
 			10, 10, 10+24*2, 10+24*2,
 			0, 0, 24, 24,
 			0);
-
 
 		// mat4.scale(vdp.modelViewMatrix, vdp.modelViewMatrix, [1, 1, 1]);
 

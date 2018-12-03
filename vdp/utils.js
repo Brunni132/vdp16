@@ -176,8 +176,11 @@ function bindToFramebuffer(gl, texture) {
  * @returns {Uint8Array}
  */
 export function readFromTextureU8(gl, texture, x, y, w, h) {
-	assert(x % 4 === 0 && w % 4 === 0);
-	return new Uint8Array(readFromTexture(gl, texture, Math.floor(x / 4), y, Math.floor(w / 4), h));
+	const result = new Uint8Array(w * h * 4);
+	bindToFramebuffer(gl, texture);
+	gl.readPixels(x, y, w, h, gl.RGBA, gl.UNSIGNED_BYTE, result);
+	bindToFramebuffer(gl, null);
+	return result;
 }
 
 /**
@@ -190,8 +193,7 @@ export function readFromTextureU8(gl, texture, x, y, w, h) {
  * @returns {Uint16Array}
  */
 export function readFromTextureU16(gl, texture, x, y, w, h) {
-	assert(x % 2 === 0 && w % 2 === 0);
-	return new Uint16Array(readFromTexture(gl, texture, Math.floor(x / 2), y, Math.floor(w / 2), h));
+	return new Uint16Array(readFromTextureU8(gl, texture, x, y, w, h).buffer);
 }
 
 /**
@@ -204,24 +206,7 @@ export function readFromTextureU16(gl, texture, x, y, w, h) {
  * @returns {Uint32Array}
  */
 export function readFromTextureU32(gl, texture, x, y, w, h) {
-	return new Uint32Array(readFromTexture(gl, texture, x, y, w, h));
-}
-
-/**
- * @param gl
- * @param texture
- * @param x {number} in texels (4 words per texel)
- * @param y {number}
- * @param w {number} in texels
- * @param h {number}
- * @returns {Float32Array}
- */
-export function readFromTextureFloat(gl, texture, x, y, w, h) {
-	const result = new Float32Array(w * h * 4);
-	bindToFramebuffer(gl, texture);
-	gl.readPixels(x, y, w, h, gl.RGBA, gl.FLOAT, result);
-	bindToFramebuffer(gl, null);
-	return result;
+	return new Uint32Array(readFromTextureU8(gl, texture, x, y, w, h).buffer);
 }
 
 /**
@@ -231,12 +216,12 @@ export function readFromTextureFloat(gl, texture, x, y, w, h) {
  * @param y {number}
  * @param w {number} in texels
  * @param h {number}
- * @returns {ArrayBuffer}
+ * @returns {Float32Array}
  */
-export function readFromTexture(gl, texture, x, y, w, h) {
-	const result = new ArrayBuffer(w * h * 4);
+export function readFromTextureFloat(gl, texture, x, y, w, h) {
+	const result = new Float32Array(w * h * 4);
 	bindToFramebuffer(gl, texture);
-	gl.readPixels(x, y, w, h, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(result));
+	gl.readPixels(x, y, w, h, gl.RGBA, gl.FLOAT, result);
 	bindToFramebuffer(gl, null);
 	return result;
 }
@@ -252,10 +237,9 @@ export function readFromTexture(gl, texture, x, y, w, h) {
  * @param array {Uint8Array}
  */
 export function writeToTextureU8(gl, texture, x, y, w, h, array) {
-	assert(x % 4 === 0 && w % 4 === 0);
 	gl.bindTexture(gl.TEXTURE_2D, texture);
 	gl.texSubImage2D(gl.TEXTURE_2D, 0,
-		Math.floor(x / 4), y, Math.floor(w / 4), h,
+		x, y, w, h,
 		gl.RGBA, gl.UNSIGNED_BYTE, array);
 }
 
@@ -270,11 +254,7 @@ export function writeToTextureU8(gl, texture, x, y, w, h, array) {
  * @param array {Uint16Array}
  */
 export function writeToTextureU16(gl, texture, x, y, w, h, array) {
-	assert(x % 2 === 0 && w % 2 === 0);
-	gl.bindTexture(gl.TEXTURE_2D, texture);
-	gl.texSubImage2D(gl.TEXTURE_2D, 0,
-		Math.floor(x / 2), y, Math.floor(w / 2), h,
-		gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(array.buffer));
+	writeToTextureU8(gl, texture, x, y, w, h, new Uint8Array(array.buffer));
 }
 
 /**
@@ -288,10 +268,7 @@ export function writeToTextureU16(gl, texture, x, y, w, h, array) {
  * @param array {Uint32Array}
  */
 export function writeToTextureU32(gl, texture, x, y, w, h, array) {
-	gl.bindTexture(gl.TEXTURE_2D, texture);
-	gl.texSubImage2D(gl.TEXTURE_2D, 0,
-		x, y, w, h,
-		gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(array.buffer));
+	writeToTextureU8(gl, texture, x, y, w, h, new Uint8Array(array.buffer));
 }
 
 /**
