@@ -186,6 +186,27 @@ masterSpriteList.addSprite('font',
 	Sprite.fromImage32(Texture.fromPng32('font.png'), palettes[0])
 );
 
+masterSpriteList.texture.setPixel(0, 0, 127);
+masterSpriteList.texture.setPixel(1, 0, 128);
+masterSpriteList.texture.setPixel(2, 0, 129);
+masterSpriteList.texture.setPixel(3, 0, 254);
+masterSpriteList.texture.setPixel(4, 0, 255);
+
+while (palettes[0].colorData.length < 127)
+	palettes[0].colorData.push(0);
+// 127=red
+palettes[0].colorData.push(0xffff0000);
+// 128=green
+palettes[0].colorData.push(0xff00ff00);
+// 129=blue
+palettes[0].colorData.push(0xff0000ff);
+while (palettes[0].colorData.length < 254)
+	palettes[0].colorData.push(0);
+// 254=yellow
+palettes[0].colorData.push(0xffffff00);
+// 255=magenta
+palettes[0].colorData.push(0xffff00ff);
+
 masterSpriteList.writeSampleImage('sample.png');
 // ---------- End program ------------
 

@@ -152,6 +152,12 @@ export function makeBuffer(gl, verticesCount) {
 	return result;
 }
 
+export function memcpy(dst, dstOffset, src, srcOffset, length) {
+	const dstU8 = new Uint8Array(dst, dstOffset, length);
+	const srcU8 = new Uint8Array(src, srcOffset, length);
+	dstU8.set(srcU8);
+}
+
 let readPixelsFramebuffer = null;
 
 function bindToFramebuffer(gl, texture) {

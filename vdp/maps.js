@@ -36,9 +36,9 @@ export function initMapShaders(vdp) {
 			uniform sampler2D uSamplerMaps, uSamplerSprites, uSamplerPalettes, uSamplerOthers;
 		
 			mat3 readLinescrollBuffer(int bufferNo, int horizOffset) {
-				float vOfs = float(bufferNo) / ${OTHER_TEX_H - 1}.0;
-				vec4 first = texture2D(uSamplerOthers, vec2(float(horizOffset) / ${OTHER_TEX_W - 1}.0, vOfs));
-				vec4 second = texture2D(uSamplerOthers, vec2(float(horizOffset + 1) / ${OTHER_TEX_W - 1}.0, vOfs));
+				float vOfs = float(bufferNo) / ${OTHER_TEX_H}.0;
+				vec4 first = texture2D(uSamplerOthers, vec2(float(horizOffset) / ${OTHER_TEX_W}.0, vOfs));
+				vec4 second = texture2D(uSamplerOthers, vec2(float(horizOffset + 1) / ${OTHER_TEX_W}.0, vOfs));
 				return mat3(
 					first.xy, first.z,
 					vec2(first.a, second.r), first.g,
@@ -47,7 +47,7 @@ export function initMapShaders(vdp) {
 		
 			void main(void) {
 				gl_Position = uProjectionMatrix * uModelViewMatrix * vec4(aXyzp.xyz, 1);
-				vPaletteNo = (aXyzp.w / ${PALETTE_TEX_H - 1}.0);
+				vPaletteNo = (aXyzp.w / ${PALETTE_TEX_H}.0);
 				vMapStart = aMapInfo1.xy;
 				vTilesetStart = aMapInfo1.zw;
 				vMapSize = aMapInfo2.xy;
@@ -94,9 +94,9 @@ export function initMapShaders(vdp) {
 			}
 
 			mat3 readLinescrollBuffer(int bufferNo, int horizOffset) {
-				float vOfs = float(bufferNo) / ${OTHER_TEX_H - 1}.0;
-				vec4 first = texture2D(uSamplerOthers, vec2(float(horizOffset) / ${OTHER_TEX_W - 1}.0, vOfs));
-				vec4 second = texture2D(uSamplerOthers, vec2(float(horizOffset + 1) / ${OTHER_TEX_W - 1}.0, vOfs));
+				float vOfs = float(bufferNo) / ${OTHER_TEX_H}.0;
+				vec4 first = texture2D(uSamplerOthers, vec2(float(horizOffset) / ${OTHER_TEX_W}.0, vOfs));
+				vec4 second = texture2D(uSamplerOthers, vec2(float(horizOffset + 1) / ${OTHER_TEX_W}.0, vOfs));
 				return mat3(
 					first.xy, first.z,
 					vec2(first.a, second.r), first.g,
@@ -109,7 +109,7 @@ export function initMapShaders(vdp) {
 				
 				int texelId = x / 2;
 				int texelC = x - texelId * 2;
-				vec4 read = texture2D(uSamplerMaps, vec2(float(texelId) / ${MAP_TEX_W - 1}.0, float(y) / ${MAP_TEX_H - 1}.0));
+				vec4 read = texture2D(uSamplerMaps, vec2(float(texelId) / ${MAP_TEX_W}.0, float(y) / ${MAP_TEX_H}.0));
 				if (texelC == 0) return int(read.r * 255.0) + int(read.g * 255.0) * 256;
 				return int(read.b * 255.0) + int(read.a * 255.0) * 256;
 			}
@@ -124,12 +124,12 @@ export function initMapShaders(vdp) {
 			// Returns a value between 0 and 1, ready to map a color in palette (0..255)
 			float readTexel(float x, float y) {
 				int texelId = int(x / 4.0);
-				vec4 read = texture2D(uSamplerSprites, vec2(float(texelId) / ${SPRITE_TEX_W - 1}.0, y / ${SPRITE_TEX_H - 1}.0));
+				vec4 read = texture2D(uSamplerSprites, vec2(float(texelId) / ${SPRITE_TEX_W}.0, y / ${SPRITE_TEX_H}.0));
 				int texelC = int(x) - texelId * 4;
-				if (texelC == 0) return read.r * float(${PALETTE_TEX_W / 256.0});
-				if (texelC == 1) return read.g * float(${PALETTE_TEX_W / 256.0});
-				if (texelC == 2) return read.b * float(${PALETTE_TEX_W / 256.0});
-				return read.a * float(${PALETTE_TEX_W / 256.0});
+				if (texelC == 0) return read.r * float(${255.0 / 256.0 * PALETTE_TEX_W / 256.0});
+				if (texelC == 1) return read.g * float(${255.0 / 256.0 * PALETTE_TEX_W / 256.0});
+				if (texelC == 2) return read.b * float(${255.0 / 256.0 * PALETTE_TEX_W / 256.0});
+				return read.a * float(${255.0 / 256.0 * PALETTE_TEX_W / 256.0});
 			}
 			
 			vec4 readPalette(float x, float y) {
@@ -164,7 +164,7 @@ export function initMapShaders(vdp) {
 				float texel = readTexel(tilesetPos.x, tilesetPos.y);
 
 				// Color zero
-				if (texel < ${1.0 / (PALETTE_TEX_W - 1)}) discard;
+				if (texel < ${1.0 / PALETTE_TEX_W}) discard;
 				gl_FragColor = readPalette(texel, vPaletteNo);
 			}
 		`;
