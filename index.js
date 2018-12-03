@@ -1,6 +1,6 @@
 import {loadVdp} from "./vdp/vdp";
 import {mat3, mat4} from "./gl-matrix";
-import {readFromTexture16, readFromTexture32} from "./vdp/utils";
+import {readFromTexture, readFromTexture16, readFromTexture32, readFromTextureU16, writeToTextureU8} from "./vdp/utils";
 import {SCREEN_HEIGHT, SCREEN_WIDTH} from "./vdp/shaders";
 
 main();
@@ -44,21 +44,26 @@ function main() {
 
 		vdp.startFrame();
 
-		const mapData = new Uint8Array(16 * 2);
-		readFromTexture32(vdp.gl, vdp.mapTexture, 0, 0, 4/2, 4, mapData);
-		for (let i = 0; i < 16; i++) mapData[i*2] = i;
-		gl.bindTexture(gl.TEXTURE_2D, vdp.mapTexture);
-		gl.texSubImage2D(gl.TEXTURE_2D, 0,
-			0, 0,
-			4/2, 4,
-			gl.RGBA, gl.UNSIGNED_BYTE,
-			mapData);
+		// const mapData = new Uint8Array(16 * 2);
+		// readFromTexture32(vdp.gl, vdp.mapTexture, 0, 0, 4/2, 4, mapData);
+		// for (let i = 0; i < 16; i++) mapData[i*2] = i;
+		// gl.bindTexture(gl.TEXTURE_2D, vdp.mapTexture);
+		// gl.texSubImage2D(gl.TEXTURE_2D, 0,
+		// 	0, 0,
+		// 	4/2, 4,
+		// 	gl.RGBA, gl.UNSIGNED_BYTE,
+		// 	mapData);
+
+		const mapData = readFromTextureU16(vdp.gl, vdp.mapTexture, 0, 0, 4, 4);
+		for (let i = 0; i < 16; i++) mapData[i] = i;
+		writeToTextureU8(vdp.gl, vdp.mapTexture, 0, 0, 2, 4, new Uint8Array(mapData.buffer));
 
 		// Only using 8 components, assuming that the last is always 1 (which is OK for affine transformations)
 		const mat = mat3.create();
 		mat3.translate(mat, mat, [16, 16]);
 		mat3.rotate(mat, mat, Math.PI / 2);
 		mat3.translate(mat, mat, [-SCREEN_WIDTH / 2, -SCREEN_HEIGHT / 2]);
+		console.log(`TEMP `, mat);
 		gl.bindTexture(gl.TEXTURE_2D, vdp.otherTexture);
 		gl.texSubImage2D(gl.TEXTURE_2D, 0,
 			0, 0,

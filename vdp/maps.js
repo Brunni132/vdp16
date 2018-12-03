@@ -56,8 +56,8 @@ export function initMapShaders(vdp) {
 				vTileSize = aMapInfo3.xy;
 				vTextureCoord = aMapInfo3.zw;
 				vOtherInfo = aMapInfo4.xy;
-				// If 0-255, use one transformation map-wide from the first line
-				if (aMapInfo4.x < 256.0) {
+				// If 0-255, use one transformation map-wide from the first line, if -1 never use transformations
+				if (aMapInfo4.x >= 0.0 && aMapInfo4.x < 256.0) {
 					vTransformationMatrix = readLinescrollBuffer(0, int(aMapInfo4.x) * 2);
 				} else {
 					vTransformationMatrix = mat3(
@@ -163,6 +163,8 @@ export function initMapShaders(vdp) {
 					+ vec2(mod(texCoord.x, vTileSize.x), mod(texCoord.y, vTileSize.y));
 				float texel = readTexel(tilesetPos.x, tilesetPos.y);
 
+				// Color zero
+				if (texel < ${1.0 / (PALETTE_TEX_W - 1)}) discard;
 				gl_FragColor = readPalette(texel, vPaletteNo);
 			}
 		`;

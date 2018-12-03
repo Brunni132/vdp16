@@ -73,6 +73,8 @@ export function initSpriteShaders(vdp) {
 		
 			void main(void) {
 				float texel = readTexel(vTextureCoord.x, vTextureCoord.y);
+				// Color zero
+				if (texel < ${1.0 / (PALETTE_TEX_W - 1)}) discard;
 				gl_FragColor = readPalette(texel, vPaletteNo);
 			}
 		`;
