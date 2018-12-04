@@ -43,6 +43,11 @@ function main() {
 			0, 0, 24, 24,
 			0);
 
+		vdp.drawSprite(
+			80, 80, 80+16, 80+16,
+			128, 0, 128+16, 0+16,
+			1);
+
 		// mat4.scale(vdp.modelViewMatrix, vdp.modelViewMatrix, [1, 1, 1]);
 
 		// vdp.drawSprite(0, 0, 160, 160, 0, 0, 8, 8, 1);

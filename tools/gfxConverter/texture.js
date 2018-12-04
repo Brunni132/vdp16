@@ -30,7 +30,12 @@ class Texture {
 		return new Texture(name, width, height, bitDepth);
 	}
 
-	// Read a png and interprets it as a 8 bit texture (each RGBA component is one pixel in the resulting texture, which has 4x the width of the original texture)
+	/**
+	 * Read a png and interprets it as a 8 bit texture (each RGBA component is one pixel in the resulting texture, which
+	 * has 4x the width of the original texture).
+	 * @param srcFileName {string}
+	 * @returns {Texture}
+	 */
 	static fromPng8(srcFileName) {
 		const data = fs.readFileSync(srcFileName);
 		const png = PNG.sync.read(data);
@@ -41,10 +46,16 @@ class Texture {
 		return result;
 	}
 
+	/**
+	 * Read a png and interprets it as a 16 bit texture (each RG and BA component make two pixels in the resulting
+	 * texture, which has 2x the width of the original texture).
+	 * @param srcFileName {string}
+	 * @returns {Texture}
+	 */
 	static fromPng16(srcFileName) {
 		const data = fs.readFileSync(srcFileName);
 		const png = PNG.sync.read(data);
-		const result = new Texture(srcFileName, png.width, png.height, 16);
+		const result = new Texture(srcFileName, png.width * 2, png.height, 16);
 		let y = 0;
 		for (let x = 0; x < png.height * png.width * 4; x += 2) {
 			result.pixelData[y++] = png.data[x] + (png.data[x + 1] << 8);
@@ -52,7 +63,11 @@ class Texture {
 		return result;
 	}
 
-	// Read a png as a 32 bit texture directly. Same width as original.
+	/**
+	 * Read a png as a 32 bit texture directly. Same width as original.
+	 * @param srcFileName {string}
+	 * @returns {Texture}
+	 */
 	static fromPng32(srcFileName) {
 		const data = fs.readFileSync(srcFileName);
 		const png = PNG.sync.read(data);
@@ -64,12 +79,18 @@ class Texture {
 		return result;
 	}
 
+	/**
+	 * @param cb {function(number, number)}
+	 */
 	forEachPixelLinear(cb) {
 		for (let x = 0; x < this.width * this.height; x++) {
 			cb(this.pixelData[x], x);
 		}
 	}
 
+	/**
+	 * @param cb {function(number, number, number)}
+	 */
 	forEachPixel(cb) {
 		let z = 0;
 		for (let y = 0; y < this.height; y++)
@@ -78,11 +99,23 @@ class Texture {
 			}
 	}
 
+	/**
+	 * @param x {number}
+	 * @param y {number}
+	 * @returns {number}
+	 */
 	getPixel(x, y) {
 		return this.pixelData[y * this.width + x];
 	}
 
-	makeSubtexture(x, y, width, height) {
+	/**
+	 * @param x {number}
+	 * @param y {number}
+	 * @param width {number}
+	 * @param height {number}
+	 * @returns {Texture}
+	 */
+	subtexture(x, y, width, height) {
 		const result = Texture.blank(this.name + '[]', width, height, this.bpp * 8);
 		for (let j = 0; j < result.height; j++) {
 			for (let i = 0; i < result.width; i++) {
@@ -92,6 +125,11 @@ class Texture {
 		return result;
 	}
 
+	/**
+	 * @param x {number}
+	 * @param y {number}
+	 * @param pix {number}
+	 */
 	setPixel(x, y, pix) {
 		// To treat as unsigned
 		if (this.bpp < 4 && (pix >> (this.bpp * 8)) !== 0) {
@@ -100,8 +138,11 @@ class Texture {
 		this.pixelData[Math.floor(y) * this.width + Math.floor(x)] = pix;
 	}
 
-	// Writes the texture as a PNG file. Depending on the BPP, the texture will be smaller than the width specified.
-	// For instance, a 1024x1024, 8bpp texture will be written to the disk as a 256x1024, 32bpp texture.
+	/**
+	 * Writes the texture as a PNG file. Depending on the BPP, the texture will be smaller than the width specified.
+	 * For instance, a 1024x1024, 8bpp texture will be written to the disk as a 256x1024, 32bpp texture.
+	 * @param destFileName {string}
+	 */
 	writeToPng(destFileName) {
 		const mapPng = new PNG({
 			width: Math.floor(this.width * this.bpp / 4),

@@ -1,5 +1,6 @@
 const assert = require('assert');
 const Texture = require('./texture');
+const utils = require('./utils');
 
 class Palette {
 
@@ -41,7 +42,8 @@ class Palette {
 	 * @returns {number} the number inside the palette if this color already existed
 	 */
 	pixelNumberInsidePalette(color, allowCreate = true) {
-		const found = this.colorData.indexOf(color);
+		const noAlpha = color >>> 24 === 0;
+		const found = this.colorData.findIndex(c => c === color || (noAlpha && (c >>> 24 === 0)));
 		if (found >= 0 || !allowCreate) return found;
 
 		assert(this.colorData.length < this.maxColors, 'too many colors');
@@ -73,8 +75,7 @@ class Sprite {
 		const result = new Sprite(texture.width, texture.height, palette);
 		texture.forEachPixel((pixel, x, y) => {
 			// Add colors to the palette (or find them if they're already)
-			const color = palette.pixelNumberInsidePalette(pixel);
-			result.pixelData[y * result.width + x] = color;
+			result.pixelData[y * result.width + x] = palette.pixelNumberInsidePalette(pixel);
 		});
 		return result;
 	}
@@ -106,12 +107,19 @@ class BigFileSpriteEntry {
 	 * @param height {number}
 	 */
 	constructor(name, texture, designPalette, x, y, width, height) {
+		/** @type {string} */
 		this.name = name;
+		/** @type {MasterSpriteTexture} */
 		this.texture = texture;
+		/** @type {Palette} */
 		this.designPalette = designPalette;
+		/** @type {number} */
 		this.x = x;
+		/** @type {number} */
 		this.y = y;
+		/** @type {number} */
 		this.width = width;
+		/** @type {number} */
 		this.height = height;
 	}
 }
@@ -151,8 +159,24 @@ class MasterSpriteTexture {
 		this.currentLineHeight = Math.max(this.currentLineHeight, sprite.height);
 	}
 
+	/**
+	 * Finds the palette at a given location.
+	 * @param x
+	 * @param y
+	 * @return {BigFileSpriteEntry | undefined}
+	 */
+	findPaletteAt(x, y) {
+		return this.spriteEntries.find((entry) => {
+			return x >= entry.x && x < entry.x + entry.width && y >= entry.y && y < entry.y + entry.height;
+		});
+	}
+
+	/**
+	 * Remaining space on the current line.
+	 * @returns {{x: number, y: number}}
+	 */
 	remainingSpace() {
-		return { x: this.currentLineX - this.width, y: this.currentLineY - this.height };
+		return { x: this.width - this.currentLineX, y: this.height - this.currentLineY };
 	}
 
 	startNewLine() {
@@ -160,12 +184,25 @@ class MasterSpriteTexture {
 		this.currentLineY += this.currentLineHeight;
 	}
 
+	/**
+	 * @return {number} between 0 (empty) and 1 (full).
+	 */
+	memoryUsage() {
+		const usageX = this.currentLineX / this.width;
+		return this.currentLineY / this.height + usageX * (this.currentLineHeight / this.height);
+	}
+
+	/**
+	 * @param fileName {string}
+	 */
 	writeSampleImage(fileName) {
 		// Use only one palette
 		const defaultPal = this.spriteEntries[0].designPalette;
 		const result = new Texture('sample', this.texture.width, this.texture.height, 32);
 		this.texture.forEachPixel((pix, x, y) => {
-			result.setPixel(x, y, defaultPal.colorData[pix]);
+			const data = this.findPaletteAt(x, y);
+			const palette = data ? data.designPalette : defaultPal;
+			result.setPixel(x, y, palette.colorData[pix]);
 		});
 		result.writeToPng(fileName);
 	}
@@ -180,11 +217,13 @@ const palettes = [];
 const masterSpriteList = new MasterSpriteTexture(spriteTex);
 
 // ---------- Your program ------------
-palettes.push(new Palette('Default palette'));
+palettes.push(new Palette('Default'), new Palette('Mario'));
 
 masterSpriteList.addSprite('font',
-	Sprite.fromImage32(Texture.fromPng32('font.png'), palettes[0])
-);
+	Sprite.fromImage32(Texture.fromPng32('font.png'), palettes[0]));
+
+masterSpriteList.addSprite('mario',
+	Sprite.fromImage32(Texture.fromPng32('mario-luigi-2.png').subtexture(80, 32, 224, 16), palettes[1]));
 
 masterSpriteList.texture.setPixel(0, 0, 127);
 masterSpriteList.texture.setPixel(1, 0, 128);
@@ -206,8 +245,6 @@ while (palettes[0].colorData.length < 254)
 palettes[0].colorData.push(0xffffff00);
 // 255=magenta
 palettes[0].colorData.push(0xffff00ff);
-
-masterSpriteList.writeSampleImage('sample.png');
 // ---------- End program ------------
 
 
@@ -216,16 +253,14 @@ for (let j = 0; j < palettes.length; j++) {
 	palettes[j].copyToTexture32(paletteTex, 0, j);
 }
 
-// mapTex.forEachPixel((_, x, y) => mapTex.setPixel(x, y, 1));
-
-// console.log(`TEMP `, palettes[0].colorData[0]);
-// console.log(`TEMP `, palettes[0].colorData[1]);
-// console.log(`TEMP `, palettes[0].colorData[2]);
-// console.log(`TEMP `, palettes[0].colorData[3]);
-// console.log(`TEMP `, masterSpriteList.texture.getPixel(0, 10));
-// console.log(`TEMP `, masterSpriteList.texture.getPixel(1, 10));
+console.log(`Sprite usage: ${(100 * masterSpriteList.memoryUsage()).toFixed(2)}%`.formatAs(utils.BRIGHT, utils.FG_CYAN));
+//console.log(masterSpriteList.spriteEntries.map(e => ({ x: e.x, y: e.y, w: e.width, h: e.height, pal: e.designPalette.name })));
+console.log(`Palette usage: ${(100 * (palettes.length / paletteTex.height)).toFixed(2)}%`.formatAs(utils.BRIGHT, utils.FG_CYAN));
+console.log('Writing sample.png…');
+masterSpriteList.writeSampleImage('sample.png');
 
 // Write all textures
+console.log('Writing game data…');
 mapTex.writeToPng('maps.png');
 spriteTex.writeToPng('sprites.png');
 paletteTex.writeToPng('palettes.png');
