@@ -145,6 +145,11 @@ export function initMapShaders(vdp) {
 				
 				int mapTileNo = readMap(mapX, mapY);
 
+				// Bits 12-15: palette No
+				int palOfs = mapTileNo / ${1 << 12};
+				float paletteOffset = float(palOfs) / ${PALETTE_TEX_H}.0;
+				mapTileNo -= palOfs * ${1 << 12};
+
 				// Position of tile no in sprite texture, now we need to add the offset
 				vec2 tilesetPos = positionInTexture(mapTileNo)
 					+ vec2(mod(texCoord.x, vTileSize.x), mod(texCoord.y, vTileSize.y));
@@ -152,7 +157,7 @@ export function initMapShaders(vdp) {
 
 				// Color zero
 				if (texel < ${1.0 / PALETTE_TEX_W}) discard;
-				gl_FragColor = readPalette(texel, vPaletteNo);
+				gl_FragColor = readPalette(texel, vPaletteNo + paletteOffset);
 			}
 		`;
 

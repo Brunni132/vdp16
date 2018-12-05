@@ -22,6 +22,7 @@ function main() {
 		// 2x4 RGBA texels = 4x4 16-bit words
 		const mapData = new Uint16Array(readFromTexture32(gl, vdp.mapTexture, 0, 0, 2, 4).buffer);
 		for (let i = 0; i < 16; i++) mapData[i] = i;
+		mapData[1] = 1 | 1 << 12;
 		writeToTexture32(gl, vdp.mapTexture, 0, 0, 2, 4, new Uint8Array(mapData.buffer));
 
 		// Only using 8 components, assuming that the last is always 1 (which is OK for affine transformations)

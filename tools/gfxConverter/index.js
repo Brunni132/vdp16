@@ -1,4 +1,5 @@
 const assert = require('assert');
+const BigFile = require('../../vdp/bigfile');
 const fs = require('fs');
 const Texture = require('./texture');
 const utils = require('./utils');
@@ -31,6 +32,7 @@ class Palette {
 	 * @param {Texture} destTexture
 	 * @param {number} x
 	 * @param {number} y
+	 * @return {BigFile.Palette}
 	 */
 	copyToTexture32(destTexture, x, y) {
 		if (x + this.colorData.length > destTexture.width) {
@@ -40,6 +42,8 @@ class Palette {
 		for (let i = 0; i < this.colorData.length; i++) {
 			destTexture.setPixel(x + i, y, this.colorData[i]);
 		}
+
+		return { x, y, size: this.colorData.length };
 	}
 
 	/**
@@ -114,42 +118,57 @@ class Sprite {
 	}
 }
 
-class BigFile {
+class ConverterBase {
 
+	// Lo-color mode: 8192x1024 sprites (4 MB), 256x16 RGBA4444 color RAM (8 kB), 2048x1024 maps (4 MB)
+	// Hi-color mode: 4096x1024 sprites (4 MB), 256x256 RGBA8888 color RAM (256 kB), 2048x1024 maps (4 MB)
 	constructor() {
+		/** @type {Texture} */
+		this.mapTex = Texture.blank('maps', 2048, 1024, 16);
+		/** @type {Texture} */
+		this.spriteTex = Texture.blank('sprites', HICOLOR_MODE ? 4096 : 8192, 1024, HICOLOR_MODE ? 8 : 4);
+		/** @type {Texture} */
+		this.paletteTex = Texture.blank('palettes', HICOLOR_MODE ? 256 : 16, 256, 32);
+
+		/** @type {Palette[]} */
+		this.palettes = [];
+		this.sprites = new MasterSpriteList(this.spriteTex);
+	}
+
+	pack() {
+		/** @type {BigFile} */
+		const resultJson = { pals: {}, sprites: {}, maps: {}, data: {} };
+
+		// Convert all palettes to the palette tex
+		for (let i = 0; i < this.palettes.length; i++) {
+			resultJson.pals[this.palettes[i].name] = this.palettes[i].copyToTexture32(this.paletteTex, 0, i);
+		}
+
+		for (let i = 0; i < this.sprites.spriteEntries.length; i++) {
+			const entry = this.sprites.spriteEntries[i];
+			resultJson.sprites[entry.name] = entry.toBigFileEntry();
+		}
+
+		console.log(`Sprite usage: ${(100 * this.sprites.memoryUsage()).toFixed(2)}%`.formatAs(utils.BRIGHT, utils.FG_CYAN));
+		//console.log(masterSpriteList.spriteEntries.map(e => ({ x: e.x, y: e.y, w: e.width, h: e.height, pal: e.designPalette.name })));
+		console.log(`Palette usage: ${(100 * (this.palettes.length / this.paletteTex.height)).toFixed(2)}%`.formatAs(utils.BRIGHT, utils.FG_CYAN));
+		console.log('Writing sample.png…');
+		this.sprites.writeSampleImage('sample.png');
+
+		// Write all textures
+		console.log('Writing game data…');
+		//fs.writeFileSync('game.json', JSON.stringify(data), function(err) {
+		//		if (err) throw err;
+		//		console.log('complete');
+		//	}
+		//);
+		this.mapTex.writeToPng('maps.png');
+		this.spriteTex.writeToPng('sprites.png');
+		this.paletteTex.writeToPng('palettes.png');
 	}
 }
 
-class BigFileSpriteEntry {
-	/**
-	 *
-	 * @param name {string}
-	 * @param texture {MasterSpriteTexture}
-	 * @param designPalette {Palette}
-	 * @param x {number}
-	 * @param y {number}
-	 * @param width {number}
-	 * @param height {number}
-	 */
-	constructor(name, texture, designPalette, x, y, width, height) {
-		/** @type {string} */
-		this.name = name;
-		/** @type {MasterSpriteTexture} */
-		this.texture = texture;
-		/** @type {Palette} */
-		this.designPalette = designPalette;
-		/** @type {number} */
-		this.x = x;
-		/** @type {number} */
-		this.y = y;
-		/** @type {number} */
-		this.width = width;
-		/** @type {number} */
-		this.height = height;
-	}
-}
-
-class MasterSpriteTexture {
+class MasterSpriteList {
 
 	/**
 	 * @param {Texture} spriteTexture
@@ -161,8 +180,10 @@ class MasterSpriteTexture {
 		this.width = spriteTexture.width;
 		this.height = spriteTexture.height;
 		this.texture = spriteTexture;
-		/** @type {BigFileSpriteEntry[]} */
+		/** @type {MasterSpriteListSprite[]} */
 		this.spriteEntries = [];
+		/** @type {MasterSpriteListTileset[]} */
+		this.tilesetEntries = [];
 	}
 
 	/**
@@ -175,7 +196,7 @@ class MasterSpriteTexture {
 			this.startNewLine();
 		}
 
-		const entry = new BigFileSpriteEntry(name, this, sprite.palette, this.currentLineX, this.currentLineY, sprite.width, sprite.height);
+		const entry = new MasterSpriteListSprite(name, this, sprite.palette, this.currentLineX, this.currentLineY, sprite.width, sprite.height);
 		this.spriteEntries.push(entry);
 
 		sprite.copyToTexture32(this.texture, this.currentLineX, this.currentLineY);
@@ -188,7 +209,7 @@ class MasterSpriteTexture {
 	 * Finds the palette at a given location.
 	 * @param x
 	 * @param y
-	 * @return {BigFileSpriteEntry | undefined}
+	 * @return {MasterSpriteListSprite | undefined}
 	 */
 	findPaletteAt(x, y) {
 		return this.spriteEntries.find((entry) => {
@@ -233,90 +254,121 @@ class MasterSpriteTexture {
 	}
 }
 
-// Lo-color mode: 8192x1024 sprites (4 MB), 256x16 RGBA4444 color RAM (8 kB), 2048x1024 maps (4 MB)
-// Hi-color mode: 4096x1024 sprites (4 MB), 256x256 RGBA8888 color RAM (256 kB), 2048x1024 maps (4 MB)
-const mapTex = Texture.blank('maps', 2048, 1024, 16);
-const spriteTex = Texture.blank('sprites', HICOLOR_MODE ? 4096 : 8192, 1024, HICOLOR_MODE ? 8 : 4);
-const paletteTex = Texture.blank('palettes', HICOLOR_MODE ? 256 : 16, 256, 32);
+class MasterSpriteListSprite {
+	/**
+	 *
+	 * @param name {string}
+	 * @param texture {MasterSpriteList}
+	 * @param designPalette {Palette}
+	 * @param x {number}
+	 * @param y {number}
+	 * @param width {number}
+	 * @param height {number}
+	 */
+	constructor(name, texture, designPalette, x, y, width, height) {
+		/** @type {string} */
+		this.name = name;
+		/** @type {MasterSpriteList} */
+		this.texture = texture;
+		/** @type {Palette} */
+		this.designPalette = designPalette;
+		/** @type {number} */
+		this.x = x;
+		/** @type {number} */
+		this.y = y;
+		/** @type {number} */
+		this.width = width;
+		/** @type {number} */
+		this.height = height;
+	}
 
-/** @type {Palette[]} */
-const palettes = [];
-const masterSpriteList = new MasterSpriteTexture(spriteTex);
+	/**
+	 * @returns {BigFile.Sprite}
+	 */
+	toBigFileEntry() {
+		return { x: this.x, y: this.y, w: this.width, h: this.height, pal: this.designPalette.name };
+	}
+}
+
+class MasterSpriteListTileset extends MasterSpriteListSprite{
+	/**
+	 *
+	 * @param name {string}
+	 * @param texture {MasterSpriteList}
+	 * @param designPalette {Palette}
+	 * @param x {number}
+	 * @param y {number}
+	 * @param width {number}
+	 * @param height {number}
+	 */
+	constructor(name, texture, designPalette, x, y, width, height) {
+		super(name, texture, designPalette, x, y, width, height);
+	}
+
+	/**
+	 * @returns {BigFile.Sprite}
+	 */
+	toBigFileEntry() {
+		return { x: this.x, y: this.y, w: this.width, h: this.height, pal: this.designPalette.name };
+	}
+}
 
 // ---------- Your program ------------
-palettes.push(new Palette('Default'), new Palette('Mario'));
+const conv = new ConverterBase();
 
-masterSpriteList.addSprite('font',
-	Sprite.fromImage32(Texture.fromPng32('font.png'), palettes[0]));
+conv.palettes.push(new Palette('Default'), new Palette('Mario'));
 
-masterSpriteList.addSprite('mario',
-	Sprite.fromImage32(Texture.fromPng32('mario-luigi-2.png').subtexture(80, 32, 224, 16), palettes[1]));
+conv.sprites.addSprite('font',
+	Sprite.fromImage32(Texture.fromPng32('font.png'), conv.palettes[0]));
+
+conv.sprites.addSprite('mario',
+	Sprite.fromImage32(Texture.fromPng32('mario-luigi-2.png').subtexture(80, 32, 224, 16), conv.palettes[1]));
 
 if (HICOLOR_MODE) {
-	while (palettes[0].colorData.length < 127)
-		palettes[0].colorData.push(0);
+	while (conv.palettes[0].colorData.length < 127)
+		conv.palettes[0].colorData.push(0);
 	// 127=red
-	palettes[0].colorData.push(0xffff0000);
+	conv.palettes[0].colorData.push(0xffff0000);
 	// 128=green
-	palettes[0].colorData.push(0xff00ff00);
+	conv.palettes[0].colorData.push(0xff00ff00);
 	// 129=blue
-	palettes[0].colorData.push(0xff0000ff);
-	while (palettes[0].colorData.length < 254)
-		palettes[0].colorData.push(0);
+	conv.palettes[0].colorData.push(0xff0000ff);
+	while (conv.palettes[0].colorData.length < 254)
+		conv.palettes[0].colorData.push(0);
 	// 254=yellow
-	palettes[0].colorData.push(0xffffff00);
+	conv.palettes[0].colorData.push(0xffffff00);
 	// 255=magenta
-	palettes[0].colorData.push(0xffff00ff);
+	conv.palettes[0].colorData.push(0xffff00ff);
 
-	masterSpriteList.texture.setPixel(0, 0, 127);
-	masterSpriteList.texture.setPixel(1, 0, 128);
-	masterSpriteList.texture.setPixel(2, 0, 129);
-	masterSpriteList.texture.setPixel(3, 0, 254);
-	masterSpriteList.texture.setPixel(4, 0, 255);
+	conv.sprites.texture.setPixel(0, 0, 127);
+	conv.sprites.texture.setPixel(1, 0, 128);
+	conv.sprites.texture.setPixel(2, 0, 129);
+	conv.sprites.texture.setPixel(3, 0, 254);
+	conv.sprites.texture.setPixel(4, 0, 255);
 }
 else {
-	while (palettes[0].colorData.length < 7)
-		palettes[0].colorData.push(0);
+	while (conv.palettes[0].colorData.length < 7)
+		conv.palettes[0].colorData.push(0);
 	// 7=red
-	palettes[0].colorData.push(0xffff0000);
+	conv.palettes[0].colorData.push(0xffff0000);
 	// 8=green
-	palettes[0].colorData.push(0xff00ff00);
+	conv.palettes[0].colorData.push(0xff00ff00);
 	// 9=blue
-	palettes[0].colorData.push(0xff0000ff);
-	while (palettes[0].colorData.length < 14)
-		palettes[0].colorData.push(0);
+	conv.palettes[0].colorData.push(0xff0000ff);
+	while (conv.palettes[0].colorData.length < 14)
+		conv.palettes[0].colorData.push(0);
 	// 14=yellow
-	palettes[0].colorData.push(0xffffff00);
+	conv.palettes[0].colorData.push(0xffffff00);
 	// 15=magenta
-	palettes[0].colorData.push(0xffff00ff);
+	conv.palettes[0].colorData.push(0xffff00ff);
 
-	masterSpriteList.texture.setPixel(0, 0, 7);
-	masterSpriteList.texture.setPixel(1, 0, 8);
-	masterSpriteList.texture.setPixel(2, 0, 9);
-	masterSpriteList.texture.setPixel(3, 0, 14);
-	masterSpriteList.texture.setPixel(4, 0, 15);
+	conv.sprites.texture.setPixel(0, 0, 7);
+	conv.sprites.texture.setPixel(1, 0, 8);
+	conv.sprites.texture.setPixel(2, 0, 9);
+	conv.sprites.texture.setPixel(3, 0, 14);
+	conv.sprites.texture.setPixel(4, 0, 15);
 }
+
+conv.pack();
 // ---------- End program ------------
 
-
-// Convert all palettes to the palette tex
-for (let j = 0; j < palettes.length; j++) {
-	palettes[j].copyToTexture32(paletteTex, 0, j);
-}
-
-console.log(`Sprite usage: ${(100 * masterSpriteList.memoryUsage()).toFixed(2)}%`.formatAs(utils.BRIGHT, utils.FG_CYAN));
-//console.log(masterSpriteList.spriteEntries.map(e => ({ x: e.x, y: e.y, w: e.width, h: e.height, pal: e.designPalette.name })));
-console.log(`Palette usage: ${(100 * (palettes.length / paletteTex.height)).toFixed(2)}%`.formatAs(utils.BRIGHT, utils.FG_CYAN));
-console.log('Writing sample.png…');
-masterSpriteList.writeSampleImage('sample.png');
-
-// Write all textures
-console.log('Writing game data…');
-//fs.writeFileSync('game.json', JSON.stringify(data), function(err) {
-//		if (err) throw err;
-//		console.log('complete');
-//	}
-//);
-mapTex.writeToPng('maps.png');
-spriteTex.writeToPng('sprites.png');
-paletteTex.writeToPng('palettes.png');
