@@ -198,6 +198,19 @@ export function readFromTextureU8(gl, texture, x, y, w, h) {
  * @param h {number}
  * @returns {Uint16Array}
  */
+export function readFromTextureColors(gl, texture, x, y, w, h) {
+	return new Uint8ClampedArray(readFromTextureU8(gl, texture, x, y, w, h).buffer);
+}
+
+/**
+ * @param gl
+ * @param texture
+ * @param x {number} in texels (4 bytes per texel)
+ * @param y {number}
+ * @param w {number} in texels
+ * @param h {number}
+ * @returns {Uint16Array}
+ */
 export function readFromTextureU16(gl, texture, x, y, w, h) {
 	return new Uint16Array(readFromTextureU8(gl, texture, x, y, w, h).buffer);
 }
@@ -233,7 +246,6 @@ export function readFromTextureFloat(gl, texture, x, y, w, h) {
 }
 
 /**
- *
  * @param gl
  * @param texture
  * @param x {number} in texels (4 bytes per texel)
@@ -250,7 +262,7 @@ export function writeToTextureU8(gl, texture, x, y, w, h, array) {
 }
 
 /**
- *
+ * Do not use this for float arrays!
  * @param gl
  * @param texture
  * @param x {number} in texels (4 bytes per texel)
@@ -259,26 +271,11 @@ export function writeToTextureU8(gl, texture, x, y, w, h, array) {
  * @param h {number}
  * @param array {Uint16Array}
  */
-export function writeToTextureU16(gl, texture, x, y, w, h, array) {
+export function writeToTextureAuto(gl, texture, x, y, w, h, array) {
 	writeToTextureU8(gl, texture, x, y, w, h, new Uint8Array(array.buffer));
 }
 
 /**
- *
- * @param gl
- * @param texture
- * @param x {number} in texels (4 bytes per texel)
- * @param y {number}
- * @param w {number} in texels
- * @param h {number}
- * @param array {Uint32Array}
- */
-export function writeToTextureU32(gl, texture, x, y, w, h, array) {
-	writeToTextureU8(gl, texture, x, y, w, h, new Uint8Array(array.buffer));
-}
-
-/**
- *
  * @param gl
  * @param texture
  * @param x {number} in texels (4 words per texel)

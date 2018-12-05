@@ -49,6 +49,7 @@ export function initSpriteShaders(vdp) {
 				vTextureCoord = aUv;
 			}
 		`;
+	const paletteMultiplier = `float(${(PALETTE_TEX_W - 1.0) / PALETTE_TEX_W})`;
 	const fsSource = `
 			precision highp float;
 			
@@ -61,10 +62,10 @@ export function initSpriteShaders(vdp) {
 				int texelId = int(x / 4.0);
 				vec4 read = texture2D(uSamplerSprites, vec2(float(texelId) / ${SPRITE_TEX_W}.0, y / ${SPRITE_TEX_H}.0));
 				int texelC = int(x) - texelId * 4;
-				if (texelC == 0) return read.r * float(${255.0 / 256.0 * PALETTE_TEX_W / 256.0});
-				if (texelC == 1) return read.g * float(${255.0 / 256.0 * PALETTE_TEX_W / 256.0});
-				if (texelC == 2) return read.b * float(${255.0 / 256.0 * PALETTE_TEX_W / 256.0});
-				return read.a * float(${255.0 / 256.0 * PALETTE_TEX_W / 256.0});
+				if (texelC == 0) return read.r * ${paletteMultiplier};
+				if (texelC == 1) return read.g * ${paletteMultiplier};
+				if (texelC == 2) return read.b * ${paletteMultiplier};
+				return read.a * ${paletteMultiplier};
 			}
 			
 			vec4 readPalette(float x, float y) {

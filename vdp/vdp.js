@@ -2,7 +2,7 @@ import {createDataTexture32, createDataTextureFloat, loadTexture, readFromTextur
 import {mat4} from "../gl-matrix";
 import {drawSprite, initSpriteShaders} from "./sprites";
 import {drawMap, initMapShaders} from "./maps";
-import {OTHER_TEX_W} from "./shaders";
+import {OTHER_TEX_W, SEMITRANSPARENT_CANVAS} from "./shaders";
 
 class VDP {
 	constructor(canvas, done) {
@@ -96,7 +96,7 @@ class VDP {
 		gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
 		// TODO Florian -- Set clear color to palette[0, 0]
-		gl.clearColor(0.0, 0.0, 0.5, 1.0);
+		gl.clearColor(0.0, 0.0, 0.5, 0.0);
 		gl.clearDepth(1.0);                 // Clear everything
 		gl.enable(gl.DEPTH_TEST);           // Enable depth testing
 		gl.depthFunc(gl.LEQUAL);            // Near things obscure far things
@@ -106,7 +106,7 @@ class VDP {
 	}
 
 	_initContext(canvas) {
-		this.gl = canvas.getContext("webgl");
+		this.gl = canvas.getContext("webgl", { premultipliedAlpha: true, alpha: SEMITRANSPARENT_CANVAS });
 
 		// Only continue if WebGL is available and working
 		if (this.gl === null) {
@@ -134,6 +134,10 @@ class VDP {
 	}
 }
 
+/**
+ * @param canvas {HTMLCanvasElement}
+ * @param done {function(VDP)}
+ */
 export function loadVdp(canvas, done) {
 	const vdp = new VDP(canvas, () => {
 		done(vdp);

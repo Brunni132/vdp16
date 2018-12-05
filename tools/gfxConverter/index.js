@@ -1,6 +1,9 @@
 const assert = require('assert');
+const fs = require('fs');
 const Texture = require('./texture');
 const utils = require('./utils');
+
+const HICOLOR_MODE = false;
 
 class Palette {
 
@@ -92,6 +95,12 @@ class Sprite {
 				destTexture.setPixel(x + i, y + j, this.pixelData[k++]);
 			}
 		}
+	}
+}
+
+class BigFile {
+
+	constructor() {
 	}
 }
 
@@ -261,6 +270,11 @@ masterSpriteList.writeSampleImage('sample.png');
 
 // Write all textures
 console.log('Writing game data…');
+//fs.writeFileSync('game.json', JSON.stringify(data), function(err) {
+//		if (err) throw err;
+//		console.log('complete');
+//	}
+//);
 mapTex.writeToPng('maps.png');
 spriteTex.writeToPng('sprites.png');
 paletteTex.writeToPng('palettes.png');
