@@ -1,12 +1,20 @@
-import {createDataTexture32, createDataTextureFloat, loadTexture, readFromTexture32} from "./utils";
+import {createDataTexture32, createDataTextureFloat, loadTexture, loadTexture4444, readFromTexture32} from "./utils";
 import {mat4} from "../gl-matrix";
 import {drawSprite, initSpriteShaders} from "./sprites";
 import {drawMap, initMapShaders} from "./maps";
-import {OTHER_TEX_W, SEMITRANSPARENT_CANVAS} from "./shaders";
+import {
+	HICOLOR_MODE, MAP_TEX_H, MAP_TEX_W,
+	OTHER_TEX_W,
+	PALETTE_TEX_H,
+	PALETTE_TEX_W,
+	SEMITRANSPARENT_CANVAS,
+	setParams, SPRITE_TEX_H,
+	SPRITE_TEX_W
+} from "./shaders";
 
 class VDP {
 	constructor(canvas, done) {
-		/** @type {CanvasRenderingContext2D} */
+		/** @type {WebGLRenderingContext} */
 		this.gl = null;
 		this.mapProgram = {
 			program: null,
@@ -75,11 +83,20 @@ class VDP {
 		this._initMatrices();
 
 		const gl = this.gl;
-		loadTexture(gl, 'sprites.png', (tex) => {
+		const loadTextureType = HICOLOR_MODE ? loadTexture : loadTexture4444;
+		loadTexture(gl, 'sprites.png', (tex, image) => {
+			if (image.width !== SPRITE_TEX_W || image.height !== SPRITE_TEX_H)
+				throw new Error('Mismatch in texture size');
 			this.spriteTexture = tex;
-			loadTexture(gl, 'palettes.png', (tex) => {
+			loadTextureType(gl, 'palettes.png', (tex, image) => {
+				if (image.width !== 256 && HICOLOR_MODE || image.width !== 16 && !HICOLOR_MODE)
+					throw new Error('Mismatch in hi-color mode and passed textures');
+				if (image.width !== PALETTE_TEX_W || image.height !== PALETTE_TEX_H)
+					throw new Error('Mismatch in texture size');
 				this.paletteTexture = tex;
-				loadTexture(gl, 'maps.png', (tex) => {
+				loadTexture(gl, 'maps.png', (tex, image) => {
+					if (image.width !== MAP_TEX_W || image.height !== MAP_TEX_H)
+						throw new Error('Mismatch in texture size');
 					this.mapTexture = tex;
 
 					this.otherTexture = createDataTextureFloat(gl, OTHER_TEX_W, OTHER_TEX_W);
@@ -139,6 +156,7 @@ class VDP {
  * @param done {function(VDP)}
  */
 export function loadVdp(canvas, done) {
+	setParams(320, 240, true, false);
 	const vdp = new VDP(canvas, () => {
 		done(vdp);
 	});

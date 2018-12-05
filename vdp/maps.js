@@ -1,5 +1,8 @@
 import {initShaderProgram, makeBuffer} from "./utils";
 import {
+	declareReadPalette,
+	declareReadTexel,
+	HICOLOR_MODE,
 	MAP_TEX_H, MAP_TEX_W, OTHER_TEX_H, OTHER_TEX_W,
 	PALETTE_TEX_H,
 	PALETTE_TEX_W,
@@ -67,7 +70,6 @@ export function initMapShaders(vdp) {
 				}
 			}
 		`;
-	const paletteMultiplier = `float(${(PALETTE_TEX_W - 1.0) / PALETTE_TEX_W})`;
 	const fsSource = `
 			precision highp float;
 			
@@ -83,11 +85,7 @@ export function initMapShaders(vdp) {
 			
 			uniform mat4 uModelViewMatrix;
 			uniform sampler2D uSamplerMaps, uSamplerSprites, uSamplerPalettes, uSamplerOthers;
-			
-			int intMod(int x, int y) {
-				return int(mod(float(x), float(y)));
-			}
-			
+						
 			// y > 0! x can be negative or positive
 			int intDiv(float x, float y) {
 				if (x >= 0.0) return int(x / y);
@@ -122,20 +120,8 @@ export function initMapShaders(vdp) {
 				return base + vec2(colNo * vTileSize.x, rowNo * vTileSize.y);
 			}
 	
-			// Returns a value between 0 and 1, ready to map a color in palette (0..255)
-			float readTexel(float x, float y) {
-				int texelId = int(x / 4.0);
-				vec4 read = texture2D(uSamplerSprites, vec2(float(texelId) / ${SPRITE_TEX_W}.0, y / ${SPRITE_TEX_H}.0));
-				int texelC = int(x) - texelId * 4;
-				if (texelC == 0) return read.r * ${paletteMultiplier};
-				if (texelC == 1) return read.g * ${paletteMultiplier};
-				if (texelC == 2) return read.b * ${paletteMultiplier};
-				return read.a * ${paletteMultiplier};
-			}
-			
-			vec4 readPalette(float x, float y) {
-				return texture2D(uSamplerPalettes, vec2(x, y));
-			}
+			${declareReadTexel()}
+			${declareReadPalette()}
 		
 			void main(void) {
 				mat3 transformationMatrix;

@@ -12,10 +12,10 @@ class Texture {
 		this.name = name;
 		this.width = width;
 		this.height = height;
-		this.bpp = bitDepth / 8;
+		this.depth = bitDepth;
 
-		assert(this.bpp === 1 || this.bpp === 2 || this.bpp === 4);
-		assert(this.width % this.bpp === 0, `${this.width} % ${this.bpp} !== 0`);
+		assert(this.depth === 4 || this.depth === 8 || this.depth === 16 || this.depth === 32);
+		assert(Math.floor(this.width * this.depth / 32) === this.width * this.depth / 32, `${Math.floor(this.width * this.depth / 32)} !== ${this.width * this.depth / 32}`);
 		this.pixelData = new Array(this.width * this.height);
 	}
 
@@ -116,7 +116,7 @@ class Texture {
 	 * @returns {Texture}
 	 */
 	subtexture(x, y, width, height) {
-		const result = Texture.blank(this.name + '[]', width, height, this.bpp * 8);
+		const result = Texture.blank(this.name + '[]', width, height, this.depth);
 		for (let j = 0; j < result.height; j++) {
 			for (let i = 0; i < result.width; i++) {
 				result.setPixel(i, j, this.getPixel(i + x, j + y));
@@ -132,8 +132,8 @@ class Texture {
 	 */
 	setPixel(x, y, pix) {
 		// To treat as unsigned
-		if (this.bpp < 4 && (pix >> (this.bpp * 8)) !== 0) {
-			throw new Error(`${pix} too big to be written to a ${this.bpp * 8}bpp texture`);
+		if (this.depth < 32 && (pix >>> this.depth) !== 0) {
+			throw new Error(`${pix} too big to be written to a ${this.depth}bpp texture`);
 		}
 		this.pixelData[Math.floor(y) * this.width + Math.floor(x)] = pix;
 	}
@@ -145,19 +145,25 @@ class Texture {
 	 */
 	writeToPng(destFileName) {
 		const mapPng = new PNG({
-			width: Math.floor(this.width * this.bpp / 4),
+			width: Math.floor(this.width * this.depth / 32),
 			height: this.height,
 			filterType: -1,
 			colorType: 6,
-			deflateLevel: 0
+			deflateLevel: 9
 		});
 
 		let dstIdx = 0;
 		for (let x = 0; x < this.height * this.width; x++) {
-			mapPng.data[dstIdx++] = this.pixelData[x] & 0xff;
-			if (this.bpp >= 2) mapPng.data[dstIdx++] = (this.pixelData[x] >>> 8) & 0xff;
-			if (this.bpp >= 3) mapPng.data[dstIdx++] = (this.pixelData[x] >>> 16) & 0xff;
-			if (this.bpp >= 4) mapPng.data[dstIdx++] = (this.pixelData[x] >>> 24) & 0xff;
+			if (this.depth === 4) {
+				// 2 pixels packed in one, big endian
+				mapPng.data[dstIdx++] = (this.pixelData[x + 1] & 0xf) | (this.pixelData[x] & 0xf) << 4;
+				x++;
+			} else {
+				mapPng.data[dstIdx++] = this.pixelData[x] & 0xff;
+				if (this.depth >= 16) mapPng.data[dstIdx++] = (this.pixelData[x] >>> 8) & 0xff;
+				if (this.depth >= 24) mapPng.data[dstIdx++] = (this.pixelData[x] >>> 16) & 0xff;
+				if (this.depth >= 32) mapPng.data[dstIdx++] = (this.pixelData[x] >>> 24) & 0xff;
+			}
 		}
 
 		mapPng.pack().pipe(fs.createWriteStream(destFileName));

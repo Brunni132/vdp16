@@ -1,5 +1,15 @@
 import {initShaderProgram, makeBuffer} from "./utils";
-import {PALETTE_TEX_H, PALETTE_TEX_W, SCREEN_HEIGHT, SCREEN_WIDTH, SPRITE_TEX_H, SPRITE_TEX_W} from "./shaders";
+import {
+	declareReadPalette,
+	declareReadTexel,
+	HICOLOR_MODE,
+	PALETTE_TEX_H,
+	PALETTE_TEX_W,
+	SCREEN_HEIGHT,
+	SCREEN_WIDTH,
+	SPRITE_TEX_H,
+	SPRITE_TEX_W
+} from "./shaders";
 
 const MAX_SPRITES = 128;
 
@@ -49,7 +59,6 @@ export function initSpriteShaders(vdp) {
 				vTextureCoord = aUv;
 			}
 		`;
-	const paletteMultiplier = `float(${(PALETTE_TEX_W - 1.0) / PALETTE_TEX_W})`;
 	const fsSource = `
 			precision highp float;
 			
@@ -57,25 +66,13 @@ export function initSpriteShaders(vdp) {
 			varying highp float vPaletteNo;
 			uniform sampler2D uSamplerSprites, uSamplerPalettes;
 	
-			// Returns a value between 0 and 1, ready to map a color in palette (0..255)
-			float readTexel(float x, float y) {
-				int texelId = int(x / 4.0);
-				vec4 read = texture2D(uSamplerSprites, vec2(float(texelId) / ${SPRITE_TEX_W}.0, y / ${SPRITE_TEX_H}.0));
-				int texelC = int(x) - texelId * 4;
-				if (texelC == 0) return read.r * ${paletteMultiplier};
-				if (texelC == 1) return read.g * ${paletteMultiplier};
-				if (texelC == 2) return read.b * ${paletteMultiplier};
-				return read.a * ${paletteMultiplier};
-			}
-			
-			vec4 readPalette(float x, float y) {
-				return texture2D(uSamplerPalettes, vec2(x, y));
-			}
+			${declareReadTexel()}
+			${declareReadPalette()}
 		
 			void main(void) {
 				float texel = readTexel(vTextureCoord.x, vTextureCoord.y);
 				// Color zero
-				if (texel < ${1.0 / PALETTE_TEX_W}) discard;
+				if (texel < ${1.0 / (PALETTE_TEX_W)}) discard;
 				gl_FragColor = readPalette(texel, vPaletteNo);
 			}
 		`;

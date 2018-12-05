@@ -92,10 +92,12 @@ export function initShaderProgram(gl, vsSource, fsSource) {
 	return shaderProgram;
 }
 
-//
-// Initialize a texture and load an image.
-// When the image finished loading copy it into the texture.
-//
+/**
+ * @param gl {WebGLRenderingContext}
+ * @param url {string}
+ * @param done {function(WebGLTexture, HTMLImageElement)}
+ * @returns {WebGLTexture}
+ */
 export function loadTexture(gl, url, done) {
 	const texture = gl.createTexture();
 	gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -137,7 +139,44 @@ export function loadTexture(gl, url, done) {
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
 		// }
-		if (done) done(texture);
+		if (done) done(texture, image);
+	};
+	image.src = url;
+
+	return texture;
+}
+
+/**
+ * @param gl {WebGLRenderingContext}
+ * @param url {string}
+ * @param done {function(WebGLTexture, HTMLImageElement)}
+ * @returns {WebGLTexture}
+ */
+export function loadTexture4444(gl, url, done) {
+	const texture = gl.createTexture();
+	gl.bindTexture(gl.TEXTURE_2D, texture);
+
+	const level = 0;
+	const internalFormat = gl.RGBA;
+	const width = 1;
+	const height = 1;
+	const border = 0;
+	const srcFormat = gl.RGBA;
+	const srcType = gl.UNSIGNED_SHORT_4_4_4_4;
+	const pixel = new Uint16Array([0xff00]);  // opaque blue
+	gl.texImage2D(gl.TEXTURE_2D, level, internalFormat,
+		width, height, border, srcFormat, srcType,
+		pixel);
+
+	const image = new Image();
+	image.onload = function() {
+		gl.bindTexture(gl.TEXTURE_2D, texture);
+		gl.texImage2D(gl.TEXTURE_2D, level, internalFormat, srcFormat, srcType, image);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+		if (done) done(texture, image);
 	};
 	image.src = url;
 
@@ -175,16 +214,16 @@ function bindToFramebuffer(gl, texture) {
 /**
  * @param gl
  * @param texture
- * @param x {number} in texels (4 bytes per texel)
+ * @param x {number} in texels (1 16-bit word per texel)
  * @param y {number}
  * @param w {number} in texels
  * @param h {number}
- * @returns {Uint8Array}
+ * @returns {Uint16Array}
  */
-export function readFromTextureU8(gl, texture, x, y, w, h) {
-	const result = new Uint8Array(w * h * 4);
+export function readFromTexture16(gl, texture, x, y, w, h) {
+	const result = new Uint16Array(w * h);
 	bindToFramebuffer(gl, texture);
-	gl.readPixels(x, y, w, h, gl.RGBA, gl.UNSIGNED_BYTE, result);
+	gl.readPixels(x, y, w, h, gl.RGBA, gl.UNSIGNED_SHORT_4_4_4_4, result);
 	bindToFramebuffer(gl, null);
 	return result;
 }
@@ -196,36 +235,14 @@ export function readFromTextureU8(gl, texture, x, y, w, h) {
  * @param y {number}
  * @param w {number} in texels
  * @param h {number}
- * @returns {Uint16Array}
+ * @returns {Uint8Array}
  */
-export function readFromTextureColors(gl, texture, x, y, w, h) {
-	return new Uint8ClampedArray(readFromTextureU8(gl, texture, x, y, w, h).buffer);
-}
-
-/**
- * @param gl
- * @param texture
- * @param x {number} in texels (4 bytes per texel)
- * @param y {number}
- * @param w {number} in texels
- * @param h {number}
- * @returns {Uint16Array}
- */
-export function readFromTextureU16(gl, texture, x, y, w, h) {
-	return new Uint16Array(readFromTextureU8(gl, texture, x, y, w, h).buffer);
-}
-
-/**
- * @param gl
- * @param texture
- * @param x {number} in texels (4 bytes per texel)
- * @param y {number}
- * @param w {number} in texels
- * @param h {number}
- * @returns {Uint32Array}
- */
-export function readFromTextureU32(gl, texture, x, y, w, h) {
-	return new Uint32Array(readFromTextureU8(gl, texture, x, y, w, h).buffer);
+export function readFromTexture32(gl, texture, x, y, w, h) {
+	const result = new Uint8Array(w * h * 4);
+	bindToFramebuffer(gl, texture);
+	gl.readPixels(x, y, w, h, gl.RGBA, gl.UNSIGNED_BYTE, result);
+	bindToFramebuffer(gl, null);
+	return result;
 }
 
 /**
@@ -246,19 +263,20 @@ export function readFromTextureFloat(gl, texture, x, y, w, h) {
 }
 
 /**
+ * Do not use this for float arrays!
  * @param gl
  * @param texture
- * @param x {number} in texels (4 bytes per texel)
+ * @param x {number} in texels (1 16-bit word per texel)
  * @param y {number}
  * @param w {number} in texels
  * @param h {number}
- * @param array {Uint8Array}
+ * @param array {Uint16Array}
  */
-export function writeToTextureU8(gl, texture, x, y, w, h, array) {
+export function writeToTexture16(gl, texture, x, y, w, h, array) {
 	gl.bindTexture(gl.TEXTURE_2D, texture);
 	gl.texSubImage2D(gl.TEXTURE_2D, 0,
 		x, y, w, h,
-		gl.RGBA, gl.UNSIGNED_BYTE, array);
+		gl.RGBA, gl.UNSIGNED_SHORT_4_4_4_4, array);
 }
 
 /**
@@ -269,10 +287,13 @@ export function writeToTextureU8(gl, texture, x, y, w, h, array) {
  * @param y {number}
  * @param w {number} in texels
  * @param h {number}
- * @param array {Uint16Array}
+ * @param array {Uint8Array}
  */
-export function writeToTextureAuto(gl, texture, x, y, w, h, array) {
-	writeToTextureU8(gl, texture, x, y, w, h, new Uint8Array(array.buffer));
+export function writeToTexture32(gl, texture, x, y, w, h, array) {
+	gl.bindTexture(gl.TEXTURE_2D, texture);
+	gl.texSubImage2D(gl.TEXTURE_2D, 0,
+		x, y, w, h,
+		gl.RGBA, gl.UNSIGNED_BYTE, array);
 }
 
 /**

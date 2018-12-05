@@ -3,7 +3,7 @@ const fs = require('fs');
 const Texture = require('./texture');
 const utils = require('./utils');
 
-const HICOLOR_MODE = false;
+const HICOLOR_MODE = true;
 
 class Palette {
 
@@ -11,10 +11,10 @@ class Palette {
 	 * @param {string} name
 	 * @param {number} numColors
 	 */
-	constructor(name, numColors = 256) {
+	constructor(name, numColors = 0) {
 		/** @type {number[]} */
-		this.colorData = [0];	// First color is always transparent (RGBA 0000)
-		this.maxColors = numColors;
+		this.colorData = [0]; // First color is always transparent (RGBA 0000)
+		this.maxColors = numColors || (HICOLOR_MODE ? 256 : 16);
 		this.name = name;
 	}
 
@@ -33,6 +33,10 @@ class Palette {
 	 * @param {number} y
 	 */
 	copyToTexture32(destTexture, x, y) {
+		if (x + this.colorData.length > destTexture.width) {
+			throw new Error(`Too many colors in palette ${this.name} to fit in ${destTexture.width} texture`);
+		}
+
 		for (let i = 0; i < this.colorData.length; i++) {
 			destTexture.setPixel(x + i, y, this.colorData[i]);
 		}
@@ -45,13 +49,25 @@ class Palette {
 	 * @returns {number} the number inside the palette if this color already existed
 	 */
 	pixelNumberInsidePalette(color, allowCreate = true) {
+		color = this.toDesintationFormat(color);
+
 		const noAlpha = color >>> 24 === 0;
 		const found = this.colorData.findIndex(c => c === color || (noAlpha && (c >>> 24 === 0)));
 		if (found >= 0 || !allowCreate) return found;
 
-		assert(this.colorData.length < this.maxColors, 'too many colors');
+		assert(this.colorData.length < this.maxColors, `max ${this.maxColors} colors exceeded in ${this.name}`);
 		this.colorData.push(color);
 		return this.colorData.length - 1;
+	}
+
+	/**
+	 * @param color {number}
+	 * @returns {number}
+	 */
+	toDesintationFormat(color) {
+		if (HICOLOR_MODE) return color;
+		const c = (color >>> 4 & 0x0f0f0f0f);
+		return c | c << 4;
 	}
 }
 
@@ -217,9 +233,11 @@ class MasterSpriteTexture {
 	}
 }
 
+// Lo-color mode: 8192x1024 sprites (4 MB), 256x16 RGBA4444 color RAM (8 kB), 2048x1024 maps (4 MB)
+// Hi-color mode: 4096x1024 sprites (4 MB), 256x256 RGBA8888 color RAM (256 kB), 2048x1024 maps (4 MB)
 const mapTex = Texture.blank('maps', 2048, 1024, 16);
-const spriteTex = Texture.blank('sprites', 4096, 1024, 8);
-const paletteTex = Texture.blank('palettes', 256, 256, 32);
+const spriteTex = Texture.blank('sprites', HICOLOR_MODE ? 4096 : 8192, 1024, HICOLOR_MODE ? 8 : 4);
+const paletteTex = Texture.blank('palettes', HICOLOR_MODE ? 256 : 16, 256, 32);
 
 /** @type {Palette[]} */
 const palettes = [];
@@ -234,26 +252,50 @@ masterSpriteList.addSprite('font',
 masterSpriteList.addSprite('mario',
 	Sprite.fromImage32(Texture.fromPng32('mario-luigi-2.png').subtexture(80, 32, 224, 16), palettes[1]));
 
-masterSpriteList.texture.setPixel(0, 0, 127);
-masterSpriteList.texture.setPixel(1, 0, 128);
-masterSpriteList.texture.setPixel(2, 0, 129);
-masterSpriteList.texture.setPixel(3, 0, 254);
-masterSpriteList.texture.setPixel(4, 0, 255);
+if (HICOLOR_MODE) {
+	while (palettes[0].colorData.length < 127)
+		palettes[0].colorData.push(0);
+	// 127=red
+	palettes[0].colorData.push(0xffff0000);
+	// 128=green
+	palettes[0].colorData.push(0xff00ff00);
+	// 129=blue
+	palettes[0].colorData.push(0xff0000ff);
+	while (palettes[0].colorData.length < 254)
+		palettes[0].colorData.push(0);
+	// 254=yellow
+	palettes[0].colorData.push(0xffffff00);
+	// 255=magenta
+	palettes[0].colorData.push(0xffff00ff);
 
-while (palettes[0].colorData.length < 127)
-	palettes[0].colorData.push(0);
-// 127=red
-palettes[0].colorData.push(0xffff0000);
-// 128=green
-palettes[0].colorData.push(0xff00ff00);
-// 129=blue
-palettes[0].colorData.push(0xff0000ff);
-while (palettes[0].colorData.length < 254)
-	palettes[0].colorData.push(0);
-// 254=yellow
-palettes[0].colorData.push(0xffffff00);
-// 255=magenta
-palettes[0].colorData.push(0xffff00ff);
+	masterSpriteList.texture.setPixel(0, 0, 127);
+	masterSpriteList.texture.setPixel(1, 0, 128);
+	masterSpriteList.texture.setPixel(2, 0, 129);
+	masterSpriteList.texture.setPixel(3, 0, 254);
+	masterSpriteList.texture.setPixel(4, 0, 255);
+}
+else {
+	while (palettes[0].colorData.length < 7)
+		palettes[0].colorData.push(0);
+	// 7=red
+	palettes[0].colorData.push(0xffff0000);
+	// 8=green
+	palettes[0].colorData.push(0xff00ff00);
+	// 9=blue
+	palettes[0].colorData.push(0xff0000ff);
+	while (palettes[0].colorData.length < 14)
+		palettes[0].colorData.push(0);
+	// 14=yellow
+	palettes[0].colorData.push(0xffffff00);
+	// 15=magenta
+	palettes[0].colorData.push(0xffff00ff);
+
+	masterSpriteList.texture.setPixel(0, 0, 7);
+	masterSpriteList.texture.setPixel(1, 0, 8);
+	masterSpriteList.texture.setPixel(2, 0, 9);
+	masterSpriteList.texture.setPixel(3, 0, 14);
+	masterSpriteList.texture.setPixel(4, 0, 15);
+}
 // ---------- End program ------------
 
 

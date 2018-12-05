@@ -2,10 +2,10 @@ import {loadVdp} from "./vdp/vdp";
 import {mat3, mat4} from "./gl-matrix";
 import {
 	readFromTextureColors,
-	readFromTextureFloat, readFromTextureU16,
-	readFromTextureU8, writeToTextureAuto, writeToTextureFloat
+	readFromTextureFloat, readFromTexture16,
+	readFromTexture8, writeToTextureAuto, writeToTextureFloat, bindToFramebuffer, readFromTexture32, writeToTexture32
 } from "./vdp/utils";
-import {SCREEN_HEIGHT, SCREEN_WIDTH} from "./vdp/shaders";
+import {HICOLOR_MODE, SCREEN_HEIGHT, SCREEN_WIDTH} from "./vdp/shaders";
 
 main();
 
@@ -20,9 +20,9 @@ function main() {
 		vdp.startFrame();
 
 		// 2x4 RGBA texels = 4x4 16-bit words
-		const mapData = readFromTextureU16(gl, vdp.mapTexture, 0, 0, 2, 4);
+		const mapData = new Uint16Array(readFromTexture32(gl, vdp.mapTexture, 0, 0, 2, 4).buffer);
 		for (let i = 0; i < 16; i++) mapData[i] = i;
-		writeToTextureAuto(gl, vdp.mapTexture, 0, 0, 2, 4, mapData);
+		writeToTexture32(gl, vdp.mapTexture, 0, 0, 2, 4, new Uint8Array(mapData.buffer));
 
 		// Only using 8 components, assuming that the last is always 1 (which is OK for affine transformations)
 		const mat = mat3.create();
@@ -32,27 +32,31 @@ function main() {
 		writeToTextureFloat(gl, vdp.otherTexture, 0, 0, 2, 1, mat);
 
 		// 2x1 RGBA texels = 8x1 float words
-		//const testRead = readFromTextureFloat(gl, vdp.otherTexture, 0, 0, 2, 1);
-		//console.log(`TEMP read from float `, testRead);
-		//
-		//// Make another palette, brighter
-		//let brightColors = readFromTextureColors(gl, vdp.paletteTexture, 0, 1, 4, 1);
-		//let darkColors = brightColors.slice(0);
-		//for (let i = 0; i < brightColors.length; i += 4) {
-		//	brightColors[i] *= 2;
-		//	brightColors[i+1] *= 2;
-		//	brightColors[i+2] *= 2;
-		//	darkColors[i] = 255;
-		//	darkColors[i+1] = 255;
-		//	darkColors[i+2] = 255;
-		//	darkColors[i+3] = 128;
-		//}
-		//writeToTextureAuto(gl, vdp.paletteTexture, 0, 2, 4, 1, brightColors);
-		//writeToTextureAuto(gl, vdp.paletteTexture, 0, 3, 4, 1, darkColors);
+		const testRead = readFromTextureFloat(gl, vdp.otherTexture, 0, 0, 2, 1);
+		console.log(`TEMP read from float `, testRead);
 
-		//let originalColors = readFromTextureColors(gl, vdp.paletteTexture, 1, 0, 1, 1);
-		//originalColors[0] = 0;
-		//writeToTextureAuto(gl, vdp.paletteTexture, 1, 0, 1, 1, originalColors);
+		if (HICOLOR_MODE) {
+			// Make another palette, brighter
+			let brightColors = new Uint8ClampedArray(readFromTexture32(gl, vdp.paletteTexture, 0, 1, 4, 1).buffer);
+			let darkColors = brightColors.slice(0);
+			for (let i = 0; i < brightColors.length; i += 4) {
+				brightColors[i] *= 2;
+				brightColors[i + 1] *= 2;
+				brightColors[i + 2] *= 2;
+				darkColors[i] = 255;
+				darkColors[i + 1] = 255;
+				darkColors[i + 2] = 255;
+				darkColors[i + 3] = 128;
+			}
+			writeToTexture32(gl, vdp.paletteTexture, 0, 2, 4, 1, new Uint8Array(brightColors.buffer));
+			writeToTexture32(gl, vdp.paletteTexture, 0, 3, 4, 1, new Uint8Array(darkColors.buffer));
+
+			let originalColors = new Uint8ClampedArray(readFromTexture32(gl, vdp.paletteTexture, 1, 0, 1, 1));
+			originalColors[2] = 200;
+			writeToTexture32(gl, vdp.paletteTexture, 1, 0, 1, 1, new Uint8Array(originalColors.buffer));
+		}
+		else {
+		}
 
 		vdp.drawSprite(
 			10, 10, 10+24*2, 10+24*2,
