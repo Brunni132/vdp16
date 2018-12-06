@@ -1,4 +1,49 @@
+const assert = require('assert');
 const Texture = require("./texture");
+
+class Tile {
+
+	/**
+	 * @param {number} width
+	 * @param {number} height
+	 */
+	constructor(width, height) {
+		this.width = width;
+		this.height = height;
+		this.pixelData = new Array(this.width * this.height);
+	}
+
+	/**
+	 * @param {Texture} texture
+	 * @param {Palette} palette
+	 * @return {Tile}
+	 */
+	static fromImage32(texture, palette) {
+		const result = new Tile(texture.width, texture.height, palette);
+		texture.forEachPixel((pixel, x, y) => {
+			// Add colors to the palette (or find them if they're already)
+			result.pixelData[y * result.width + x] = palette.pixelNumberInsidePalette(pixel);
+		});
+		return result;
+	}
+
+	equalsTile(otherTile) {
+		if (this.width !== otherTile.width || this.height !== otherTile.height) return false;
+		for (let i = 0; i < this.pixelData.length; i++) {
+			if (this.pixelData[i] !== otherTile.pixelData[i]) return false;
+		}
+		return true;
+	}
+
+	/**
+	 * @param x {number}
+	 * @param y {number}
+	 * @returns {number}
+	 */
+	getPixel(x, y) {
+		return this.pixelData[this.width * y + x];
+	}
+}
 
 class Tileset {
 
@@ -18,105 +63,51 @@ class Tileset {
 		this.tilesWide = tilesWide;
 		this.tilesTall = tilesTall;
 		this.palettes = palettes;
-		this.pixelData = new Array(this.tileWidth * this.tilesWide * this.tileHeight * this.tilesTall);
-		this.usedTiles = 0;
+		/** @type {Tile[]} */
+		this.tiles = [];
 	}
 
 	/***
 	 *
-	 * @param mappedTile {ArrayBuffer}
-	 * @param paletteNo {number}
+	 * @param mappedTile {Tile}
 	 * @returns {boolean}
 	 */
-	addTile(mappedTile, paletteNo) {
-		if (this.usedTiles >= this.tilesWide * this.tilesTall) {
-			throw new Error(`Max ${this.usedTiles} tiles reached for tileset ${this.name}`);
+	addTile(mappedTile) {
+		if (this.tiles.length >= this.tilesWide * this.tilesTall) {
+			throw new Error(`Max ${this.tiles.length} tiles reached for tileset ${this.name}`);
 		}
 
-		const { x, y } = this.tilePosition(i);
-		const width = this.tileWidth * this.tilesWide;
-		for (let j = 0; j < text.height; j++) {
-			for (let i = 0; i < mappedTileTex.width; i++) {
-				this.setPixel(x + i, y + j, mappedTileTex[j * this.tileWidth + i]);
-			}
-		}
+		this.tiles.push(mappedTile);
 	}
 
 	/**
 	 * @param {Texture} destTexture
-	 * @param {number} x
-	 * @param {number} y
+	 * @param {number} xDest
+	 * @param {number} yDest
 	 */
-	copyToTexture32(destTexture, x, y) {
-		let k = 0;
-		for (let j = 0; j < this.tileHeight * this.tilesTall; j++) {
-			for (let i = 0; i < this.tileWidth * this.tilesWide; i++) {
-				destTexture.setPixel(x + i, y + j, this.pixelData[k++]);
-			}
-		}
-	}
+	copyToTexture(destTexture, xDest, yDest) {
+		for (let k = 0; k < this.tiles.length; k++) {
+			const { x, y } = this.tilePosition(k);
+			let ptr = 0;
 
-	/**
-	 *
-	 * @param mappedTileTex {ArrayBuffer}
-	 * @param x {number} position in this tileset
-	 * @param y {number} position in this tileset
-	 * @returns {boolean}
-	 */
-	equalsTile(mappedTileTex, x, y) {
-		const width = this.tileWidth * this.tilesWide;
-		for (let j = 0; j < mappedTileTex.height; j++) {
-			for (let i = 0; i < mappedTileTex.width; i++) {
-				if (mappedTileTex[j * this.tileWidth + i] !== this.getPixel(i + x, j + y)) {
-					return false;
+			for (let j = 0; j < this.tileHeight; j++) {
+				for (let i = 0; i < this.tileHeight; i++) {
+					destTexture.setPixel(xDest + x + i, yDest + y + j, this.tiles[k].pixelData[ptr++]);
 				}
 			}
 		}
-		return true;
 	}
 
 	findOrAddTile(texture, paletteNo) {
-		const resultConverted = this.mapImageToPalette(texture, paletteNo);
-		for (let i = 0; i < this.usedTiles; i++) {
-			const { x, y } = this.tilePosition(i);
-			if (this.equalsTile(resultConverted, x, y)) {
-				return i;
+		const resultConverted = Tile.fromImage32(texture, this.palettes[paletteNo]);
+
+		for (let k = 0; k < this.tiles.length; k++) {
+			if (resultConverted.equalsTile(this.tiles[k])) {
+				return k;
 			}
 		}
-		return this.addTile(resultConverted, paletteNo);
-	}
 
-	/**
-	 * @param x {number}
-	 * @param y {number}
-	 * @returns {number}
-	 */
-	getPixel(x, y) {
-		return this.pixelData[y * this.tileWidth * this.tilesWide + x];
-	}
-
-	/**
-	 * @param texture {Texture} full-color image (from PNG…)
-	 * @param paletteNo {number} 0 to this.palettes.length - 1
-	 * @returns {ArrayBuffer} 8-bit texture with the colors from the palette, having optionally added some inside
-	 */
-	mapImageToPalette(texture, paletteNo) {
-		// Use 8-bit for now
-		const result = new ArrayBuffer(this.tileWidth * this.tileHeight);
-		// Create the necessary colors (works because we use only one palette)
-		texture.forEachPixel((pixel, x, y) => {
-			result[y * this.tileWidth + x] = this.palettes[paletteNo].pixelNumberInsidePalette(pixel);
-		});
-		return result;
-	}
-
-	/**
-	 * @param x {number}
-	 * @param y {number}
-	 * @param color {number}
-	 */
-	setPixel(x, y, color) {
-		this.pixelData[y * this.tileWidth * this.tilesWide + x] = color;
+		return this.addTile(resultConverted);
 	}
 
 	/**
@@ -130,24 +121,25 @@ class Tileset {
 }
 
 /**
- * @param image {Texture}
- * @param tileset {Tileset}
+ * @param image {Texture} original image (full color)
+ * @param tileset {Tileset} adds to it
+ * @returns {ArrayBuffer} map data (16 bit)
  */
 export function generateTilemapFromImage(image, tileset) {
 
 	const mapWidth = Math.ceil(image.width / tileset.tileWidth);
 	const mapHeight = Math.ceil(image.height / tileset.tileHeight);
+	const mapData = new ArrayBuffer(mapWidth * mapHeight);
 
 	// Subdivide in tiles
 	for (let j = 0; j < mapHeight; j++) {
 		for (let i = 0; i < mapWidth; i++) {
 			const tile = image.subtexture(i * tileset.tileWidth, j * tileset.tileHeight, tileset.tileWidth, tileset.tileHeight);
-
-
+			mapData[j * mapHeight + i] = tileset.findOrAddTile(tile, 0);
 		}
 	}
 
-
+	return mapData;
 }
 
 
