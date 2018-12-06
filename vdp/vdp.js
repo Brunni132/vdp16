@@ -6,7 +6,7 @@ import {
 	HICOLOR_MODE, MAP_TEX_H, MAP_TEX_W,
 	OTHER_TEX_W,
 	PALETTE_TEX_H,
-	PALETTE_TEX_W,
+	PALETTE_TEX_W, SCREEN_HEIGHT, SCREEN_WIDTH,
 	SEMITRANSPARENT_CANVAS,
 	setParams, SPRITE_TEX_H,
 	SPRITE_TEX_W
@@ -141,7 +141,7 @@ class VDP {
 		this.projectionMatrix = mat4.create();
 		// note: glmatrix.js always has the first argument
 		// as the destination to receive the result.
-		mat4.ortho(this.projectionMatrix, 0.0, 320.0, 240.0, 0.0, 0.1, 100);
+		mat4.ortho(this.projectionMatrix, 0.0, SCREEN_WIDTH, SCREEN_HEIGHT, 0.0, 0.1, 100);
 
 		// Normally set in modelViewMatrix, but we want to allow an empty model view matrix
 		mat4.translate(this.projectionMatrix, this.projectionMatrix, [-0.0, 0.0, -0.1]);
@@ -156,7 +156,7 @@ class VDP {
  * @param done {function(VDP)}
  */
 export function loadVdp(canvas, done) {
-	setParams(320, 240, true, false);
+	setParams(canvas.width, canvas.height, true, false);
 	const vdp = new VDP(canvas, () => {
 		done(vdp);
 	});

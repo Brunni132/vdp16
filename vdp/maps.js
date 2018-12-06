@@ -190,7 +190,7 @@ export function initMapShaders(vdp) {
 	};
 }
 
-export function drawMap(vdp, uMap, vMap, uTileset, vTileset, mapWidth, mapHeight, tilesetWidth, tilesetHeight, tileWidth, tileHeight, palNo, linescrollBuffer) {
+export function drawMap(vdp, uMap, vMap, uTileset, vTileset, mapWidth, mapHeight, tilesetWidth, tilesetHeight, tileWidth, tileHeight, palNo, linescrollBuffer, wrap = 1) {
 	const gl = vdp.gl;
 	const prog = vdp.mapProgram;
 
@@ -223,7 +223,6 @@ export function drawMap(vdp, uMap, vMap, uTileset, vTileset, mapWidth, mapHeight
 		tileWidth, tileHeight, SCREEN_WIDTH, SCREEN_HEIGHT
 	];
 	// linescroll buffer (row no in otherTexture), whether to wrap around map size (0=off, 1=on)
-	const wrap = 0;
 	const infos4 = [
 		linescrollBuffer, wrap, 0, 0,
 		linescrollBuffer, wrap, 0, 0,
