@@ -19,18 +19,8 @@ function main() {
 
 		vdp.startFrame();
 
-		// 2x4 RGBA texels = 4x4 16-bit words
-		const mapData = new Uint16Array(readFromTexture32(gl, vdp.mapTexture, 0, 0, 2, 4).buffer);
-		for (let i = 0; i < 16; i++) mapData[i] = i;
-		mapData[1] = 1 | 1 << 12;
-		mapData[0] = 0 | 4 << 12;
-		writeToTexture32(gl, vdp.mapTexture, 0, 0, 2, 4, new Uint8Array(mapData.buffer));
-
 		// Only using 8 components, assuming that the last is always 1 (which is OK for affine transformations)
 		const mat = mat3.create();
-		mat3.translate(mat, mat, [16, 16]);
-		mat3.rotate(mat, mat, Math.PI / 2);
-		mat3.translate(mat, mat, [-SCREEN_WIDTH / 2, -SCREEN_HEIGHT / 2]);
 		writeToTextureFloat(gl, vdp.otherTexture, 0, 0, 2, 1, mat);
 
 		// 2x1 RGBA texels = 8x1 float words
@@ -68,6 +58,15 @@ function main() {
 		else {
 		}
 
+		// mat4.scale(vdp.modelViewMatrix, vdp.modelViewMatrix, [1, 1, 1]);
+		vdp.drawMap(
+			0, 0, // UV map
+			352, 0, // UV tileset
+			423, 28, // Map size
+			256/8, 48/8, // Tileset size
+			8, 8, // Tile size
+			5, 0);
+
 		vdp.drawSprite(
 			10, 10, 10+24*2, 10+24*2,
 			0, 0, 24, 24,
@@ -90,16 +89,32 @@ function main() {
 			128, 0, 128+16, 0+16,
 			3);
 
-		// mat4.scale(vdp.modelViewMatrix, vdp.modelViewMatrix, [1, 1, 1]);
+		if (true) {
+			// mat4.scale(vdp.modelViewMatrix, vdp.modelViewMatrix, [1, 1, 1]);
 
-		// vdp.drawSprite(0, 0, 160, 160, 0, 0, 8, 8, 1);
-		// vdp.drawSprite(70, 50, 160+70, 160+50, 0, 0, 8, 8);
-		vdp.drawMap(
-			0, 0, // UV map
-			0, 0, // UV tileset
-			4, 4, // Map size
-			16, 3, // Tileset size
-			8, 8, // Tile size
-			0, 0);
+			// 2x4 RGBA texels = 4x4 16-bit words
+			const mapData = new Uint16Array(readFromTexture32(gl, vdp.mapTexture, 0, 0, 2, 4).buffer);
+			for (let i = 0; i < 16; i++) mapData[i] = i;
+			mapData[1] = 1 | 1 << 12;
+			mapData[0] = 0 | 4 << 12;
+			writeToTexture32(gl, vdp.mapTexture, 0, 0, 2, 4, new Uint8Array(mapData.buffer));
+
+			// Only using 8 components, assuming that the last is always 1 (which is OK for affine transformations)
+			const mat2 = mat3.create();
+			mat3.translate(mat2, mat2, [16, 16]);
+			mat3.rotate(mat2, mat2, Math.PI / 2);
+			mat3.translate(mat2, mat2, [-SCREEN_WIDTH / 2, -SCREEN_HEIGHT / 2]);
+			writeToTextureFloat(gl, vdp.otherTexture, 0, 0, 2, 1, mat2);
+
+			// vdp.drawSprite(0, 0, 160, 160, 0, 0, 8, 8, 1);
+			// vdp.drawSprite(70, 50, 160+70, 160+50, 0, 0, 8, 8);
+			vdp.drawMap(
+				0, 0, // UV map
+				0, 0, // UV tileset
+				4, 4, // Map size
+				16, 3, // Tileset size
+				8, 8, // Tile size
+				0, 0);
+		}
 	});
 }
