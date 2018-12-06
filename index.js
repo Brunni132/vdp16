@@ -23,6 +23,7 @@ function main() {
 		const mapData = new Uint16Array(readFromTexture32(gl, vdp.mapTexture, 0, 0, 2, 4).buffer);
 		for (let i = 0; i < 16; i++) mapData[i] = i;
 		mapData[1] = 1 | 1 << 12;
+		mapData[0] = 0 | 4 << 12;
 		writeToTexture32(gl, vdp.mapTexture, 0, 0, 2, 4, new Uint8Array(mapData.buffer));
 
 		// Only using 8 components, assuming that the last is always 1 (which is OK for affine transformations)
@@ -52,7 +53,15 @@ function main() {
 			writeToTexture32(gl, vdp.paletteTexture, 0, 2, 4, 1, new Uint8Array(brightColors.buffer));
 			writeToTexture32(gl, vdp.paletteTexture, 0, 3, 4, 1, new Uint8Array(darkColors.buffer));
 
-			let originalColors = new Uint8ClampedArray(readFromTexture32(gl, vdp.paletteTexture, 1, 0, 1, 1));
+			let originalColors = new Uint8ClampedArray(readFromTexture32(gl, vdp.paletteTexture, 0, 0, 256, 1));
+			for (let i = 0; i < 256; i++) {
+				originalColors[i * 4 + 0] /= 2;
+				originalColors[i * 4 + 1] /= 2;
+				originalColors[i * 4 + 2] /= 2;
+			}
+			writeToTexture32(gl, vdp.paletteTexture, 0, 4, 256, 1, new Uint8Array(originalColors));
+
+			originalColors = new Uint8ClampedArray(readFromTexture32(gl, vdp.paletteTexture, 1, 0, 1, 1));
 			originalColors[2] = 200;
 			writeToTexture32(gl, vdp.paletteTexture, 1, 0, 1, 1, new Uint8Array(originalColors.buffer));
 		}
