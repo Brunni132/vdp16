@@ -1,6 +1,6 @@
 import {createDataTexture32, createDataTextureFloat, loadTexture, loadTexture4444, readFromTexture32} from "./utils";
 import {mat4} from "../gl-matrix";
-import {drawSprite, drawSupersimple, initSpriteShaders, initSupersimpleShaders} from "./sprites";
+import {drawSprite, initSpriteShaders} from "./sprites";
 import {drawMap, initMapShaders} from "./maps";
 import {
 	HICOLOR_MODE, MAP_TEX_H, MAP_TEX_W,
@@ -11,11 +11,13 @@ import {
 	setParams, SPRITE_TEX_H,
 	SPRITE_TEX_W
 } from "./shaders";
+import {drawSupersimple, initSupersimpleShaders} from "./tests";
 
 class VDP {
 	constructor(canvas, done) {
 		/** @type {WebGLRenderingContext} */
 		this.gl = null;
+		// TODO Florian -- replace with proper definitions (typedefs or {member…}) and init to null
 		this.mapProgram = {
 			program: null,
 			buffers: {
@@ -139,15 +141,8 @@ class VDP {
 	}
 
 	_initMatrices() {
-		// Create a perspective matrix, a special matrix that is
-		// used to simulate the distortion of perspective in a camera.
-		// Our field of view is 45 degrees, with a width/height
-		// ratio that matches the display size of the canvas
-		// and we only want to see objects between 0.1 units
-		// and 100 units away from the camera.
 		this.projectionMatrix = mat4.create();
-		// note: glmatrix.js always has the first argument
-		// as the destination to receive the result.
+		// note: glmatrix.js always has the first argument as the destination to receive the result.
 		mat4.ortho(this.projectionMatrix, 0.0, SCREEN_WIDTH, SCREEN_HEIGHT, 0.0, 0.1, 100);
 
 		// Normally set in modelViewMatrix, but we want to allow an empty model view matrix

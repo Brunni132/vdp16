@@ -13,9 +13,11 @@ main();
 // start here
 //
 function main() {
-  const canvas = document.querySelector("#glCanvas");
-  loadVdp(canvas, (vdp) => {
-  	const gl = vdp.gl;
+	const canvas = document.querySelector("#glCanvas");
+	loadVdp(canvas, (vdp) => {
+		const gl = vdp.gl;
+
+		vdp.startFrame();
 
 		// Only using 8 components, assuming that the last is always 1 (which is OK for affine transformations)
 		const mat = mat3.create();
@@ -56,102 +58,63 @@ function main() {
 		else {
 		}
 
-		let last = 0, called = 0;
+		// mat4.scale(vdp.modelViewMatrix, vdp.modelViewMatrix, [1, 1, 1]);
+		vdp.drawMap(
+			0, 0, // UV map
+			352, 0, // UV tileset
+			423, 28, // Map size
+			256/8, 48/8, // Tileset size
+			8, 8, // Tile size
+			5, 0, 1);
 
-		function step(timestamp) {
-			vdp.startFrame();
+		vdp.drawSprite(
+			10, 10, 10+24*2, 10+24*2,
+			0, 0, 24, 24,
+			0);
 
-			timestamp = Math.floor(timestamp / 1000);
-			if (timestamp !== last) {
-				console.log(`Called ${called} times`);
-				called = 0;
-			}
-			called++;
-			last = timestamp;
+		vdp.drawSprite(
+			64, 80, 64+16, 80+16,
+			128, 0, 128+16, 0+16,
+			1);
+		vdp.drawSprite(
+			80, 80, 80+16, 80+16,
+			128, 0, 128+16, 0+16,
+			2);
+		vdp.drawSprite(
+			96, 80, 96+16, 80+16,
+			128, 0, 128+16, 0+16,
+			3);
+		vdp.drawSprite(
+			104, 88, 104+16, 88+16,
+			128, 0, 128+16, 0+16,
+			3);
 
+		if (true) {
 			// mat4.scale(vdp.modelViewMatrix, vdp.modelViewMatrix, [1, 1, 1]);
-			// vdp.drawMap(
-			// 	0, 0, // UV map
-			// 	352, 0, // UV tileset
-			// 	423, 28, // Map size
-			// 	256 / 8, 48 / 8, // Tileset size
-			// 	8, 8, // Tile size
-			// 	5, 0, 1);
 
-			for (let i = 0; i < 8; i++) {
-				const type = 1;
-				if (type === 0) {
-					vdp.drawMap(
-						i, 0, // UV map
-						352, 0, // UV tileset
-						421, 28, // Map size
-						256 / 8, 48 / 8, // Tileset size
-						8, 8, // Tile size
-						5, 0, 1);
-				} else if (type === 1) {
-					vdp.drawSprite(
-						0, 0, SCREEN_WIDTH, SCREEN_HEIGHT,
-						2, 2, 3, 3,
-						0);
-				} else {
-					vdp.drawSupersimple(
-						0, 0, SCREEN_WIDTH, SCREEN_HEIGHT,
-						0, 0, 1/14.0, 1/6.0);
-				}
-			}
+			// 2x4 RGBA texels = 4x4 16-bit words
+			const mapData = new Uint16Array(readFromTexture32(gl, vdp.mapTexture, 0, 0, 2, 4).buffer);
+			for (let i = 0; i < 16; i++) mapData[i] = i;
+			mapData[1] = 1 | 1 << 12;
+			mapData[0] = 0 | 4 << 12;
+			writeToTexture32(gl, vdp.mapTexture, 0, 0, 2, 4, new Uint8Array(mapData.buffer));
 
-			vdp.drawSprite(
-				10, 10, 10 + 24 * 2, 10 + 24 * 2,
-				0, 0, 24, 24,
-				0);
+			// Only using 8 components, assuming that the last is always 1 (which is OK for affine transformations)
+			const mat2 = mat3.create();
+			mat3.translate(mat2, mat2, [16, 16]);
+			mat3.rotate(mat2, mat2, Math.PI / 2);
+			mat3.translate(mat2, mat2, [-SCREEN_WIDTH / 2, -SCREEN_HEIGHT / 2]);
+			writeToTextureFloat(gl, vdp.otherTexture, 0, 0, 2, 1, mat2);
 
-			vdp.drawSprite(
-				64, 80, 64 + 16, 80 + 16,
-				128, 0, 128 + 16, 0 + 16,
-				1);
-			vdp.drawSprite(
-				80, 80, 80 + 16, 80 + 16,
-				128, 0, 128 + 16, 0 + 16,
-				2);
-			vdp.drawSprite(
-				96, 80, 96 + 16, 80 + 16,
-				128, 0, 128 + 16, 0 + 16,
-				3);
-			vdp.drawSprite(
-				104, 88, 104 + 16, 88 + 16,
-				128, 0, 128 + 16, 0 + 16,
-				3);
-
-			if (false) {
-				// mat4.scale(vdp.modelViewMatrix, vdp.modelViewMatrix, [1, 1, 1]);
-
-				// 2x4 RGBA texels = 4x4 16-bit words
-				const mapData = new Uint16Array(readFromTexture32(gl, vdp.mapTexture, 0, 0, 2, 4).buffer);
-				for (let i = 0; i < 16; i++) mapData[i] = i;
-				mapData[1] = 1 | 1 << 12;
-				mapData[0] = 0 | 4 << 12;
-				writeToTexture32(gl, vdp.mapTexture, 0, 0, 2, 4, new Uint8Array(mapData.buffer));
-
-				// Only using 8 components, assuming that the last is always 1 (which is OK for affine transformations)
-				const mat2 = mat3.create();
-				mat3.translate(mat2, mat2, [16, 16]);
-				mat3.rotate(mat2, mat2, Math.PI / 2);
-				mat3.translate(mat2, mat2, [-SCREEN_WIDTH / 2, -SCREEN_HEIGHT / 2]);
-				writeToTextureFloat(gl, vdp.otherTexture, 0, 0, 2, 1, mat2);
-
-				// vdp.drawSprite(0, 0, 160, 160, 0, 0, 8, 8, 1);
-				// vdp.drawSprite(70, 50, 160+70, 160+50, 0, 0, 8, 8);
-				vdp.drawMap(
-					0, 0, // UV map
-					0, 0, // UV tileset
-					4, 4, // Map size
-					16, 3, // Tileset size
-					8, 8, // Tile size
-					0, 0);
-			}
-
-			window.requestAnimationFrame(step);
+			// vdp.drawSprite(0, 0, 160, 160, 0, 0, 8, 8, 1);
+			// vdp.drawSprite(70, 50, 160+70, 160+50, 0, 0, 8, 8);
+			vdp.drawMap(
+				0, 0, // UV map
+				0, 0, // UV tileset
+				4, 4, // Map size
+				16, 3, // Tileset size
+				8, 8, // Tile size
+				0, 0, 0);
 		}
-		window.requestAnimationFrame(step);
 	});
 }
