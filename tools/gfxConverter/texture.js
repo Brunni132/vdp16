@@ -15,7 +15,6 @@ class Texture {
 		this.depth = bitDepth;
 
 		assert(this.depth === 4 || this.depth === 8 || this.depth === 16 || this.depth === 32);
-		assert(Math.floor(this.width * this.depth / 32) === this.width * this.depth / 32, `${Math.floor(this.width * this.depth / 32)} !== ${this.width * this.depth / 32}`);
 		this.pixelData = new Array(this.width * this.height);
 	}
 
@@ -135,6 +134,7 @@ class Texture {
 		if (this.depth < 32 && (pix >>> this.depth) !== 0) {
 			throw new Error(`${pix} too big to be written to a ${this.depth}bpp texture`);
 		}
+		//noinspection JSSuspiciousNameCombination
 		this.pixelData[Math.floor(y) * this.width + Math.floor(x)] = pix;
 	}
 
@@ -144,6 +144,8 @@ class Texture {
 	 * @param destFileName {string}
 	 */
 	writeToPng(destFileName) {
+		assert(Math.floor(this.width * this.depth / 32) === this.width * this.depth / 32, `${Math.floor(this.width * this.depth / 32)} !== ${this.width * this.depth / 32} in tex ${this.name}`);
+
 		const mapPng = new PNG({
 			width: Math.floor(this.width * this.depth / 32),
 			height: this.height,

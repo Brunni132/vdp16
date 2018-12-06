@@ -83,11 +83,13 @@ class Palette {
 class Sprite {
 
 	/**
+	 * @param {string} name
 	 * @param {number} width
 	 * @param {number} height
 	 * @param {Palette} palette
 	 */
-	constructor(width, height, palette) {
+	constructor(name, width, height, palette) {
+		this.name = name;
 		this.width = width;
 		this.height = height;
 		this.palette = palette;
@@ -95,12 +97,13 @@ class Sprite {
 	}
 
 	/**
+	 * @param {string} name
 	 * @param {Texture} texture
 	 * @param {Palette} palette
 	 * @return {Sprite}
 	 */
-	static fromImage(texture, palette) {
-		const result = new Sprite(texture.width, texture.height, palette);
+	static fromImage(name, texture, palette) {
+		const result = new Sprite(name, texture.width, texture.height, palette);
 		texture.forEachPixel((pixel, x, y) => {
 			// Add colors to the palette (or find them if they're already)
 			result.pixelData[y * result.width + x] = palette.pixelNumberInsidePalette(pixel);
@@ -123,7 +126,72 @@ class Sprite {
 	}
 }
 
-class ConverterBase {
+class MasterPackBaker {
+
+	/**
+	 * @param {Texture} destTexture
+	 */
+	constructor(destTexture) {
+		this.currentLineX = 0;
+		this.currentLineY = 0;
+		this.currentLineHeight = 0;
+		this.width = destTexture.width;
+		this.height = destTexture.height;
+		this.destTexture = destTexture;
+	}
+
+	/**
+	 * @param texture {Texture} in a format compatible with the destination texture
+	 * @param width {number}
+	 * @param height {number}
+	 * @param name {string}
+	 */
+	bakeItem(texture, width, height, name) {
+		// Need a new line?
+		if (this.remainingSpace().x < width) {
+			this.startNewLine();
+		}
+		if (this.remainingSpace().y < height) {
+			throw new Error(`Not enough space to add sprite ${name} of ${width}x${height} on sprite list (now at ${this.currentLineX}, ${this.currentLineY})`);
+		}
+
+		// Copy on dest texture
+		const x = this.currentLineX, y = this.currentLineY;
+		for (let j = 0; j < this.height; j++) {
+			for (let i = 0; i < this.width; i++) {
+				this.destTexture.setPixel(x + i, y + j, texture.getPixel(i, j));
+			}
+		}
+
+		this.currentLineX += width;
+		this.currentLineHeight = Math.max(this.currentLineHeight, height);
+		console.log(`TEMP now `, this.currentLineX, this.currentLineY, this.currentLineHeight);
+	}
+
+	/**
+	 * @return {number} between 0 (empty) and 1 (full).
+	 */
+	memoryUsage() {
+		const usageX = this.currentLineX / this.width;
+		return this.currentLineY / this.height + usageX * (this.currentLineHeight / this.height);
+	}
+
+	/**
+	 * Remaining space on the current line.
+	 * @returns {{x: number, y: number}}
+	 */
+	remainingSpace() {
+		return {x: this.width - this.currentLineX, y: this.height - this.currentLineY};
+	}
+
+	startNewLine() {
+		this.currentLineX = 0;
+		this.currentLineY += this.currentLineHeight;
+	}
+}
+
+// TODO Florian -- Maybe this should just reference a list of maps, palettes and sprites (mutable) then pack the thing at the end?
+class MasterPack {
 
 	// Lo-color mode: 8192x1024 sprites (4 MB), 256x16 RGBA4444 color RAM (8 kB), 2048x1024 maps (4 MB)
 	// Hi-color mode: 4096x1024 sprites (4 MB), 256x256 RGBA8888 color RAM (256 kB), 2048x1024 maps (4 MB)
@@ -137,9 +205,45 @@ class ConverterBase {
 
 		/** @type {Palette[]} */
 		this.palettes = [];
-		this.sprites = new MasterSpriteList(this.spriteTex);
-		/** @type {MasterSpriteListMap[]} */
+		/** @type {MasterPackSpriteList} */
+		this.sprites = new MasterPackSpriteList(this.spriteTex, this);
+		/** @type {Map[]} */
 		this.maps = [];
+	}
+
+	/**
+	 * @param map {Map}
+	 */
+	addMap(map) {
+		this.maps.push(map);
+	}
+
+	/**
+	 * Adds a new sprite, which shouldn't change from there. Create it via Sprite.fromImage().
+	 * @param sprite {Sprite}
+	 */
+	addSprite(sprite) {
+		this.sprites.bakeSprite(sprite);
+	}
+
+	/**
+	 * Adds a tileset, which shouldn't change from there. Create it via Tileset.blank().
+	 * @param tileset {Tileset}
+	 */
+	addTileset(tileset) {
+		this.sprites.bakeTileset(tileset);
+	}
+
+	/**
+	 * Creates a palette and adds it to the build.
+	 * @param name {string} palette name
+	 * @param {number} [maxColors=0] max number of colors
+	 * @returns {Palette} the newly created palette.
+	 */
+	createPalette(name, maxColors = 0) {
+		const result = new Palette(name, maxColors);
+		this.palettes.push(result);
+		return result;
 	}
 
 	pack() {
@@ -153,14 +257,22 @@ class ConverterBase {
 			}
 		}
 
+		// Sprites are automatically written on the go by MasterPackSpriteList (bake*)
 		for (let i = 0; i < this.sprites.spriteEntries.length; i++) {
 			const entry = this.sprites.spriteEntries[i];
 			resultJson.sprites[entry.name] = entry.toBigFileEntry();
 		}
 
+		// Bake maps
+		const mapBaker = new MasterPackBaker(this.mapTex);
+		for (let i = 0; i < this.maps.length; i++) {
+			mapBaker.bakeItem(this.maps[i].mapData, this.maps[i].width, this.maps[i].height, this.maps[i].name);
+		}
+
 		console.log(`Sprite usage: ${(100 * this.sprites.memoryUsage()).toFixed(2)}%`.formatAs(utils.BRIGHT, utils.FG_CYAN));
 		//console.log(masterSpriteList.spriteEntries.map(e => ({ x: e.x, y: e.y, w: e.width, h: e.height, pal: e.designPalette.name })));
 		console.log(`Palette usage: ${(100 * (this.palettes.length / this.paletteTex.height)).toFixed(2)}%`.formatAs(utils.BRIGHT, utils.FG_CYAN));
+		console.log(`Map usage: ${(100 * mapBaker.memoryUsage()).toFixed(2)}%`.formatAs(utils.BRIGHT, utils.FG_CYAN));
 		console.log('Writing sample.png…');
 		this.sprites.writeSampleImage('sample.png');
 
@@ -177,29 +289,31 @@ class ConverterBase {
 	}
 }
 
-class MasterSpriteList {
+// TODO Florian -- Refactor to use the MasterPackBaker
+class MasterPackSpriteList {
 
 	/**
 	 * @param {Texture} spriteTexture
 	 */
-	constructor(spriteTexture) {
+	constructor(spriteTexture, TEMP_masterPack) {
 		this.currentLineX = 0;
 		this.currentLineY = 0;
 		this.currentLineHeight = 0;
 		this.width = spriteTexture.width;
 		this.height = spriteTexture.height;
 		this.texture = spriteTexture;
-		/** @type {MasterSpriteListSprite[]} */
+		this.TEMP_masterPack = TEMP_masterPack;
+		/** @type {MasterPackSprite[]} */
 		this.spriteEntries = [];
-		/** @type {MasterSpriteListTileset[]} */
+		/** @type {MasterPackTileset[]} */
 		this.tilesetEntries = [];
 	}
 
 	/**
 	 * @param sprite {Sprite}
-	 * @param name {string}
 	 */
-	addSprite(name, sprite) {
+	bakeSprite(sprite) {
+		const name = sprite.name;
 		// Need a new line?
 		if (this.remainingSpace().x < sprite.width) {
 			this.startNewLine();
@@ -208,7 +322,7 @@ class MasterSpriteList {
 			throw new Error(`Not enough space to add sprite ${name} of ${sprite.width}x${sprite.height} on sprite list (now at ${this.currentLineX}, ${this.currentLineY})`);
 		}
 
-		const entry = new MasterSpriteListSprite(name, this, sprite.palette, this.currentLineX, this.currentLineY, sprite.width, sprite.height);
+		const entry = new MasterPackSprite(name, this.TEMP_masterPack, sprite.palette, this.currentLineX, this.currentLineY, sprite.width, sprite.height);
 		this.spriteEntries.push(entry);
 
 		sprite.copyToTexture(this.texture, this.currentLineX, this.currentLineY);
@@ -220,7 +334,7 @@ class MasterSpriteList {
 	/**
 	 * @param tileset {Tileset}
 	 */
-	addTileset(tileset) {
+	bakeTileset(tileset) {
 		const name = tileset.name;
 		// Need a new line?
 		if (this.remainingSpace().x < tileset.usedWidth) {
@@ -231,7 +345,7 @@ class MasterSpriteList {
 		}
 		assert(tileset.palettes.length === 1, 'Only supports tilesets with one palette');
 
-		const entry = new MasterSpriteListSprite(name, this, tileset.palettes[0], this.currentLineX, this.currentLineY, tileset.usedWidth, tileset.usedHeight);
+		const entry = new MasterPackSprite(name, this.TEMP_masterPack, tileset.palettes[0], this.currentLineX, this.currentLineY, tileset.usedWidth, tileset.usedHeight);
 		this.spriteEntries.push(entry);
 
 		tileset.copyToTexture(this.texture, this.currentLineX, this.currentLineY);
@@ -295,22 +409,51 @@ class MasterSpriteList {
 	}
 }
 
-class MasterSpriteListSprite {
+//class MasterPackPalette {
+//	/**
+//	 * @param name {string}
+//	 * @param masterPack {MasterPack}
+//	 * @param x {number}
+//	 * @param y {number}
+//	 * @param size {number} palette count
+//	 */
+//	constructor(name, masterPack, x, y, size) {
+//		/** @type {string} */
+//		this.name = name;
+//		/** @type {MasterPack} */
+//		this.masterPack = masterPack;
+//		/** @type {number} */
+//		this.x = x;
+//		/** @type {number} */
+//		this.y = y;
+//		/** @type {number} */
+//		this.size = size;
+//	}
+//
+//	/**
+//	 * @returns {BigFile~Palette}
+//	 */
+//	toBigFileEntry() {
+//		return { x: this.x, y: this.y, size: this.size };
+//	}
+//}
+
+class MasterPackSprite {
 	/**
 	 *
 	 * @param name {string}
-	 * @param masterSpriteList {MasterSpriteList}
+	 * @param masterPack {MasterPack}
 	 * @param designPalette {Palette}
 	 * @param x {number}
 	 * @param y {number}
 	 * @param width {number}
 	 * @param height {number}
 	 */
-	constructor(name, masterSpriteList, designPalette, x, y, width, height) {
+	constructor(name, masterPack, designPalette, x, y, width, height) {
 		/** @type {string} */
 		this.name = name;
-		/** @type {MasterSpriteList} */
-		this.masterSpriteList = masterSpriteList;
+		/** @type {MasterPack} */
+		this.masterPack = masterPack;
 		/** @type {Palette} */
 		this.designPalette = designPalette;
 		/** @type {number} */
@@ -331,46 +474,26 @@ class MasterSpriteListSprite {
 	}
 }
 
-class MasterSpriteListTileset extends MasterSpriteListSprite{
+class MasterPackTileset {
 	/**
 	 *
 	 * @param name {string}
-	 * @param masterSpriteList {MasterSpriteList}
+	 * @param masterPack {MasterPack}
 	 * @param designPalette {Palette}
 	 * @param x {number}
 	 * @param y {number}
 	 * @param width {number}
 	 * @param height {number}
+	 * @param tileWidth {number}
+	 * @param tileHeight {number}
 	 */
-	constructor(name, masterSpriteList, designPalette, x, y, width, height) {
-		super(name, masterSpriteList, designPalette, x, y, width, height);
-	}
-
-	/**
-	 * @returns {BigFile~Sprite}
-	 */
-	toBigFileEntry() {
-		return { x: this.x, y: this.y, w: this.width, h: this.height, pal: this.designPalette.name };
-	}
-}
-
-class MasterSpriteListMap {
-	/**
-	 * @param name {string}
-	 * @param masterSpriteList {MasterSpriteList}
-	 * @param designTileset {MasterSpriteListTileset}
-	 * @param x {number}
-	 * @param y {number}
-	 * @param width {number}
-	 * @param height {number}
-	 */
-	constructor(name, masterSpriteList, designTileset, x, y, width, height) {
+	constructor(name, masterPack, designPalette, x, y, width, height, tileWidth, tileHeight) {
 		/** @type {string} */
 		this.name = name;
-		/** @type {MasterSpriteList} */
-		this.masterSpriteList = masterSpriteList;
-		/** @type {MasterSpriteListTileset} */
-		this.designTileset = designTileset;
+		/** @type {MasterPack} */
+		this.masterPack = masterPack;
+		/** @type {Palette} */
+		this.designPalette = designPalette;
 		/** @type {number} */
 		this.x = x;
 		/** @type {number} */
@@ -379,47 +502,95 @@ class MasterSpriteListMap {
 		this.width = width;
 		/** @type {number} */
 		this.height = height;
+		/** @type {number} */
+		this.tileWidth = tileWidth;
+		/** @type {number} */
+		this.tileHeight = tileHeight;
 	}
 
 	/**
 	 * @returns {BigFile~Sprite}
 	 */
 	toBigFileEntry() {
-		return { x: this.x, y: this.y, w: this.width, h: this.height, pal: this.designPalette.name };
+		return { x: this.x, y: this.y, w: this.width, h: this.height, tw: this.tileWidth, th: this.tileHeight, pal: this.designPalette.name };
 	}
 }
 
+//class MasterPackMap {
+//	/**
+//	 * @param name {string}
+//	 * @param masterPack {MasterPack}
+//	 * @param designTileset {MasterPackTileset}
+//	 * @param x {number}
+//	 * @param y {number}
+//	 * @param width {number}
+//	 * @param height {number}
+//	 */
+//	constructor(name, masterPack, designTileset, x, y, width, height) {
+//		/** @type {string} */
+//		this.name = name;
+//		/** @type {MasterPackSpriteList} */
+//		this.masterPack = masterPack;
+//		/** @type {MasterPackTileset} */
+//		this.designTileset = designTileset;
+//		/** @type {number} */
+//		this.x = x;
+//		/** @type {number} */
+//		this.y = y;
+//		/** @type {number} */
+//		this.width = width;
+//		/** @type {number} */
+//		this.height = height;
+//	}
+//
+//	/**
+//	 * @returns {BigFile~Map}
+//	 */
+//	toBigFileEntry() {
+//		return { x: this.x, y: this.y, w: this.width, h: this.height,
+//			til: this.designTileset.name, pal: this.designTileset.designPalette.name };
+//	}
+//}
+
 // ---------- Your program ------------
-const conv = new ConverterBase();
+const conv = new MasterPack();
 
-conv.palettes.push(new Palette('Default'), new Palette('Mario'), null, null, null, new Palette('Level1'));
+const palettes = [
+	conv.createPalette('Default'),
+	conv.createPalette('Mario'),
+	conv.createPalette('unused1'),
+	conv.createPalette('unused2'),
+	conv.createPalette('unused3'),
+	conv.createPalette('Level1'),
+];
 
-conv.sprites.addSprite('font',
-	Sprite.fromImage(Texture.fromPng32('font.png'), conv.palettes[0]));
+conv.addSprite(Sprite.fromImage('font',
+	Texture.fromPng32('font.png'), palettes[0]));
 
-conv.sprites.addSprite('mario',
-	Sprite.fromImage(Texture.fromPng32('mario-luigi-2.png').subtexture(80, 32, 224, 16), conv.palettes[1]));
+conv.addSprite(Sprite.fromImage('mario',
+	Texture.fromPng32('mario-luigi-2.png').subtexture(80, 32, 224, 16), palettes[1]));
 
-const tileset = Tileset.blank('level1-til', 8, 8, 32, 32, [conv.palettes[5]]);
+const tileset = Tileset.blank('level1-til', 8, 8, 32, 32, [palettes[5]]);
 const map = Map.fromImage('level1',
 	Texture.fromPng32('mario-1-1.png'), tileset);
-conv.sprites.addTileset(tileset);
+conv.addTileset(tileset);
+conv.addMap(map);
 
 if (HICOLOR_MODE) {
-	while (conv.palettes[0].colorData.length < 127)
-		conv.palettes[0].colorData.push(0);
+	while (palettes[0].colorData.length < 127)
+		palettes[0].colorData.push(0);
 	// 127=red
-	conv.palettes[0].colorData.push(0xffff0000);
+	palettes[0].colorData.push(0xffff0000);
 	// 128=green
-	conv.palettes[0].colorData.push(0xff00ff00);
+	palettes[0].colorData.push(0xff00ff00);
 	// 129=blue
-	conv.palettes[0].colorData.push(0xff0000ff);
-	while (conv.palettes[0].colorData.length < 254)
-		conv.palettes[0].colorData.push(0);
+	palettes[0].colorData.push(0xff0000ff);
+	while (palettes[0].colorData.length < 254)
+		palettes[0].colorData.push(0);
 	// 254=yellow
-	conv.palettes[0].colorData.push(0xffffff00);
+	palettes[0].colorData.push(0xffffff00);
 	// 255=magenta
-	conv.palettes[0].colorData.push(0xffff00ff);
+	palettes[0].colorData.push(0xffff00ff);
 
 	conv.sprites.texture.setPixel(0, 0, 127);
 	conv.sprites.texture.setPixel(1, 0, 128);
@@ -428,20 +599,20 @@ if (HICOLOR_MODE) {
 	conv.sprites.texture.setPixel(4, 0, 255);
 }
 else {
-	while (conv.palettes[0].colorData.length < 7)
-		conv.palettes[0].colorData.push(0);
+	while (palettes[0].colorData.length < 7)
+		palettes[0].colorData.push(0);
 	// 7=red
-	conv.palettes[0].colorData.push(0xffff0000);
+	palettes[0].colorData.push(0xffff0000);
 	// 8=green
-	conv.palettes[0].colorData.push(0xff00ff00);
+	palettes[0].colorData.push(0xff00ff00);
 	// 9=blue
-	conv.palettes[0].colorData.push(0xff0000ff);
-	while (conv.palettes[0].colorData.length < 14)
-		conv.palettes[0].colorData.push(0);
+	palettes[0].colorData.push(0xff0000ff);
+	while (palettes[0].colorData.length < 14)
+		palettes[0].colorData.push(0);
 	// 14=yellow
-	conv.palettes[0].colorData.push(0xffffff00);
+	palettes[0].colorData.push(0xffffff00);
 	// 15=magenta
-	conv.palettes[0].colorData.push(0xffff00ff);
+	palettes[0].colorData.push(0xffff00ff);
 
 	conv.sprites.texture.setPixel(0, 0, 7);
 	conv.sprites.texture.setPixel(1, 0, 8);

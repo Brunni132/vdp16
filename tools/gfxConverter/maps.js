@@ -19,7 +19,7 @@ class Tile {
 	 * @return {Tile}
 	 */
 	static fromImage32(texture, palette) {
-		const result = new Tile(texture.width, texture.height, palette);
+		const result = new Tile(texture.width, texture.height);
 		texture.forEachPixel((pixel, x, y) => {
 			// Add colors to the palette (or find them if they're already)
 			result.pixelData[y * result.width + x] = palette.pixelNumberInsidePalette(pixel);
@@ -162,7 +162,8 @@ class Map {
 		this.width = width;
 		this.height = height;
 		this.tileset = tileset;
-		this.mapData = new ArrayBuffer(width * height);
+		/** @type {Texture} */
+		this.mapData = Texture.blank(name, width, height, 16);
 	}
 
 	/**
@@ -188,36 +189,12 @@ class Map {
 		return map;
 	}
 
-	/**
-	 * @param {Texture} destTexture 16-bit texture receiving map data
-	 * @param {number} x
-	 * @param {number} y
-	 */
-	copyToTexture(destTexture, x, y) {
-		let k = 0;
-		for (let j = 0; j < this.height; j++) {
-			for (let i = 0; i < this.width; i++) {
-				destTexture.setPixel(x + i, y + j, this.mapData[k++]);
-			}
-		}
-	}
-
-	/**
-	 * @param x {number}
-	 * @param y {number}
-	 * @returns {number}
-	 */
 	getTile(x, y) {
-		return this.mapData[y * this.width + x];
+		return this.mapData.getPixel(x, y);
 	}
 
-	/**
-	 * @param x {number}
-	 * @param y {number}
-	 * @param tileNo {number}
-	 */
-	setTile(x, y, tileNo) {
-		this.mapData[y * this.width + x] = tileNo;
+	setTile(x, y, tile) {
+		this.mapData.setPixel(x, y, tile);
 	}
 }
 
