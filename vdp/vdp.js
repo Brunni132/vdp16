@@ -1,6 +1,6 @@
 import {createDataTexture32, createDataTextureFloat, loadTexture, loadTexture4444, readFromTexture32} from "./utils";
 import {mat4} from "../gl-matrix";
-import {drawSprite, initSpriteShaders} from "./sprites";
+import {drawSprite, drawSupersimple, initSpriteShaders, initSupersimpleShaders} from "./sprites";
 import {drawMap, initMapShaders} from "./maps";
 import {
 	HICOLOR_MODE, MAP_TEX_H, MAP_TEX_W,
@@ -66,6 +66,7 @@ class VDP {
 				uSamplerSprites: null
 			},
 		};
+		this.supersimpleProgram = null;
 		/** @type {number} */
 		this.paletteTexture = null;
 		/** @type {number} */
@@ -76,10 +77,12 @@ class VDP {
 		// Methods
 		this.drawMap = drawMap.bind(null, this);
 		this.drawSprite = drawSprite.bind(null, this);
+		this.drawSupersimple = drawSupersimple.bind(null, this);
 
 		this._initContext(canvas);
 		initMapShaders(this);
 		initSpriteShaders(this);
+		initSupersimpleShaders(this);
 		this._initMatrices();
 
 		const gl = this.gl;
@@ -109,14 +112,18 @@ class VDP {
 	startFrame() {
 		const gl = this.gl;
 
+		// PERF: Has a moderate hit on performance (almost zero on the Surface Pro). It can even be faster if the image has pixel with zero alpha, the Surface Pro does some optimizations for fully transparent pixels. Else you have to discard them, and if you discard them you get even better performance.
+		// If you discard a lot of pixels there's almost no change. If the sprite is fully opaque there's no change either.
+		// In general it's probably better left on, the GPU already does all the optimizations.
 		gl.enable(gl.BLEND);
 		gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
 		// TODO Florian -- Set clear color to palette[0, 0]
 		gl.clearColor(0.0, 0.0, 0.5, 0.0);
 		gl.clearDepth(1.0);                 // Clear everything
-		gl.enable(gl.DEPTH_TEST);           // Enable depth testing
-		gl.depthFunc(gl.LEQUAL);            // Near things obscure far things
+		// PERF: This is a lot slower if there's a discard in the fragment shader (and we need one?) because the GPU can't test & write to the depth buffer until after the fragment shader has been executed. So there's no point in using it I guess.
+		// gl.enable(gl.DEPTH_TEST);           // Enable depth testing
+		// gl.depthFunc(gl.LESS);            // Near things obscure far things
 
 		// Clear the canvas before we start drawing on it.
 		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);

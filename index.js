@@ -70,13 +70,35 @@ function main() {
 			last = timestamp;
 
 			// mat4.scale(vdp.modelViewMatrix, vdp.modelViewMatrix, [1, 1, 1]);
-			vdp.drawMap(
-				0, 0, // UV map
-				352, 0, // UV tileset
-				423, 28, // Map size
-				256 / 8, 48 / 8, // Tileset size
-				8, 8, // Tile size
-				5, 0, 1);
+			// vdp.drawMap(
+			// 	0, 0, // UV map
+			// 	352, 0, // UV tileset
+			// 	423, 28, // Map size
+			// 	256 / 8, 48 / 8, // Tileset size
+			// 	8, 8, // Tile size
+			// 	5, 0, 1);
+
+			for (let i = 0; i < 8; i++) {
+				const type = 1;
+				if (type === 0) {
+					vdp.drawMap(
+						i, 0, // UV map
+						352, 0, // UV tileset
+						421, 28, // Map size
+						256 / 8, 48 / 8, // Tileset size
+						8, 8, // Tile size
+						5, 0, 1);
+				} else if (type === 1) {
+					vdp.drawSprite(
+						0, 0, SCREEN_WIDTH, SCREEN_HEIGHT,
+						2, 2, 3, 3,
+						0);
+				} else {
+					vdp.drawSupersimple(
+						0, 0, SCREEN_WIDTH, SCREEN_HEIGHT,
+						0, 0, 1/14.0, 1/6.0);
+				}
+			}
 
 			vdp.drawSprite(
 				10, 10, 10 + 24 * 2, 10 + 24 * 2,
