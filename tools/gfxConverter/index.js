@@ -1,6 +1,7 @@
 const assert = require('assert');
-const BigFile = require('../../vdp/bigfile');
+const BigFile = require('./bigfile');
 const fs = require('fs');
+const { Map, Tile, Tileset } = require('./maps');
 const Texture = require('./texture');
 const utils = require('./utils');
 
@@ -20,21 +21,21 @@ class Palette {
 	}
 
 	/**
-	 * @param {Texture} texture
+	 * @param texture {Texture} full color image
 	 */
-	initFromImage32(texture) {
+	initOptimizedFromImage(texture) {
 		texture.forEachPixelLinear((color) => {
 			this.pixelNumberInsidePalette(color, true);
 		});
 	}
 
 	/**
-	 * @param {Texture} destTexture
+	 * @param {Texture} destTexture in the destination pixel format for the colors (16 or 32-bit)
 	 * @param {number} x
 	 * @param {number} y
-	 * @return {BigFile.Palette}
+	 * @return {BigFile~Palette}
 	 */
-	copyToTexture32(destTexture, x, y) {
+	copyToTexture(destTexture, x, y) {
 		if (x + this.colorData.length > destTexture.width) {
 			throw new Error(`Too many colors in palette ${this.name} to fit in ${destTexture.width} texture`);
 		}
@@ -75,6 +76,10 @@ class Palette {
 	}
 }
 
+/**
+ * Similar to Tileset.
+ * @see {Tileset}
+ */
 class Sprite {
 
 	/**
@@ -94,7 +99,7 @@ class Sprite {
 	 * @param {Palette} palette
 	 * @return {Sprite}
 	 */
-	static fromImage32(texture, palette) {
+	static fromImage(texture, palette) {
 		const result = new Sprite(texture.width, texture.height, palette);
 		texture.forEachPixel((pixel, x, y) => {
 			// Add colors to the palette (or find them if they're already)
@@ -104,11 +109,11 @@ class Sprite {
 	}
 
 	/**
-	 * @param {Texture} destTexture
+	 * @param {Texture} destTexture destination sprite texture receiving texel data (4 or 8 bit).
 	 * @param {number} x
 	 * @param {number} y
 	 */
-	copyToTexture32(destTexture, x, y) {
+	copyToTexture(destTexture, x, y) {
 		let k = 0;
 		for (let j = 0; j < this.height; j++) {
 			for (let i = 0; i < this.width; i++) {
@@ -133,6 +138,8 @@ class ConverterBase {
 		/** @type {Palette[]} */
 		this.palettes = [];
 		this.sprites = new MasterSpriteList(this.spriteTex);
+		/** @type {MasterSpriteListMap[]} */
+		this.maps = [];
 	}
 
 	pack() {
@@ -141,7 +148,9 @@ class ConverterBase {
 
 		// Convert all palettes to the palette tex
 		for (let i = 0; i < this.palettes.length; i++) {
-			resultJson.pals[this.palettes[i].name] = this.palettes[i].copyToTexture32(this.paletteTex, 0, i);
+			if (this.palettes[i]) {
+				resultJson.pals[this.palettes[i].name] = this.palettes[i].copyToTexture(this.paletteTex, 0, i);
+			}
 		}
 
 		for (let i = 0; i < this.sprites.spriteEntries.length; i++) {
@@ -195,26 +204,67 @@ class MasterSpriteList {
 		if (this.remainingSpace().x < sprite.width) {
 			this.startNewLine();
 		}
+		if (this.remainingSpace().y < sprite.height) {
+			throw new Error(`Not enough space to add sprite ${name} of ${sprite.width}x${sprite.height} on sprite list (now at ${this.currentLineX}, ${this.currentLineY})`);
+		}
 
 		const entry = new MasterSpriteListSprite(name, this, sprite.palette, this.currentLineX, this.currentLineY, sprite.width, sprite.height);
 		this.spriteEntries.push(entry);
 
-		sprite.copyToTexture32(this.texture, this.currentLineX, this.currentLineY);
+		sprite.copyToTexture(this.texture, this.currentLineX, this.currentLineY);
 
 		this.currentLineX += sprite.width;
 		this.currentLineHeight = Math.max(this.currentLineHeight, sprite.height);
 	}
 
 	/**
+	 * @param tileset {Tileset}
+	 */
+	addTileset(tileset) {
+		const name = tileset.name;
+		// Need a new line?
+		if (this.remainingSpace().x < tileset.usedWidth) {
+			this.startNewLine();
+		}
+		if (this.remainingSpace().y < tileset.usedHeight) {
+			throw new Error(`Not enough space to add sprite ${name} of ${tileset.usedWidth}x${tileset.usedHeight} on sprite list (now at ${this.currentLineX}, ${this.currentLineY})`);
+		}
+		assert(tileset.palettes.length === 1, 'Only supports tilesets with one palette');
+
+		const entry = new MasterSpriteListSprite(name, this, tileset.palettes[0], this.currentLineX, this.currentLineY, tileset.usedWidth, tileset.usedHeight);
+		this.spriteEntries.push(entry);
+
+		tileset.copyToTexture(this.texture, this.currentLineX, this.currentLineY);
+
+		this.currentLineX += tileset.usedWidth;
+		this.currentLineHeight = Math.max(this.currentLineHeight, tileset.usedHeight);
+	}
+
+	/**
 	 * Finds the palette at a given location.
 	 * @param x
 	 * @param y
-	 * @return {MasterSpriteListSprite | undefined}
+	 * @return {Palette | null}
 	 */
 	findPaletteAt(x, y) {
-		return this.spriteEntries.find((entry) => {
+		const result = this.spriteEntries.find((entry) => {
 			return x >= entry.x && x < entry.x + entry.width && y >= entry.y && y < entry.y + entry.height;
 		});
+
+		if (result) return result.designPalette;
+
+		const result2 = this.tilesetEntries.find((entry) => {
+			return x >= entry.x && x < entry.x + entry.width && y >= entry.y && y < entry.y + entry.height;
+		});
+		return result2 ? result2.designPalette : null;
+	}
+
+	/**
+	 * @return {number} between 0 (empty) and 1 (full).
+	 */
+	memoryUsage() {
+		const usageX = this.currentLineX / this.width;
+		return this.currentLineY / this.height + usageX * (this.currentLineHeight / this.height);
 	}
 
 	/**
@@ -231,14 +281,6 @@ class MasterSpriteList {
 	}
 
 	/**
-	 * @return {number} between 0 (empty) and 1 (full).
-	 */
-	memoryUsage() {
-		const usageX = this.currentLineX / this.width;
-		return this.currentLineY / this.height + usageX * (this.currentLineHeight / this.height);
-	}
-
-	/**
 	 * @param fileName {string}
 	 */
 	writeSampleImage(fileName) {
@@ -246,8 +288,7 @@ class MasterSpriteList {
 		const defaultPal = this.spriteEntries[0].designPalette;
 		const result = new Texture('sample', this.texture.width, this.texture.height, 32);
 		this.texture.forEachPixel((pix, x, y) => {
-			const data = this.findPaletteAt(x, y);
-			const palette = data ? data.designPalette : defaultPal;
+			const palette = this.findPaletteAt(x, y) || defaultPal;
 			result.setPixel(x, y, palette.colorData[pix]);
 		});
 		result.writeToPng(fileName);
@@ -258,18 +299,18 @@ class MasterSpriteListSprite {
 	/**
 	 *
 	 * @param name {string}
-	 * @param texture {MasterSpriteList}
+	 * @param masterSpriteList {MasterSpriteList}
 	 * @param designPalette {Palette}
 	 * @param x {number}
 	 * @param y {number}
 	 * @param width {number}
 	 * @param height {number}
 	 */
-	constructor(name, texture, designPalette, x, y, width, height) {
+	constructor(name, masterSpriteList, designPalette, x, y, width, height) {
 		/** @type {string} */
 		this.name = name;
 		/** @type {MasterSpriteList} */
-		this.texture = texture;
+		this.masterSpriteList = masterSpriteList;
 		/** @type {Palette} */
 		this.designPalette = designPalette;
 		/** @type {number} */
@@ -283,7 +324,7 @@ class MasterSpriteListSprite {
 	}
 
 	/**
-	 * @returns {BigFile.Sprite}
+	 * @returns {BigFile~Sprite}
 	 */
 	toBigFileEntry() {
 		return { x: this.x, y: this.y, w: this.width, h: this.height, pal: this.designPalette.name };
@@ -294,19 +335,54 @@ class MasterSpriteListTileset extends MasterSpriteListSprite{
 	/**
 	 *
 	 * @param name {string}
-	 * @param texture {MasterSpriteList}
+	 * @param masterSpriteList {MasterSpriteList}
 	 * @param designPalette {Palette}
 	 * @param x {number}
 	 * @param y {number}
 	 * @param width {number}
 	 * @param height {number}
 	 */
-	constructor(name, texture, designPalette, x, y, width, height) {
-		super(name, texture, designPalette, x, y, width, height);
+	constructor(name, masterSpriteList, designPalette, x, y, width, height) {
+		super(name, masterSpriteList, designPalette, x, y, width, height);
 	}
 
 	/**
-	 * @returns {BigFile.Sprite}
+	 * @returns {BigFile~Sprite}
+	 */
+	toBigFileEntry() {
+		return { x: this.x, y: this.y, w: this.width, h: this.height, pal: this.designPalette.name };
+	}
+}
+
+class MasterSpriteListMap {
+	/**
+	 * @param name {string}
+	 * @param masterSpriteList {MasterSpriteList}
+	 * @param designTileset {MasterSpriteListTileset}
+	 * @param x {number}
+	 * @param y {number}
+	 * @param width {number}
+	 * @param height {number}
+	 */
+	constructor(name, masterSpriteList, designTileset, x, y, width, height) {
+		/** @type {string} */
+		this.name = name;
+		/** @type {MasterSpriteList} */
+		this.masterSpriteList = masterSpriteList;
+		/** @type {MasterSpriteListTileset} */
+		this.designTileset = designTileset;
+		/** @type {number} */
+		this.x = x;
+		/** @type {number} */
+		this.y = y;
+		/** @type {number} */
+		this.width = width;
+		/** @type {number} */
+		this.height = height;
+	}
+
+	/**
+	 * @returns {BigFile~Sprite}
 	 */
 	toBigFileEntry() {
 		return { x: this.x, y: this.y, w: this.width, h: this.height, pal: this.designPalette.name };
@@ -316,13 +392,18 @@ class MasterSpriteListTileset extends MasterSpriteListSprite{
 // ---------- Your program ------------
 const conv = new ConverterBase();
 
-conv.palettes.push(new Palette('Default'), new Palette('Mario'));
+conv.palettes.push(new Palette('Default'), new Palette('Mario'), null, null, null, new Palette('Level1'));
 
 conv.sprites.addSprite('font',
-	Sprite.fromImage32(Texture.fromPng32('font.png'), conv.palettes[0]));
+	Sprite.fromImage(Texture.fromPng32('font.png'), conv.palettes[0]));
 
 conv.sprites.addSprite('mario',
-	Sprite.fromImage32(Texture.fromPng32('mario-luigi-2.png').subtexture(80, 32, 224, 16), conv.palettes[1]));
+	Sprite.fromImage(Texture.fromPng32('mario-luigi-2.png').subtexture(80, 32, 224, 16), conv.palettes[1]));
+
+const tileset = Tileset.blank('level1-til', 8, 8, 32, 32, [conv.palettes[5]]);
+const map = Map.fromImage('level1',
+	Texture.fromPng32('mario-1-1.png'), tileset);
+conv.sprites.addTileset(tileset);
 
 if (HICOLOR_MODE) {
 	while (conv.palettes[0].colorData.length < 127)

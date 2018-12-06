@@ -45,6 +45,10 @@ class Tile {
 	}
 }
 
+/**
+ * Similar to Sprite.
+ * @see {Sprite}
+ */
 class Tileset {
 
 	/**
@@ -67,21 +71,26 @@ class Tileset {
 		this.tiles = [];
 	}
 
+	static blank(name, tileWidth, tileHeight, tilesWide, tilesTall, palettes) {
+		return new Tileset(name, tileWidth, tileHeight, tilesWide, tilesTall, palettes);
+	}
+
 	/***
 	 *
 	 * @param mappedTile {Tile}
-	 * @returns {boolean}
+	 * @returns {number} tile number in tileset
 	 */
 	addTile(mappedTile) {
-		if (this.tiles.length >= this.tilesWide * this.tilesTall) {
+		if (this.tiles.length >= this.maxTiles) {
 			throw new Error(`Max ${this.tiles.length} tiles reached for tileset ${this.name}`);
 		}
 
 		this.tiles.push(mappedTile);
+		return this.tiles.length -1;
 	}
 
 	/**
-	 * @param {Texture} destTexture
+	 * @param {Texture} destTexture destination sprite texture receiving texel data (4 or 8 bit).
 	 * @param {number} xDest
 	 * @param {number} yDest
 	 */
@@ -98,6 +107,11 @@ class Tileset {
 		}
 	}
 
+	/**
+	 * @param texture {Texture}
+	 * @param paletteNo {number} palette to use
+	 * @returns {number} tile number in tileset
+	 */
 	findOrAddTile(texture, paletteNo) {
 		const resultConverted = Tile.fromImage32(texture, this.palettes[paletteNo]);
 
@@ -110,36 +124,105 @@ class Tileset {
 		return this.addTile(resultConverted);
 	}
 
+	/** @returns {number} */
+	get maxTiles() {
+		return this.tilesWide * this.tilesTall;
+	}
+
 	/**
 	 * @param tileNo {number}
 	 * @returns {{x: number, y: number}}
 	 */
 	tilePosition(tileNo) {
-		assert(tileNo < this.tilesWide * this.tilesTall && tileNo <= this.usedTiles);
-		return { x: (tileNo % this.tilesWide) * this.tileWidth, y: Math.floor(tileNo / this.tilesWide) * this.tileWidth };
+		assert(tileNo <= this.tiles.length);
+		return { x: (tileNo % this.tilesWide) * this.tileWidth, y: Math.floor(tileNo / this.tilesWide) * this.tileHeight };
+	}
+
+	/** @returns {number} */
+	get usedHeight() {
+		return Math.ceil(this.tiles.length / this.tilesWide) * this.tileWidth;
+	}
+
+	/** @returns {number} */
+	get usedWidth() {
+		return Math.min(this.tiles.length, this.tilesWide) * this.tileHeight;
 	}
 }
 
-/**
- * @param image {Texture} original image (full color)
- * @param tileset {Tileset} adds to it
- * @returns {ArrayBuffer} map data (16 bit)
- */
-export function generateTilemapFromImage(image, tileset) {
+class Map {
 
-	const mapWidth = Math.ceil(image.width / tileset.tileWidth);
-	const mapHeight = Math.ceil(image.height / tileset.tileHeight);
-	const mapData = new ArrayBuffer(mapWidth * mapHeight);
+	/**
+	 * @param name {string}
+	 * @param width {number}
+	 * @param height {number}
+	 * @param tileset {Tileset}
+	 */
+	constructor(name, width, height, tileset) {
+		this.name = name;
+		this.width = width;
+		this.height = height;
+		this.tileset = tileset;
+		this.mapData = new ArrayBuffer(width * height);
+	}
 
-	// Subdivide in tiles
-	for (let j = 0; j < mapHeight; j++) {
-		for (let i = 0; i < mapWidth; i++) {
-			const tile = image.subtexture(i * tileset.tileWidth, j * tileset.tileHeight, tileset.tileWidth, tileset.tileHeight);
-			mapData[j * mapHeight + i] = tileset.findOrAddTile(tile, 0);
+	/**
+	 * Generates a tilemap based on an image that may contain the same tiles multiple times. It adds tiles to the tileset
+	 * and palettes referenced by it.
+	 * @param name {string}
+	 * @param image {Texture} original image (full color)
+	 * @param tileset {Tileset} adds to it
+	 * @returns {Map}
+	 */
+	static fromImage(name, image, tileset) {
+		const mapWidth = Math.ceil(image.width / tileset.tileWidth);
+		const mapHeight = Math.ceil(image.height / tileset.tileHeight);
+		const map = new Map(name, mapWidth, mapHeight, tileset);
+
+		// Subdivide in tiles
+		for (let j = 0; j < mapHeight; j++) {
+			for (let i = 0; i < mapWidth; i++) {
+				const tile = image.subtexture(i * tileset.tileWidth, j * tileset.tileHeight, tileset.tileWidth, tileset.tileHeight);
+				map.setTile(i, j, tileset.findOrAddTile(tile, 0));
+			}
+		}
+		return map;
+	}
+
+	/**
+	 * @param {Texture} destTexture 16-bit texture receiving map data
+	 * @param {number} x
+	 * @param {number} y
+	 */
+	copyToTexture(destTexture, x, y) {
+		let k = 0;
+		for (let j = 0; j < this.height; j++) {
+			for (let i = 0; i < this.width; i++) {
+				destTexture.setPixel(x + i, y + j, this.mapData[k++]);
+			}
 		}
 	}
 
-	return mapData;
+	/**
+	 * @param x {number}
+	 * @param y {number}
+	 * @returns {number}
+	 */
+	getTile(x, y) {
+		return this.mapData[y * this.width + x];
+	}
+
+	/**
+	 * @param x {number}
+	 * @param y {number}
+	 * @param tileNo {number}
+	 */
+	setTile(x, y, tileNo) {
+		this.mapData[y * this.width + x] = tileNo;
+	}
 }
 
-
+module.exports = {
+	Map,
+	Tile,
+	Tileset,
+};
