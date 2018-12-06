@@ -189,6 +189,20 @@ class Map {
 		return map;
 	}
 
+	/**
+	 * @param {Texture} destTexture destination map texture receiving texel data (16 bit).
+	 * @param {number} xDest
+	 * @param {number} yDest
+	 */
+	copyToTexture(destTexture, xDest, yDest) {
+		let k = 0;
+		for (let j = 0; j < this.height; j++) {
+			for (let i = 0; i < this.width; i++) {
+				destTexture.setPixel(xDest + i, yDest + j, this.mapData.pixelData[k++]);
+			}
+		}
+	}
+
 	getTile(x, y) {
 		return this.mapData.getPixel(x, y);
 	}
