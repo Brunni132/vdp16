@@ -16,51 +16,47 @@ export function setParams(screenWidth, screenHeight, hiColor = false, composited
 }
 
 export function declareReadTexel() {
+	const paletteMultiplier8 = `float(${(255.0 / 256.0) * (256 / PALETTE_TEX_W)})`;
+	const paletteMultiplier4 = `float(${16.0 / PALETTE_TEX_W / 16.0})`;
+	const byteMultiplier = '255.0';
 	// Returns a value between 0 and 1, ready to map a color in palette (0..255)
-	if (HICOLOR_MODE) {
-		const paletteMultiplier = `float(${(255.0 / 256.0) * (256 / PALETTE_TEX_W)})`;
-		return `
-				float readTexel(float x, float y) {
-					int texelId = int(x / 4.0);
-					vec4 read = texture2D(uSamplerSprites, vec2(float(texelId) / ${SPRITE_TEX_W}.0, y / ${SPRITE_TEX_H}.0));
-					int texelC = int(x) - texelId * 4;
-					if (texelC == 0) return read.r * ${paletteMultiplier};
-					if (texelC == 1) return read.g * ${paletteMultiplier};
-					if (texelC == 2) return read.b * ${paletteMultiplier};
-					return read.a * ${paletteMultiplier};
-				}`;
-	}
-	else {
-		const paletteMultiplier = `float(${16.0 / PALETTE_TEX_W / 16.0})`;
-		const byteMultiplier = '255.0';
-		return `
-				float extractTexelHi(float colorComp) {
-					int intValue = int(colorComp * ${byteMultiplier});
-					return float(intValue / 16) * ${paletteMultiplier};
-				}
+	return `
+			float readTexel8(float x, float y) {
+				int texelId = int(x / 4.0);
+				vec4 read = texture2D(uSamplerSprites, vec2(float(texelId) / ${SPRITE_TEX_W}.0, y / ${SPRITE_TEX_H}.0));
+				int texelC = int(x) - texelId * 4;
+				if (texelC == 0) return read.r * ${paletteMultiplier8};
+				if (texelC == 1) return read.g * ${paletteMultiplier8};
+				if (texelC == 2) return read.b * ${paletteMultiplier8};
+				return read.a * ${paletteMultiplier8};
+			}
+			
+			float extractTexelHi(float colorComp) {
+				int intValue = int(colorComp * ${byteMultiplier});
+				return float(intValue / 16) * ${paletteMultiplier4};
+			}
 
-				float extractTexelLo(float colorComp) {
-					int intValue = int(colorComp * ${byteMultiplier});
-					return float(intValue - (intValue / 16) * 16) * ${paletteMultiplier};
-					//return float(mod(float(intValue), 16.0)) * ${paletteMultiplier};
-				}
-		
-				float readTexel(float x, float y) {
-					int texelId = int(x / 8.0);
-					vec4 read = texture2D(uSamplerSprites, vec2(float(texelId) / ${SPRITE_TEX_W}.0, y / ${SPRITE_TEX_H}.0));
-					int texelC = int(x) - texelId * 8;
-					
-					if (texelC == 0) return extractTexelHi(read.r);
-					if (texelC == 1) return extractTexelLo(read.r);
-					if (texelC == 2) return extractTexelHi(read.g);
-					if (texelC == 3) return extractTexelLo(read.g);
-					if (texelC == 4) return extractTexelHi(read.b);
-					if (texelC == 5) return extractTexelLo(read.b);
-					if (texelC == 6) return extractTexelHi(read.a);
-					return extractTexelLo(read.a);
-					//return 9.0 * ${paletteMultiplier};
-				}`;
-	}
+			float extractTexelLo(float colorComp) {
+				int intValue = int(colorComp * ${byteMultiplier});
+				return float(intValue - (intValue / 16) * 16) * ${paletteMultiplier4};
+				//return float(mod(float(intValue), 16.0)) * ${paletteMultiplier4};
+			}
+	
+			float readTexel4(float x, float y) {
+				int texelId = int(x / 8.0);
+				vec4 read = texture2D(uSamplerSprites, vec2(float(texelId) / ${SPRITE_TEX_W}.0, y / ${SPRITE_TEX_H}.0));
+				int texelC = int(x) - texelId * 8;
+				
+				if (texelC == 0) return extractTexelHi(read.r);
+				if (texelC == 1) return extractTexelLo(read.r);
+				if (texelC == 2) return extractTexelHi(read.g);
+				if (texelC == 3) return extractTexelLo(read.g);
+				if (texelC == 4) return extractTexelHi(read.b);
+				if (texelC == 5) return extractTexelLo(read.b);
+				if (texelC == 6) return extractTexelHi(read.a);
+				return extractTexelLo(read.a);
+				//return 9.0 * ${paletteMultiplier4};
+			}`;
 }
 
 export function declareReadPalette() {

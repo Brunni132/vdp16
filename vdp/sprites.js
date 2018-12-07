@@ -4,14 +4,10 @@ import {
 	declareReadTexel,
 	HICOLOR_MODE,
 	PALETTE_TEX_H,
-	PALETTE_TEX_W,
-	SCREEN_HEIGHT,
-	SCREEN_WIDTH,
-	SPRITE_TEX_H,
-	SPRITE_TEX_W
-} from "./shaders";
+	PALETTE_TEX_W} from "./shaders";
 
 const MAX_SPRITES = 128;
+const PALETTE_HICOLOR_FLAG = 1 << 15;
 
 export function initSpriteShaders(vdp) {
 	const gl = vdp.gl;
@@ -31,7 +27,7 @@ export function initSpriteShaders(vdp) {
 		
 			void main(void) {
 				gl_Position = uProjectionMatrix * uModelViewMatrix * vec4(aXyzp.xyz, 1);
-				vPaletteNo = (aXyzp.w / ${PALETTE_TEX_H}.0);
+				vPaletteNo = aXyzp.w;
 				vTextureCoord = aUv;
 			}
 		`;
@@ -46,10 +42,19 @@ export function initSpriteShaders(vdp) {
 			${declareReadPalette()}
 		
 			void main(void) {
-				float texel = readTexel(vTextureCoord.x, vTextureCoord.y);
+				float texel, palette;
+				if (vPaletteNo >= ${PALETTE_HICOLOR_FLAG}.0) {
+					texel = readTexel8(vTextureCoord.x, vTextureCoord.y);
+					palette = (vPaletteNo - ${PALETTE_HICOLOR_FLAG}.0) / ${PALETTE_TEX_H}.0;
+				}
+				else {
+					texel = readTexel4(vTextureCoord.x, vTextureCoord.y);
+					palette = vPaletteNo / ${PALETTE_TEX_H}.0;
+				}
+
 				// Color zero
 				if (texel < ${1.0 / (PALETTE_TEX_W)}) discard;
-				gl_FragColor = readPalette(texel, vPaletteNo);
+				gl_FragColor = readPalette(texel, palette);
 			}
 		`;
 
@@ -80,6 +85,8 @@ export function initSpriteShaders(vdp) {
 }
 
 export function drawSprite(vdp, xStart, yStart, xEnd, yEnd, uStart, vStart, uEnd, vEnd, palNo) {
+	if (HICOLOR_MODE) palNo |= PALETTE_HICOLOR_FLAG;
+
 	const gl = vdp.gl;
 	const prog = vdp.spriteProgram;
 	const positions = [

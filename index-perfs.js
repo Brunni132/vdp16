@@ -79,7 +79,7 @@ function main() {
 			// 	5, 0, 1);
 
 			for (let i = 0; i < 8; i++) {
-				const type = 1;
+				const type = 0;
 				if (type === 0) {
 					vdp.drawMap(
 						i, 0, // UV map

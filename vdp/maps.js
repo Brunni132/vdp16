@@ -7,12 +7,10 @@ import {
 	PALETTE_TEX_H,
 	PALETTE_TEX_W,
 	SCREEN_HEIGHT,
-	SCREEN_WIDTH,
-	SPRITE_TEX_H,
-	SPRITE_TEX_W
-} from "./shaders";
+	SCREEN_WIDTH} from "./shaders";
 
 const MAX_BGS = 8;
+const PALETTE_HICOLOR_FLAG = 1 << 15;
 
 export function initMapShaders(vdp) {
 	const gl = vdp.gl;
@@ -50,7 +48,7 @@ export function initMapShaders(vdp) {
 		
 			void main(void) {
 				gl_Position = uProjectionMatrix * uModelViewMatrix * vec4(aXyzp.xyz, 1);
-				vPaletteNo = (aXyzp.w / ${PALETTE_TEX_H}.0);
+				vPaletteNo = aXyzp.w;
 				vMapStart = aMapInfo1.xy;
 				vTilesetStart = aMapInfo1.zw;
 				vMapSize = aMapInfo2.xy;
@@ -134,7 +132,7 @@ export function initMapShaders(vdp) {
 				else {
 					transformationMatrix = vTransformationMatrix;
 				}
-			
+							
 				vec2 texCoord = (transformationMatrix * vec3(vTextureCoord.x, vTextureCoord.y, 1)).xy;
 				int mapX = intDiv(texCoord.x, vTileSize.x), mapY = intDiv(texCoord.y, vTileSize.y);
 				
@@ -147,17 +145,26 @@ export function initMapShaders(vdp) {
 
 				// Bits 12-15: palette No
 				int palOfs = mapTileNo / ${1 << 12};
-				float paletteOffset = float(palOfs) / ${PALETTE_TEX_H}.0;
+				float paletteOffset = float(palOfs);
 				mapTileNo -= palOfs * ${1 << 12};
 
 				// Position of tile no in sprite texture, now we need to add the offset
 				vec2 tilesetPos = positionInTexture(mapTileNo)
 					+ vec2(mod(texCoord.x, vTileSize.x), mod(texCoord.y, vTileSize.y));
-				float texel = readTexel(tilesetPos.x, tilesetPos.y);
+				float texel;
+
+				if (vPaletteNo >= ${PALETTE_HICOLOR_FLAG}.0) {
+					texel = readTexel8(tilesetPos.x, tilesetPos.y);
+					paletteOffset += (vPaletteNo - ${PALETTE_HICOLOR_FLAG}.0);
+				}
+				else {
+					texel = readTexel4(tilesetPos.x, tilesetPos.y);
+					paletteOffset += vPaletteNo;
+				}
 
 				// Color zero
 				if (texel < ${1.0 / PALETTE_TEX_W}) discard;
-				gl_FragColor = readPalette(texel, vPaletteNo + paletteOffset);
+				gl_FragColor = readPalette(texel, paletteOffset / ${PALETTE_TEX_H}.0);
 			}
 		`;
 
@@ -193,6 +200,8 @@ export function initMapShaders(vdp) {
 export function drawMap(vdp, uMap, vMap, uTileset, vTileset, mapWidth, mapHeight, tilesetWidth, tilesetHeight, tileWidth, tileHeight, palNo, linescrollBuffer, wrap = 1) {
 	const gl = vdp.gl;
 	const prog = vdp.mapProgram;
+
+	if (HICOLOR_MODE) palNo |= PALETTE_HICOLOR_FLAG;
 
 	// x, y position, z for normal-prio tiles, base palette no
 	const positions = [

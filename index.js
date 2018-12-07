@@ -1,9 +1,8 @@
 import {loadVdp} from "./vdp/vdp";
 import {mat3, mat4} from "./gl-matrix";
 import {
-	readFromTextureColors,
 	readFromTextureFloat, readFromTexture16,
-	readFromTexture8, writeToTextureAuto, writeToTextureFloat, bindToFramebuffer, readFromTexture32, writeToTexture32
+	writeToTextureFloat, bindToFramebuffer, readFromTexture32, writeToTexture32
 } from "./vdp/utils";
 import {HICOLOR_MODE, SCREEN_HEIGHT, SCREEN_WIDTH} from "./vdp/shaders";
 
@@ -21,6 +20,7 @@ function main() {
 
 		// Only using 8 components, assuming that the last is always 1 (which is OK for affine transformations)
 		const mat = mat3.create();
+		//mat3.scale(mat, mat, [4, 4]);
 		writeToTextureFloat(gl, vdp.otherTexture, 0, 0, 2, 1, mat);
 
 		// 2x1 RGBA texels = 8x1 float words
@@ -54,6 +54,14 @@ function main() {
 			originalColors = new Uint8ClampedArray(readFromTexture32(gl, vdp.paletteTexture, 1, 0, 1, 1));
 			originalColors[2] = 200;
 			writeToTexture32(gl, vdp.paletteTexture, 1, 0, 1, 1, new Uint8Array(originalColors.buffer));
+
+			originalColors = new Uint8ClampedArray(readFromTexture32(gl, vdp.paletteTexture, 0, 5, 16, 1));
+			for (let i = 0; i < 16; i++) {
+				originalColors[i * 4 + 0] /= 2;
+				originalColors[i * 4 + 1] /= 2;
+				originalColors[i * 4 + 2] /= 2;
+			}
+			writeToTexture32(gl, vdp.paletteTexture, 0, 5, 16, 1, new Uint8Array(originalColors.buffer));
 		}
 		else {
 		}
