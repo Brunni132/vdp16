@@ -14,6 +14,19 @@ class Tile {
 	}
 
 	/**
+	 * @param width
+	 * @param height
+	 * @returns {Tile}
+	 */
+	static filledWithZero(width, height) {
+	 	const result = new Tile(width, height);
+	 	for (let i = 0; i < result.width * result.height; i++) {
+			result.pixelData[i] = 0;
+		}
+		return result;
+	}
+
+	/**
 	 * @param {Texture} texture
 	 * @param {Palette} palette
 	 * @return {Tile}
@@ -61,14 +74,17 @@ class Tileset {
 	 */
 	constructor(name, tileWidth, tileHeight, tilesWide, tilesTall, palettes) {
 		assert(palettes.length === 1, 'Does support only one palette for now');
+		assert((tilesWide * tilesTall) >= 1, 'At least one tile required in tileset');
 		this.name = name;
 		this.tileWidth = tileWidth;
 		this.tileHeight = tileHeight;
 		this.tilesWide = tilesWide;
 		this.tilesTall = tilesTall;
 		this.palettes = palettes;
+
+		// First tile is always transparent
 		/** @type {Tile[]} */
-		this.tiles = [];
+		this.tiles = [Tile.filledWithZero(tileWidth, tileHeight)];
 	}
 
 	static blank(name, tileWidth, tileHeight, tilesWide, tilesTall, palettes) {

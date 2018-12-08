@@ -142,6 +142,8 @@ export function initMapShaders(vdp) {
 				}
 				
 				int mapTileNo = readMap(mapX, mapY);
+				// Note: it's voluntarily done here, so that you may still force draw the tile 0 by using a palette offset (could be useful for sprites as a BG)
+				if (mapTileNo < 1) discard;
 
 				// Bits 12-15: palette No
 				int palOfs = mapTileNo / ${1 << 12};
