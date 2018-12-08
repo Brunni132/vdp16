@@ -199,7 +199,7 @@ export function initMapShaders(vdp) {
 	};
 }
 
-export function drawMap(vdp, uMap, vMap, uTileset, vTileset, mapWidth, mapHeight, tilesetWidth, tileWidth, tileHeight, palNo, linescrollBuffer, wrap = 1) {
+export function drawMap(vdp, uMap, vMap, uTileset, vTileset, mapWidth, mapHeight, tilesetWidth, tileWidth, tileHeight, winX, winY, winW, winH, scrollX, scrollY, palNo, linescrollBuffer, wrap = 1) {
 	const gl = vdp.gl;
 	const prog = vdp.mapProgram;
 
@@ -208,10 +208,10 @@ export function drawMap(vdp, uMap, vMap, uTileset, vTileset, mapWidth, mapHeight
 
 	// x, y position, z for normal-prio tiles, base palette no
 	const positions = [
-		0, 0, 0, palNo,
-		SCREEN_WIDTH, 0, 0, palNo,
-		0, SCREEN_HEIGHT, 0, palNo,
-		SCREEN_WIDTH, SCREEN_HEIGHT, 0, palNo,
+		winX, winY, 0, palNo,
+		winX + winW, winY, 0, palNo,
+		winX, winY + winH, 0, palNo,
+		winX + winW, winY + winH, 0, palNo,
 	];
 	// u, v map base, u, v tileset base
 	const infos1 = [
@@ -229,10 +229,10 @@ export function drawMap(vdp, uMap, vMap, uTileset, vTileset, mapWidth, mapHeight
 	];
 	// tile width, tile height, drawing uv
 	const infos3 = [
-		tileWidth, tileHeight, 0, 0,
-		tileWidth, tileHeight, SCREEN_WIDTH, 0,
-		tileWidth, tileHeight, 0, SCREEN_HEIGHT,
-		tileWidth, tileHeight, SCREEN_WIDTH, SCREEN_HEIGHT
+		tileWidth, tileHeight, scrollX, scrollY,
+		tileWidth, tileHeight, scrollX + winW, scrollY,
+		tileWidth, tileHeight, scrollX, scrollY + winH,
+		tileWidth, tileHeight, scrollX + winW, scrollY + winH
 	];
 	// linescroll buffer (row no in otherTexture), whether to wrap around map size (0=off, 1=on)
 	const infos4 = [

@@ -1,5 +1,12 @@
-import {createDataTexture32, createDataTextureFloat, loadTexture, loadTexture4444, readFromTexture32} from "./utils";
-import {mat4} from "../gl-matrix";
+import {
+	createDataTexture32,
+	createDataTextureFloat,
+	loadTexture,
+	loadTexture4444,
+	readFromTexture32,
+	writeToTextureFloat
+} from "./utils";
+import {mat3, mat4} from "../gl-matrix";
 import {drawSprite, initSpriteShaders} from "./sprites";
 import {drawMap, initMapShaders} from "./maps";
 import {
@@ -12,6 +19,79 @@ import {
 	SPRITE_TEX_W
 } from "./shaders";
 import {drawSupersimple, initSupersimpleShaders} from "./tests";
+
+class VdpMap {
+	/**
+	 * @property x {number} U position in the map texture (cells)
+	 * @property y {number} V position in the map texture (cells)
+	 * @property w {number} width of sprite (pixels)
+	 * @property h {number} height of sprite (pixels)
+	 * @property designTileset {string} name of the tileset (VdpSprite)
+	 * @property designPalette {string} name of the first palette (takes precedence over the one defined in the tileset); tiles can use this and the next 15 palettes via the bits 12-15 in the tile number.
+	 */
+	constructor(x, y, w, h, designTileset, designPalette) {
+		this.x = x;
+		this.y = y;
+		this.w = w;
+		this.h = h;
+		this.designTileset = designTileset;
+		this.designPalette = designPalette;
+	}
+
+	offsetted(x, y, w, h) {
+		this.x += x;
+		this.y += y;
+		this.w = w;
+		this.h = h;
+		return this;
+	}
+}
+
+class VdpPalette {
+	/**
+	 * @property y {number} V position of palette (color units)
+	 * @property size {number} count (color units)
+	 */
+	constructor(y, size) {
+		this.y = y;
+		this.size = size;
+	}
+
+	offsetted(y, size) {
+		this.y += y;
+		this.size = size;
+		return this;
+	}
+}
+
+class VdpSprite {
+	/**
+	 * @property x {number} U position in the sprite texture (pixels)
+	 * @property y {number} V position in the sprite texture (pixels)
+	 * @property w {number} width of sprite or tileset as a whole (pixels)
+	 * @property h {number} height of sprite or tileset as a whole (pixels)
+	 * @property tw {number} tile width (pixels) if it's a tileset
+	 * @property th {number} tile height (pixels) if it's a tileset
+	 * @property designPalette {string} design palette name (can be overriden)
+	 */
+	constructor(x, y, w, h, tw, th, designPalette) {
+		this.x = x;
+		this.y = y;
+		this.w = w;
+		this.h = h;
+		this.tw = tw;
+		this.th = th;
+		this.designPalette = designPalette;
+	}
+
+	offsetted(x, y, w, h) {
+		this.x += x;
+		this.y += y;
+		this.w = w;
+		this.h = h;
+		return this;
+	}
+}
 
 class VDP {
 	/** @property {WebGLRenderingContext} gl */
@@ -70,6 +150,10 @@ class VDP {
 						this.mapTexture = tex;
 
 						this.otherTexture = createDataTextureFloat(gl, OTHER_TEX_W, OTHER_TEX_W);
+						// Store a default identity matrix for linescroll buffer 0
+						// Only using 8 components, assuming that the last is always 1 (which is OK for affine transformations)
+						const mat = mat3.create();
+						writeToTextureFloat(gl, this.otherTexture, 0, 0, 2, 1, mat);
 						done();
 					});
 				});
@@ -98,73 +182,111 @@ class VDP {
 	}
 
 	/**
-	 * @param name
-	 * @returns {BigFile~Map}
+	 * @param name {string}
+	 * @returns {VdpMap}
 	 */
 	map(name) {
 		const map = this.gameData.maps[name];
 		if (!map) throw new Error(`Map ${name} not found`);
-		return map;
+		return new VdpMap(map.x, map.y, map.w, map.h, map.til, map.pal);
 	}
 
 	/**
-	 * @param name
-	 * @returns {BigFile~Palette}
+	 * @param name {string}
+	 * @returns {VdpPalette}
 	 */
 	palette(name) {
 		const pal = this.gameData.pals[name];
 		if (!pal) throw new Error(`Palette ${name} not found`);
-		return pal;
+		return new VdpPalette(pal.y, pal.size);
 	}
 
 	/**
-	 * @param name
-	 * @returns {BigFile~Sprite}
+	 * @param name {string}
+	 * @returns {VdpSprite}
 	 */
 	sprite(name) {
 		const spr = this.gameData.sprites[name];
 		if (!spr) throw new Error(`Sprite ${name} not found`);
-		return spr;
+		return new VdpSprite(spr.x, spr.y, spr.w, spr.h, spr.tw, spr.th, spr.pal);
 	}
 
 	/**
-	 * @param sprite {string|BigFile~Sprite}
-	 * @param x {number}
-	 * @param y {number}
-	 * @param [palette] {BigFile~Palette}
+	 * @param map {string|VdpMap} map to draw (e.g. vdp.map('level1') or just 'level1')
+	 * @param [opts] {Object}
+	 * @param opts.palette {string|VdpPalette} specific base palette to use (for the normal tiles). Keep in mind that individual map tiles may use the next 15 palettes by setting the bits 12-15 of the tile number.
+	 * @param opts.scrollX {number} horizontal scrolling
+	 * @param opts.scrollY {number} vertical scrolling
+	 * @param opts.winX {number} left coordinate on the screen to start drawing from (default to 0)
+	 * @param opts.winY {number} top coordinate on the screen to start drawing from (default to 0)
+	 * @param opts.winW {number} width after which to stop drawing (defaults to SCREEN_WIDTH)
+	 * @param opts.winH {number} height after which to stop drawing (defaults to SCREEN_HEIGHT)
+	 * @param opts.linescrollBuffer {number} number of the linescroll buffer to use
+	 * @param opts.wrap {boolean} whether to wrap the map at the bounds (defaults to true)
+	 * @param opts.tileset {string|VdpSprite} custom tileset to use.
 	 */
-	drawSprite(sprite, x, y, palette) {
-		if (typeof sprite === 'string') sprite = this.sprite(sprite);
-		const pal = palette || this.palette(sprite.pal);
-		drawSprite(this, x, y, sprite.w, sprite.h, sprite.x, sprite.y, sprite.x + sprite.w, sprite.y + sprite.h, pal.y);
-	}
-
-	/**
-	 * @param map {string|BigFile~Map}
-	 * @param [palette] {BigFile~Palette}
-	 * @param [linescrollBuffer] {number}
-	 * @param [wrap=1] {number}
-	 */
-	drawMap(map, palette, linescrollBuffer = 0, wrap = 1) {
+	drawBG(map, opts = {}) {
 		if (typeof map === 'string') map = this.map(map);
-		const pal = palette || this.palette(map.pal);
-		const til = this.sprite(map.til);
-		drawMap(this, map.x, map.y, til.x, til.y, map.w, map.h, til.w, til.tw, til.th, pal.y, linescrollBuffer, wrap);
+		// TODO Florian -- no need for such a param, since the user can modify map.designPalette himself…
+		// Maybe the other options could be in the map too… (just beware that they are strings, not actual links to the palette/tileset… but we could typecheck too)
+		const pal = this._getPalette(opts.hasOwnProperty('palette') ? opts.palette : map.designPalette);
+		const til = this._getSprite(opts.hasOwnProperty('tileset') ? opts.tilest : map.designTileset);
+		const scrollX = opts.hasOwnProperty('scrollX') ? opts.scrollX : 0;
+		const scrollY = opts.hasOwnProperty('scrollY') ? opts.scrollY : 0;
+		const winX = opts.hasOwnProperty('winX') ? opts.winX : 0;
+		const winY = opts.hasOwnProperty('winY') ? opts.winY : 0;
+		const winW = opts.hasOwnProperty('winW') ? opts.winW : SCREEN_WIDTH;
+		const winH = opts.hasOwnProperty('winH') ? opts.winH : SCREEN_HEIGHT;
+		const linescrollBuffer = opts.hasOwnProperty('linescrollBuffer') ? opts.linescrollBuffer : 0;
+		const wrap = opts.hasOwnProperty('wrap') ? opts.wrap : true;
+
+		drawMap(this, map.x, map.y, til.x, til.y, map.w, map.h, til.w, til.tw, til.th, winX, winY, winW, winH, scrollX, scrollY, pal.y, linescrollBuffer, wrap ? 1 : 0);
 	}
 
-	// drawMap(uMap, vMap, uTileset, vTileset, mapWidth, mapHeight, tilesetWidth, tilesetHeight, tileWidth, tileHeight, palNo, linescrollBuffer, wrap = 1) {
-	// 	drawMap(this, uMap, vMap, uTileset, vTileset, mapWidth, mapHeight, tilesetWidth, tilesetHeight, tileWidth, tileHeight, palNo, linescrollBuffer, wrap);
-	// }
-	//
-	// drawSprite(xStart, yStart, xEnd, yEnd, uStart, vStart, uEnd, vEnd, palNo) {
-	// 	drawSprite(this, xStart, yStart, xEnd, yEnd, uStart, vStart, uEnd, vEnd, palNo);
-	// }
-	//
-	// drawSupersimple(vdp, xStart, yStart, xEnd, yEnd, uStart, vStart, uEnd, vEnd) {
-	// 	drawSupersimple(this, xStart, yStart, xEnd, yEnd, uStart, vStart, uEnd, vEnd);
-	// }
+	/**
+	 * @param sprite {string|VdpSprite} sprite to draw (e.g. vdp.sprite('plumber') or just 'plumber')
+	 * @param x {number} position (X coord)
+	 * @param y {number} position (Y coord)
+	 * @param [opts] {Object}
+	 * @param opts.palette {VdpPalette} specific palette to use (otherwise just uses the design palette of the sprite)
+	 * @param opts.width {number} width on the screen (stretches the sprite compared to sprite.w)
+	 * @param opts.height {number} height on the screen (stretches the sprite compared to sprite.h)
+	 */
+	drawSprite(sprite, x, y, opts = {}) {
+		if (typeof sprite === 'string') sprite = this.sprite(sprite);
+		// TODO Florian -- no need for such a param, since the user can modify sprite.designPalette himself…
+		const pal = this._getPalette(opts.hasOwnProperty('palette') ? opts.palette : sprite.designPalette);
+		const w = opts.hasOwnProperty('width') ? opts.width : sprite.w;
+		const h = opts.hasOwnProperty('height') ? opts.height : sprite.h;
+
+		drawSprite(this, x, y, x + w, y + h, sprite.x, sprite.y, sprite.x + sprite.w, sprite.y + sprite.h, pal.y);
+	}
 
 	// --------------------- PRIVATE ---------------------
+	/**
+	 * @param name {string|VdpPalette}
+	 * @private
+	 * @return {VdpPalette}
+	 */
+	_getPalette(name) {
+		if (typeof name === 'string') return this.palette(name);
+		return name;
+	}
+
+	/**
+	 * @param name {string|VdpSprite}
+	 * @private
+	 * @return {VdpSprite}
+	 */
+	_getSprite(name) {
+		if (typeof name === 'string') return this.sprite(name);
+		return name;
+	}
+
+	/**
+	 * @param canvas {HTMLCanvasElement}
+	 * @private
+	 */
 	_initContext(canvas) {
 		this.gl = canvas.getContext("webgl", { premultipliedAlpha: true, alpha: SEMITRANSPARENT_CANVAS });
 
@@ -174,6 +296,9 @@ class VDP {
 		}
 	}
 
+	/**
+	 * @private
+	 */
 	_initMatrices() {
 		this.projectionMatrix = mat4.create();
 		// note: glmatrix.js always has the first argument as the destination to receive the result.
@@ -189,11 +314,38 @@ class VDP {
 
 /**
  * @param canvas {HTMLCanvasElement}
- * @param done {function(VDP)}
+ * @returns {Promise}
  */
-export function loadVdp(canvas, done) {
+export function loadVdp(canvas) {
 	setParams(canvas.width, canvas.height, true, false);
-	const vdp = new VDP(canvas, () => {
-		done(vdp);
+	return new Promise(function (resolve) {
+		const vdp = new VDP(canvas, () => {
+			vdp.startFrame();
+			resolve(vdp);
+		});
 	});
+}
+
+/**
+ * @param {VDP} vdp
+ * @param {IterableIterator<number>} coroutine
+ */
+export function runProgram(vdp, coroutine) {
+	let last = 0, called = 0;
+
+	function step(timestamp) {
+		timestamp = Math.floor(timestamp / 1000);
+		if (timestamp !== last) {
+			console.log(`Called ${called} times`);
+			called = 0;
+		}
+		called++;
+		last = timestamp;
+
+		vdp.startFrame();
+		coroutine.next();
+		window.requestAnimationFrame(step);
+	}
+
+	window.requestAnimationFrame(step);
 }
