@@ -199,11 +199,12 @@ export function initMapShaders(vdp) {
 	};
 }
 
-export function drawMap(vdp, uMap, vMap, uTileset, vTileset, mapWidth, mapHeight, tilesetWidth, tilesetHeight, tileWidth, tileHeight, palNo, linescrollBuffer, wrap = 1) {
+export function drawMap(vdp, uMap, vMap, uTileset, vTileset, mapWidth, mapHeight, tilesetWidth, tileWidth, tileHeight, palNo, linescrollBuffer, wrap = 1) {
 	const gl = vdp.gl;
 	const prog = vdp.mapProgram;
 
 	if (HICOLOR_MODE) palNo |= PALETTE_HICOLOR_FLAG;
+	tilesetWidth = Math.floor(tilesetWidth / tileWidth);
 
 	// x, y position, z for normal-prio tiles, base palette no
 	const positions = [

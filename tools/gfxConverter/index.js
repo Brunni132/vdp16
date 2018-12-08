@@ -44,7 +44,7 @@ class Palette {
 			destTexture.setPixel(x + i, y, this.colorData[i]);
 		}
 
-		return { x, y, size: this.colorData.length };
+		return { y, size: this.colorData.length };
 	}
 
 	/**

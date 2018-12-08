@@ -14,73 +14,32 @@ import {
 import {drawSupersimple, initSupersimpleShaders} from "./tests";
 
 class VDP {
+	/** @property {WebGLRenderingContext} gl */
+	/** @property {BigFile} gameData */
+	/**
+	 * xyzp: x, y position, base z, base palette no
+	 * mapInfo1: u, v map base, u, v tileset base
+	 * mapInfo2: map width, map height, tileset width, tileset height
+	 * mapInfo3: tile width, tile height, UV drawing (should be 0…1)
+	 * @property {{program: *, attribLocations: {xyzp: GLint, mapInfo1: GLint, mapInfo2: GLint, mapInfo3: GLint, mapInfo4: GLint}, buffers: {xyzp, mapInfo1, mapInfo2, mapInfo3, mapInfo4}, uniformLocations: {projectionMatrix: WebGLUniformLocation, modelViewMatrix: WebGLUniformLocation, uSamplerMaps: WebGLUniformLocation, uSamplerSprites: WebGLUniformLocation, uSamplerPalettes: WebGLUniformLocation, uSamplerOthers: WebGLUniformLocation}}} mapProgram
+	 */
+	/** @property {number} mapTexture */
+	/** @property {mat4} modelViewMatrix */
+	/** @property {mat4} projectionMatrix */
+	/**
+	 * @property {{program: *, arrayBuffers: {xyzp: Float32Array, uv: Float32Array}, attribLocations: {xyzp: GLint, uv: GLint}, buffers: {xyzp, uv}, uniformLocations: {projectionMatrix: WebGLUniformLocation, modelViewMatrix: WebGLUniformLocation, uSamplerSprites: WebGLUniformLocation, uSamplerPalettes: WebGLUniformLocation}}} spriteProgram
+	 */
+	/** @property {{program: *, arrayBuffers: {xyz: Float32Array, uv: Float32Array}, attribLocations: {xyz: GLint, uv: GLint}, buffers: {xyz, uv}, uniformLocations: {projectionMatrix: WebGLUniformLocation, modelViewMatrix: WebGLUniformLocation, uSamplerPalettes: WebGLUniformLocation}}} supersimpleProgram */
+	/** @type {WebGLTexture} mapTexture */
+	/** @type {WebGLTexture} paletteTexture */
+	/** @type {WebGLTexture} spriteTexture */
+	/** @type {WebGLTexture} otherTexture */
+
+	/**
+	 * @param canvas {HTMLCanvasElement}
+	 * @param done {function()}
+	 */
 	constructor(canvas, done) {
-		/** @type {WebGLRenderingContext} */
-		this.gl = null;
-		// TODO Florian -- replace with proper definitions (typedefs or {member…}) and init to null
-		this.mapProgram = {
-			program: null,
-			buffers: {
-				xyzp: null,
-				mapInfo1: null,
-				mapInfo2: null,
-				mapInfo3: null
-			},
-			attribLocations: {
-				// For blending: use dst := framebuffer * (1 - outAlpha) + outFrag * 1 ; outFrag.rgb = texture.rgb * blendingFactor ; outFrag.a = texture.a
-				xyzp: null, // x, y position, base z, base palette no
-				mapInfo1: null, // u, v map base, u, v tileset base
-				mapInfo2: null, // map width, map height, tileset width, tileset height
-				mapInfo3: null  // tile width, tile height, UV drawing (should be 0…1)
-			},
-			uniformLocations: {
-				projectionMatrix: null,
-				modelViewMatrix: null,
-				uSamplerMaps: null,
-				uSamplerPalettes: null,
-				uSamplerSprites: null,
-			}
-		};
-		/** @type {number} */
-		this.mapTexture = null;
-		/** @type {mat4} */
-		this.modelViewMatrix = null;
-		/** @type {mat4} */
-		this.projectionMatrix = null;
-		this.spriteProgram = {
-			program: null,
-			arrayBuffers: {
-				xyzp: null,
-				uv: null,
-			},
-			buffers: {
-				xyzp: null,
-				uv: null,
-			},
-			attribLocations: {
-				xyzp: null,
-				uv: null
-			},
-			uniformLocations: {
-				projectionMatrix: null,
-				modelViewMatrix: null,
-				uSamplerPalettes: null,
-				uSamplerSprites: null
-			},
-		};
-		this.supersimpleProgram = null;
-		/** @type {number} */
-		this.paletteTexture = null;
-		/** @type {number} */
-		this.spriteTexture = null;
-		/** @type {number} */
-		this.otherTexture = null;
-
-		// Methods
-		this.drawMap = drawMap.bind(null, this);
-		this.drawSprite = drawSprite.bind(null, this);
-		this.drawSupersimple = drawSupersimple.bind(null, this);
-
 		this._initContext(canvas);
 		initMapShaders(this);
 		initSpriteShaders(this);
@@ -89,23 +48,30 @@ class VDP {
 
 		const gl = this.gl;
 		const loadTextureType = HICOLOR_MODE ? loadTexture : loadTexture4444;
-		loadTexture(gl, 'build/sprites.png', (tex, image) => {
-			if (image.width !== SPRITE_TEX_W || image.height !== SPRITE_TEX_H)
-				throw new Error('Mismatch in texture size');
-			this.spriteTexture = tex;
-			loadTextureType(gl, 'build/palettes.png', (tex, image) => {
-				if (image.width !== 256 && HICOLOR_MODE || image.width !== 16 && !HICOLOR_MODE)
-					throw new Error('Mismatch in hi-color mode and passed textures');
-				if (image.width !== PALETTE_TEX_W || image.height !== PALETTE_TEX_H)
-					throw new Error('Mismatch in texture size');
-				this.paletteTexture = tex;
-				loadTexture(gl, 'build/maps.png', (tex, image) => {
-					if (image.width !== MAP_TEX_W || image.height !== MAP_TEX_H)
-						throw new Error('Mismatch in texture size');
-					this.mapTexture = tex;
+		// TODO Florian -- Use promises for loadTexture, make them all at the same time and wait for them all. Same for fetch
+		window.fetch('build/game.json').then((res) => res.json()).then((json) => {
+			this.gameData = json;
 
-					this.otherTexture = createDataTextureFloat(gl, OTHER_TEX_W, OTHER_TEX_W);
-					done();
+			loadTexture(gl, 'build/sprites.png', (tex, image) => {
+				if (image.width !== SPRITE_TEX_W || image.height !== SPRITE_TEX_H)
+					throw new Error('Mismatch in texture size');
+				this.spriteTexture = tex;
+
+				loadTextureType(gl, 'build/palettes.png', (tex, image) => {
+					if (image.width !== 256 && HICOLOR_MODE || image.width !== 16 && !HICOLOR_MODE)
+						throw new Error('Mismatch in hi-color mode and passed textures');
+					if (image.width !== PALETTE_TEX_W || image.height !== PALETTE_TEX_H)
+						throw new Error('Mismatch in texture size');
+					this.paletteTexture = tex;
+
+					loadTexture(gl, 'build/maps.png', (tex, image) => {
+						if (image.width !== MAP_TEX_W || image.height !== MAP_TEX_H)
+							throw new Error('Mismatch in texture size');
+						this.mapTexture = tex;
+
+						this.otherTexture = createDataTextureFloat(gl, OTHER_TEX_W, OTHER_TEX_W);
+						done();
+					});
 				});
 			});
 		});
@@ -131,6 +97,74 @@ class VDP {
 		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 	}
 
+	/**
+	 * @param name
+	 * @returns {BigFile~Map}
+	 */
+	map(name) {
+		const map = this.gameData.maps[name];
+		if (!map) throw new Error(`Map ${name} not found`);
+		return map;
+	}
+
+	/**
+	 * @param name
+	 * @returns {BigFile~Palette}
+	 */
+	palette(name) {
+		const pal = this.gameData.pals[name];
+		if (!pal) throw new Error(`Palette ${name} not found`);
+		return pal;
+	}
+
+	/**
+	 * @param name
+	 * @returns {BigFile~Sprite}
+	 */
+	sprite(name) {
+		const spr = this.gameData.sprites[name];
+		if (!spr) throw new Error(`Sprite ${name} not found`);
+		return spr;
+	}
+
+	/**
+	 * @param sprite {string|BigFile~Sprite}
+	 * @param x {number}
+	 * @param y {number}
+	 * @param [palette] {BigFile~Palette}
+	 */
+	drawSprite(sprite, x, y, palette) {
+		if (typeof sprite === 'string') sprite = this.sprite(sprite);
+		const pal = palette || this.palette(sprite.pal);
+		drawSprite(this, x, y, sprite.w, sprite.h, sprite.x, sprite.y, sprite.x + sprite.w, sprite.y + sprite.h, pal.y);
+	}
+
+	/**
+	 * @param map {string|BigFile~Map}
+	 * @param [palette] {BigFile~Palette}
+	 * @param [linescrollBuffer] {number}
+	 * @param [wrap=1] {number}
+	 */
+	drawMap(map, palette, linescrollBuffer = 0, wrap = 1) {
+		if (typeof map === 'string') map = this.map(map);
+		const pal = palette || this.palette(map.pal);
+		const til = this.sprite(map.til);
+		drawMap(this, map.x, map.y, til.x, til.y, map.w, map.h, til.w, til.tw, til.th, pal.y, linescrollBuffer, wrap);
+	}
+
+	// drawMap(uMap, vMap, uTileset, vTileset, mapWidth, mapHeight, tilesetWidth, tilesetHeight, tileWidth, tileHeight, palNo, linescrollBuffer, wrap = 1) {
+	// 	drawMap(this, uMap, vMap, uTileset, vTileset, mapWidth, mapHeight, tilesetWidth, tilesetHeight, tileWidth, tileHeight, palNo, linescrollBuffer, wrap);
+	// }
+	//
+	// drawSprite(xStart, yStart, xEnd, yEnd, uStart, vStart, uEnd, vEnd, palNo) {
+	// 	drawSprite(this, xStart, yStart, xEnd, yEnd, uStart, vStart, uEnd, vEnd, palNo);
+	// }
+	//
+	// drawSupersimple(vdp, xStart, yStart, xEnd, yEnd, uStart, vStart, uEnd, vEnd) {
+	// 	drawSupersimple(this, xStart, yStart, xEnd, yEnd, uStart, vStart, uEnd, vEnd);
+	// }
+
+	// --------------------- PRIVATE ---------------------
 	_initContext(canvas) {
 		this.gl = canvas.getContext("webgl", { premultipliedAlpha: true, alpha: SEMITRANSPARENT_CANVAS });
 

@@ -1,6 +1,5 @@
 /**
  * @typedef {Object} BigFile~Palette
- * @property x {number} U position of palette (color units)
  * @property y {number} V position of palette (color units)
  * @property size {number} count (color units)
  */
