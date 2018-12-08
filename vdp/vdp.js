@@ -89,17 +89,17 @@ class VDP {
 
 		const gl = this.gl;
 		const loadTextureType = HICOLOR_MODE ? loadTexture : loadTexture4444;
-		loadTexture(gl, 'sprites.png', (tex, image) => {
+		loadTexture(gl, 'build/sprites.png', (tex, image) => {
 			if (image.width !== SPRITE_TEX_W || image.height !== SPRITE_TEX_H)
 				throw new Error('Mismatch in texture size');
 			this.spriteTexture = tex;
-			loadTextureType(gl, 'palettes.png', (tex, image) => {
+			loadTextureType(gl, 'build/palettes.png', (tex, image) => {
 				if (image.width !== 256 && HICOLOR_MODE || image.width !== 16 && !HICOLOR_MODE)
 					throw new Error('Mismatch in hi-color mode and passed textures');
 				if (image.width !== PALETTE_TEX_W || image.height !== PALETTE_TEX_H)
 					throw new Error('Mismatch in texture size');
 				this.paletteTexture = tex;
-				loadTexture(gl, 'maps.png', (tex, image) => {
+				loadTexture(gl, 'build/maps.png', (tex, image) => {
 					if (image.width !== MAP_TEX_W || image.height !== MAP_TEX_H)
 						throw new Error('Mismatch in texture size');
 					this.mapTexture = tex;

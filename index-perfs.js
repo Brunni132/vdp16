@@ -78,7 +78,7 @@ function main() {
 			// 	8, 8, // Tile size
 			// 	5, 0, 1);
 
-			for (let i = 0; i < 8; i++) {
+			for (let i = 0; i < 1; i++) {
 				const type = 0;
 				if (type === 0) {
 					vdp.drawMap(
@@ -108,7 +108,7 @@ function main() {
 			vdp.drawSprite(
 				64, 80, 64 + 16, 80 + 16,
 				128, 0, 128 + 16, 0 + 16,
-				1);
+				5);
 			vdp.drawSprite(
 				80, 80, 80 + 16, 80 + 16,
 				128, 0, 128 + 16, 0 + 16,

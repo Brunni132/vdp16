@@ -1,4 +1,5 @@
 bin/*
+build/*
 *.log
 node_modules
 desktop.ini

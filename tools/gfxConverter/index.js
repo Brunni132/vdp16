@@ -312,14 +312,14 @@ class MasterPack {
 
 		// Write all textures
 		console.log('Writing game data…');
-		fs.writeFileSync('game.json', JSON.stringify(resultJson), function(err) {
+		fs.writeFileSync('build/game.json', JSON.stringify(resultJson), function(err) {
 				if (err) throw err;
 				console.log('complete');
 			}
 		);
-		this.mapTex.writeToPng('maps.png');
-		this.spriteTex.writeToPng('sprites.png');
-		this.paletteTex.writeToPng('palettes.png');
+		this.mapTex.writeToPng('build/maps.png');
+		this.spriteTex.writeToPng('build/sprites.png');
+		this.paletteTex.writeToPng('build/palettes.png');
 	}
 
 	/**
@@ -359,14 +359,14 @@ const palettes = [
 ];
 
 conv.addSprite(Sprite.fromImage('font',
-	Texture.fromPng32('font.png'), palettes[0]));
+	Texture.fromPng32('gfx/font.png'), palettes[0]));
 
 conv.addSprite(Sprite.fromImage('mario',
-	Texture.fromPng32('mario-luigi-2.png').subtexture(80, 32, 224, 16), palettes[1]));
+	Texture.fromPng32('gfx/mario-luigi-2.png').subtexture(80, 32, 224, 16), palettes[1]));
 
 const tileset = Tileset.blank('level1-til', 8, 8, 32, 32, [palettes[5]]);
 const map = Map.fromImage('level1',
-	Texture.fromPng32('mario-1-1.png'), tileset);
+	Texture.fromPng32('gfx/mario-1-1.png'), tileset);
 conv.addTileset(tileset);
 conv.addMap(map);
 
