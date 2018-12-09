@@ -1,13 +1,23 @@
-import {loadVdp, runProgram} from "./vdp/vdp";
-import {mat3} from "./gl-matrix";
-import {writeToTextureFloat} from "./vdp/utils";
-
 /**
  * @param vdp {VDP}
  * @returns {IterableIterator<number>}
  */
+import {loadVdp, runProgram} from "./vdp/vdp";
+
 function *main(vdp) {
 	let scroll = 0;
+
+	// const mapData = vdp.readMap('level1');
+	// mapData.forEach((d, i) => {
+	// 	mapData[i] = Math.max(0, mapData[i] - 4);
+	// });
+	// vdp.writeMap('level1', mapData);
+
+	const palData = vdp.readPalette('Mario');
+	palData.forEach((d, i) => {
+		palData[i] = palData[i] * 2;
+	});
+	vdp.writePalette('Mario', palData);
 
 	while (true) {
 		// const mat = mat3.create();
@@ -20,14 +30,11 @@ function *main(vdp) {
 		// Take the (0, 0, 16, 16) part of the big mario sprite
 		const marioSprite = vdp.sprite('mario').offsetted(0, 0, 16, 16);
 		// And draw it 32x32 (2x zoom)
-		vdp.drawObj('mario', Math.floor(scroll), 200, {width: 8, height: 8});
+		vdp.drawObj(marioSprite, Math.floor(scroll), 200, {width: 32, height: 32});
 
 		scroll += 0.05;
 		yield 0;
 	}
 }
 
-// Starts here
-loadVdp(document.querySelector("#glCanvas")).then(vdp => {
-	runProgram(vdp, main(vdp));
-});
+loadVdp(document.querySelector("#glCanvas")).then(vdp => runProgram(vdp, main(vdp)));

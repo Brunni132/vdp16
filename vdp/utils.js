@@ -245,6 +245,13 @@ export function readFromTexture32(gl, texture, x, y, w, h) {
 	return result;
 }
 
+export function readFromTextureToExisting(gl, texture, x, y, w, h, result) {
+	bindToFramebuffer(gl, texture);
+	console.log(`TEMP reading `, x, y, w, h, result);
+	gl.readPixels(x, y, w, h, gl.RGBA, gl.UNSIGNED_BYTE, result);
+	bindToFramebuffer(gl, null);
+}
+
 /**
  * @param gl
  * @param texture

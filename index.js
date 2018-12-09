@@ -18,7 +18,7 @@ function main() {
 	loadVdp(canvas, (vdp) => {
 		const gl = vdp.gl;
 
-		vdp.startFrame();
+		vdp._startFrame();
 
 		// Only using 8 components, assuming that the last is always 1 (which is OK for affine transformations)
 		const mat = mat3.create();

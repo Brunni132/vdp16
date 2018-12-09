@@ -59,7 +59,7 @@ function main() {
 		let last = 0, called = 0;
 
 		function step(timestamp) {
-			vdp.startFrame();
+			vdp._startFrame();
 
 			timestamp = Math.floor(timestamp / 1000);
 			if (timestamp !== last) {

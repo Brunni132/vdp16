@@ -3,7 +3,7 @@ import {
 	createDataTextureFloat,
 	loadTexture,
 	loadTexture4444,
-	readFromTexture32,
+	readFromTexture32, readFromTextureToExisting, writeToTexture32,
 	writeToTextureFloat
 } from "./utils";
 import {mat3, mat4} from "../gl-matrix";
@@ -72,15 +72,17 @@ class VdpSprite {
 	 * @property h {number} height of sprite or tileset as a whole (pixels)
 	 * @property tw {number} tile width (pixels) if it's a tileset
 	 * @property th {number} tile height (pixels) if it's a tileset
+	 * @property hiColor {boolean} whether it's a 8-bit-per-pixel tile (or 4-bit)
 	 * @property designPalette {string} design palette name (can be overriden)
 	 */
-	constructor(x, y, w, h, tw, th, designPalette) {
+	constructor(x, y, w, h, tw, th, hiColor, designPalette) {
 		this.x = x;
 		this.y = y;
 		this.w = w;
 		this.h = h;
 		this.tw = tw;
 		this.th = th;
+		this.hiColor = hiColor;
 		this.designPalette = designPalette;
 	}
 
@@ -92,6 +94,31 @@ class VdpSprite {
 		return this;
 	}
 }
+
+// class VdpMapBuffer {
+// 	/**
+// 	 * @property vramX {number}
+// 	 * @property vramY {number}
+// 	 * @property vramW {number}
+// 	 * @property vramH {number}
+// 	 * @property data {Uint16Array}
+// 	 */
+// 	constructor(vramX, vramY, vramW, vramH, data) {
+// 		this.vramX = vramX;
+// 		this.vramY = vramY;
+// 		this.vramW = vramW;
+// 		this.vramH = vramH;
+// 		this.data = data;
+// 	}
+//
+// 	/**
+// 	 * @param vdp
+// 	 */
+// 	commit(vdp) {
+//
+// 	}
+// }
+
 
 class VDP {
 	/** @property {WebGLRenderingContext} gl */
@@ -161,56 +188,6 @@ class VDP {
 		});
 	}
 
-	startFrame() {
-		const gl = this.gl;
-
-		// PERF: Has a moderate hit on performance (almost zero on the Surface Pro). It can even be faster if the image has pixel with zero alpha, the Surface Pro does some optimizations for fully transparent pixels. Else you have to discard them, and if you discard them you get even better performance.
-		// If you discard a lot of pixels there's almost no change. If the sprite is fully opaque there's no change either.
-		// In general it's probably better left on, the GPU already does all the optimizations.
-		gl.enable(gl.BLEND);
-		gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-
-		// TODO Florian -- Set clear color to palette[0, 0]
-		gl.clearColor(0.0, 0.0, 0.5, 0.0);
-		gl.clearDepth(1.0);                 // Clear everything
-		// PERF: This is a lot slower if there's a discard in the fragment shader (and we need one?) because the GPU can't test & write to the depth buffer until after the fragment shader has been executed. So there's no point in using it I guess.
-		// gl.enable(gl.DEPTH_TEST);           // Enable depth testing
-		// gl.depthFunc(gl.LESS);            // Near things obscure far things
-
-		// Clear the canvas before we start drawing on it.
-		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-	}
-
-	/**
-	 * @param name {string}
-	 * @returns {VdpMap}
-	 */
-	map(name) {
-		const map = this.gameData.maps[name];
-		if (!map) throw new Error(`Map ${name} not found`);
-		return new VdpMap(map.x, map.y, map.w, map.h, map.til, map.pal);
-	}
-
-	/**
-	 * @param name {string}
-	 * @returns {VdpPalette}
-	 */
-	palette(name) {
-		const pal = this.gameData.pals[name];
-		if (!pal) throw new Error(`Palette ${name} not found`);
-		return new VdpPalette(pal.y, pal.size);
-	}
-
-	/**
-	 * @param name {string}
-	 * @returns {VdpSprite}
-	 */
-	sprite(name) {
-		const spr = this.gameData.sprites[name];
-		if (!spr) throw new Error(`Sprite ${name} not found`);
-		return new VdpSprite(spr.x, spr.y, spr.w, spr.h, spr.tw, spr.th, spr.pal);
-	}
-
 	/**
 	 * @param map {string|VdpMap} map to draw (e.g. vdp.map('level1') or just 'level1')
 	 * @param [opts] {Object}
@@ -262,7 +239,149 @@ class VDP {
 		drawSprite(this, x, y, x + w, y + h, sprite.x, sprite.y, sprite.x + sprite.w, sprite.y + sprite.h, pal.y);
 	}
 
+	/**
+	 * @param name {string}
+	 * @returns {VdpMap}
+	 */
+	map(name) {
+		const map = this.gameData.maps[name];
+		if (!map) throw new Error(`Map ${name} not found`);
+		return new VdpMap(map.x, map.y, map.w, map.h, map.til, map.pal);
+	}
+
+	/**
+	 * @param name {string}
+	 * @returns {VdpPalette}
+	 */
+	palette(name) {
+		const pal = this.gameData.pals[name];
+		if (!pal) throw new Error(`Palette ${name} not found`);
+		return new VdpPalette(pal.y, pal.size);
+	}
+
+	/**
+	 * @param map {string|VdpMap} name of the map (or map itself). You may also query an arbitrary portion of the map
+	 * memory using new VdpMap(…) or offset an existing map, using vdp.map('myMap').offsetted(…).
+	 * @param blank [boolean=false] set to true if you don't care about the current content of the memory (you're going
+	 * to write only and you need a buffer for that)
+	 * @return {Uint16Array}
+	 */
+	readMap(map, blank = false) {
+		if (map.x % 2 === 0) throw new Error('Requires 2-tile aligned horizontal indices for maps tiles');
+
+		const m = this._getMap(map);
+		const mapEls = Math.ceil(m.w / 2);
+		const result = new Uint16Array(mapEls * 2 * m.h);
+		if (!blank) {
+			readFromTextureToExisting(this.gl, this.mapTexture, m.x / 2, m.y, mapEls, m.h, new Uint8Array(result.buffer));
+		}
+		return result;
+	}
+
+	/**
+	 * @param palette {string|VdpPalette} name of the palette (or palette itself). You may also query an arbitrary portion
+	 * of the palette memory using new VdpPalette(…) or offset an existing map, using vdp.map('myMap').offsetted(…).
+	 * @param blank [boolean=false] set to true if you don't care about the current content of the memory (you're going
+	 * to write only and you need a buffer for that)
+	 * @return {Uint8ClampedArray}
+	 */
+	readPalette(palette, blank = false) {
+		const pal = this._getPalette(palette);
+		return this.readPaletteMemory(0, pal.y, pal.size, 1, blank);
+	}
+
+	/**
+	 * @param x {number}
+	 * @param y {number}
+	 * @param w {number}
+	 * @param h {number}
+	 * @param blank {boolean}
+	 * @returns {Uint8ClampedArray}
+	 */
+	readPaletteMemory(x, y, w, h, blank = false) {
+		const result = new Uint8ClampedArray(w * 4 * h);
+		if (!blank) {
+			readFromTextureToExisting(this.gl, this.paletteTexture, x, y, w, h, new Uint8Array(result.buffer));
+		}
+		return result;
+	}
+
+	// /**
+	//  * @param map {string|VdpSprite} name of the sprite (or sprite itself). You may also query an arbitrary portion of the
+	//  * sprite memory using new VdpSprite(…) or offset an existing sprite, using vdp.sprite('mySprite').offsetted(…).
+	//  * @param blank [boolean=false] set to true if you don't care about the current content of the memory (you're going
+	//  * to write only and you need a buffer for that)
+	//  * @return {Uint8Array} the tileset data. For hi-color sprites, each entry represents one pixel. For lo-color sprites,
+	//  * each entry corresponds to two packed pixels, of 4 bits each.
+	//  */
+	// readSprite(map, blank = false) {
+	// 	if (map.x % 2 === 0) throw new Error('Requires 2-tile aligned horizontal indices for maps tiles');
+	//
+	// 	const m = this._getMap(map);
+	// 	const mapEls = Math.ceil(m.w / 2);
+	// 	const result = new Uint16Array(mapEls * 2 * m.h);
+	// 	if (!blank) {
+	// 		readFromTextureToExisting(this.gl, this.mapTexture, m.x / 2, m.y, mapEls, m.h, new Uint8Array(result.buffer));
+	// 	}
+	// 	return result;
+	// }
+
+	/**
+	 * @param name {string}
+	 * @returns {VdpSprite}
+	 */
+	sprite(name) {
+		const spr = this.gameData.sprites[name];
+		if (!spr) throw new Error(`Sprite ${name} not found`);
+		return new VdpSprite(spr.x, spr.y, spr.w, spr.h, spr.tw, spr.th, spr.hicol, spr.pal);
+	}
+
+	/**
+	 * @param map {string|VdpMap} name of the map (or map itself). You may also write to an arbitrary portion of the map
+	 * memory using new VdpMap(…) or offset an existing map, using vdp.map('myMap').offsetted(…).
+	 * @param data {Uint16Array} map data to write
+	 */
+	writeMap(map, data) {
+		if (map.x % 2 === 0) throw new Error('Requires 2-tile aligned horizontal indices for maps tiles');
+
+		const m = this._getMap(map);
+		const mapEls = Math.ceil(m.w / 2);
+		writeToTexture32(this.gl, this.mapTexture, m.x / 2, m.y, mapEls, m.h, new Uint8Array(data.buffer));
+	}
+
+	/**
+	 * @param palette {string|VdpPalette}
+	 * @param data {Uint8ClampedArray}
+	 */
+	writePalette(palette, data) {
+		const pal = this._getPalette(palette);
+		this.writePaletteMemory(0, pal.y, pal.size, 1, data);
+	}
+
+	/**
+	 *
+	 * @param x {number}
+	 * @param y {number}
+	 * @param w {number}
+	 * @param h {number}
+	 * @param data {Uint8ClampedArray}
+	 */
+	writePaletteMemory(x, y, w, h, data) {
+		console.log(`TEMP WRiting `, x, y, w, h, data);
+		writeToTexture32(this.gl, this.paletteTexture, x, y, w, h, new Uint8Array(data.buffer));
+	}
+
 	// --------------------- PRIVATE ---------------------
+	/**
+	 * @param name {string|VdpMap}
+	 * @private
+	 * @return {VdpMap}
+	 */
+	_getMap(name) {
+		if (typeof name === 'string') return this.map(name);
+		return name;
+	}
+
 	/**
 	 * @param name {string|VdpPalette}
 	 * @private
@@ -310,6 +429,26 @@ class VDP {
 		this.modelViewMatrix = mat4.create();
 		// mat4.translate(this.modelViewMatrix, this.modelViewMatrix, [-0.0, 0.0, -0.1]);
 	}
+
+	_startFrame() {
+		const gl = this.gl;
+
+		// PERF: Has a moderate hit on performance (almost zero on the Surface Pro). It can even be faster if the image has pixel with zero alpha, the Surface Pro does some optimizations for fully transparent pixels. Else you have to discard them, and if you discard them you get even better performance.
+		// If you discard a lot of pixels there's almost no change. If the sprite is fully opaque there's no change either.
+		// In general it's probably better left on, the GPU already does all the optimizations.
+		gl.enable(gl.BLEND);
+		gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+		// TODO Florian -- Set clear color to palette[0, 0]
+		gl.clearColor(0.0, 0.0, 0.5, 0.0);
+		gl.clearDepth(1.0);                 // Clear everything
+		// PERF: This is a lot slower if there's a discard in the fragment shader (and we need one?) because the GPU can't test & write to the depth buffer until after the fragment shader has been executed. So there's no point in using it I guess.
+		// gl.enable(gl.DEPTH_TEST);           // Enable depth testing
+		// gl.depthFunc(gl.LESS);            // Near things obscure far things
+
+		// Clear the canvas before we start drawing on it.
+		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+	}
 }
 
 /**
@@ -320,7 +459,7 @@ export function loadVdp(canvas) {
 	setParams(canvas.width, canvas.height, true, false);
 	return new Promise(function (resolve) {
 		const vdp = new VDP(canvas, () => {
-			vdp.startFrame();
+			vdp._startFrame();
 			resolve(vdp);
 		});
 	});
@@ -342,7 +481,7 @@ export function runProgram(vdp, coroutine) {
 		called++;
 		last = timestamp;
 
-		vdp.startFrame();
+		vdp._startFrame();
 		coroutine.next();
 		window.requestAnimationFrame(step);
 	}
