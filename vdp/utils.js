@@ -245,9 +245,32 @@ export function readFromTexture32(gl, texture, x, y, w, h) {
 	return result;
 }
 
+/**
+ * @param gl
+ * @param texture
+ * @param x {number} in texels (2 bytes per texel)
+ * @param y {number}
+ * @param w {number} in texels
+ * @param h {number}
+ * @param result {Uint16Array}
+ */
+export function readFromTextureToExisting16(gl, texture, x, y, w, h, result) {
+	bindToFramebuffer(gl, texture);
+	gl.readPixels(x, y, w, h, gl.RGBA, gl.UNSIGNED_SHORT_4_4_4_4, result);
+	bindToFramebuffer(gl, null);
+}
+
+/**
+ * @param gl
+ * @param texture
+ * @param x {number} in texels (4 bytes per texel)
+ * @param y {number}
+ * @param w {number} in texels
+ * @param h {number}
+ * @param result {Uint8Array}
+ */
 export function readFromTextureToExisting(gl, texture, x, y, w, h, result) {
 	bindToFramebuffer(gl, texture);
-	console.log(`TEMP reading `, x, y, w, h, result);
 	gl.readPixels(x, y, w, h, gl.RGBA, gl.UNSIGNED_BYTE, result);
 	bindToFramebuffer(gl, null);
 }

@@ -3,7 +3,7 @@ import {
 	createDataTextureFloat,
 	loadTexture,
 	loadTexture4444,
-	readFromTexture32, readFromTextureToExisting, writeToTexture32,
+	readFromTexture32, readFromTextureToExisting, readFromTextureToExisting16, writeToTexture16, writeToTexture32,
 	writeToTextureFloat
 } from "./utils";
 import {mat3, mat4} from "../gl-matrix";
@@ -118,7 +118,6 @@ class VdpSprite {
 //
 // 	}
 // }
-
 
 class VDP {
 	/** @property {WebGLRenderingContext} gl */
@@ -267,9 +266,9 @@ class VDP {
 	 * @return {Uint16Array}
 	 */
 	readMap(map, blank = false) {
-		if (map.x % 2 === 0) throw new Error('Requires 2-tile aligned horizontal indices for maps tiles');
-
 		const m = this._getMap(map);
+		if (m.x % 2 !== 0) throw new Error('Requires 2-tile aligned horizontal indices for maps tiles');
+
 		const mapEls = Math.ceil(m.w / 2);
 		const result = new Uint16Array(mapEls * 2 * m.h);
 		if (!blank) {
@@ -283,7 +282,7 @@ class VDP {
 	 * of the palette memory using new VdpPalette(…) or offset an existing map, using vdp.map('myMap').offsetted(…).
 	 * @param blank [boolean=false] set to true if you don't care about the current content of the memory (you're going
 	 * to write only and you need a buffer for that)
-	 * @return {Uint8ClampedArray}
+	 * @return {Uint32Array}
 	 */
 	readPalette(palette, blank = false) {
 		const pal = this._getPalette(palette);
@@ -296,35 +295,44 @@ class VDP {
 	 * @param w {number}
 	 * @param h {number}
 	 * @param blank {boolean}
-	 * @returns {Uint8ClampedArray}
+	 * @returns {Uint32Array}
 	 */
 	readPaletteMemory(x, y, w, h, blank = false) {
-		const result = new Uint8ClampedArray(w * 4 * h);
+		if (!TRUECOLOR_MODE) throw new Error('Not supported yet in lo-color mode');
+		const result = new Uint32Array(w * h);
 		if (!blank) {
 			readFromTextureToExisting(this.gl, this.paletteTexture, x, y, w, h, new Uint8Array(result.buffer));
 		}
 		return result;
 	}
 
-	// /**
-	//  * @param map {string|VdpSprite} name of the sprite (or sprite itself). You may also query an arbitrary portion of the
-	//  * sprite memory using new VdpSprite(…) or offset an existing sprite, using vdp.sprite('mySprite').offsetted(…).
-	//  * @param blank [boolean=false] set to true if you don't care about the current content of the memory (you're going
-	//  * to write only and you need a buffer for that)
-	//  * @return {Uint8Array} the tileset data. For hi-color sprites, each entry represents one pixel. For lo-color sprites,
-	//  * each entry corresponds to two packed pixels, of 4 bits each.
-	//  */
-	// readSprite(map, blank = false) {
-	// 	if (map.x % 2 === 0) throw new Error('Requires 2-tile aligned horizontal indices for maps tiles');
-	//
-	// 	const m = this._getMap(map);
-	// 	const mapEls = Math.ceil(m.w / 2);
-	// 	const result = new Uint16Array(mapEls * 2 * m.h);
-	// 	if (!blank) {
-	// 		readFromTextureToExisting(this.gl, this.mapTexture, m.x / 2, m.y, mapEls, m.h, new Uint8Array(result.buffer));
-	// 	}
-	// 	return result;
-	// }
+	/**
+	 * @param sprite {string|VdpSprite} name of the sprite (or sprite itself). You may also query an arbitrary portion of the
+	 * sprite memory using new VdpSprite(…) or offset an existing sprite, using vdp.sprite('mySprite').offsetted(…).
+	 * @param blank [boolean=false] set to true if you don't care about the current content of the memory (you're going
+	 * to write only and you need a buffer for that)
+	 * @return {Uint8Array} the tileset data. For hi-color sprites, each entry represents one pixel. For lo-color sprites,
+	 * each entry corresponds to two packed pixels, of 4 bits each.
+	 */
+	readSprite(sprite, blank = false) {
+		const s = this._getSprite(sprite);
+		if (s.hiColor) {
+			if (s.x % 4 !== 0) throw new Error('Hi-color sprites need to be aligned to 4 pixels');
+
+			const els = Math.ceil(s.w / 4);
+			const result = new Uint8Array(els * 4);
+			readFromTextureToExisting(this.gl, this.spriteTexture, s.x / 4, s.y, els, s.h, result);
+			return result;
+
+		} else {
+			if (s.x % 8 !== 0) throw new Error('Lo-color sprites need to be aligned to 8 pixels');
+
+			const els = Math.ceil(s.w / 8);
+			const result = new Uint8Array(els * 4);
+			readFromTextureToExisting(this.gl, this.spriteTexture, s.x / 8, s.y, els, s.h, result);
+			return result;
+		}
+	}
 
 	/**
 	 * @param name {string}
@@ -342,9 +350,9 @@ class VDP {
 	 * @param data {Uint16Array} map data to write
 	 */
 	writeMap(map, data) {
-		if (map.x % 2 === 0) throw new Error('Requires 2-tile aligned horizontal indices for maps tiles');
-
 		const m = this._getMap(map);
+		if (m.x % 2 !== 0) throw new Error('Requires 2-tile aligned horizontal indices for maps tiles');
+
 		const mapEls = Math.ceil(m.w / 2);
 		writeToTexture32(this.gl, this.mapTexture, m.x / 2, m.y, mapEls, m.h, new Uint8Array(data.buffer));
 	}
@@ -359,15 +367,37 @@ class VDP {
 	}
 
 	/**
+	 * @param sprite {string|VdpSprite} name of the sprite (or sprite itself). You may also write to an arbitrary portion
+	 * of the sprite memory using new VdpSprite(…) or offset an existing sprite, using vdp.sprite('mySprite').offsetted(…).
+	 * @param {Uint8Array} data the new data. For hi-color sprites, each entry represents one pixel. For lo-color sprites,
+	 * each entry corresponds to two packed pixels, of 4 bits each.
+	 */
+	writeSprite(sprite, data) {
+		const s = this._getSprite(sprite);
+		if (s.hiColor) {
+			if (s.x % 4 !== 0) throw new Error('Hi-color sprites need to be aligned to 4 pixels');
+
+			const els = Math.ceil(s.w / 4);
+			writeToTexture32(this.gl, this.spriteTexture, s.x / 4, s.y, els, s.h, data);
+
+		} else {
+			if (s.x % 8 !== 0) throw new Error('Lo-color sprites need to be aligned to 8 pixels');
+
+			const els = Math.ceil(s.w / 8);
+			writeToTexture32(this.gl, this.spriteTexture, s.x / 8, s.y, els, s.h, data);
+		}
+	}
+
+	/**
 	 *
 	 * @param x {number}
 	 * @param y {number}
 	 * @param w {number}
 	 * @param h {number}
-	 * @param data {Uint8ClampedArray}
+	 * @param data {Uint32Array}
 	 */
 	writePaletteMemory(x, y, w, h, data) {
-		console.log(`TEMP WRiting `, x, y, w, h, data);
+		if (!TRUECOLOR_MODE) throw new Error('Not supported yet in lo-color mode');
 		writeToTexture32(this.gl, this.paletteTexture, x, y, w, h, new Uint8Array(data.buffer));
 	}
 
@@ -456,7 +486,7 @@ class VDP {
  * @returns {Promise}
  */
 export function loadVdp(canvas) {
-	setParams(canvas.width, canvas.height, true, false);
+	setParams(canvas.width, canvas.height, false);
 	return new Promise(function (resolve) {
 		const vdp = new VDP(canvas, () => {
 			vdp._startFrame();

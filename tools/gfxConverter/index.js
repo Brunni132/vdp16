@@ -5,7 +5,8 @@ const { Map, Tile, Tileset } = require('./maps');
 const Texture = require('./texture');
 const utils = require('./utils');
 
-const HICOLOR_MODE = true;
+const HI_COLOR_MODE = true;				// Generate 8-bit tiles and 256-color palettes
+const QUANTIZE_PALETTES = true;		// To spare colors in RGBA4444 mode
 
 class Palette {
 
@@ -16,7 +17,7 @@ class Palette {
 	constructor(name, numColors = 0) {
 		/** @type {number[]} */
 		this.colorData = [0]; // First color is always transparent (RGBA 0000)
-		this.maxColors = numColors || (HICOLOR_MODE ? 256 : 16);
+		this.maxColors = numColors || (HI_COLOR_MODE ? 256 : 16);
 		this.name = name;
 	}
 
@@ -70,7 +71,7 @@ class Palette {
 	 * @returns {number}
 	 */
 	toDesintationFormat(color) {
-		if (HICOLOR_MODE) return color;
+		if (HI_COLOR_MODE && !QUANTIZE_PALETTES) return color;
 		const c = (color >>> 4 & 0x0f0f0f0f);
 		return c | c << 4;
 	}
@@ -195,9 +196,9 @@ class MasterPack {
 		/** @type {Texture} */
 		this.mapTex = Texture.blank('maps', 2048, 1024, 16);
 		/** @type {Texture} */
-		this.spriteTex = Texture.blank('sprites', HICOLOR_MODE ? 4096 : 8192, 1024, HICOLOR_MODE ? 8 : 4);
+		this.spriteTex = Texture.blank('sprites', HI_COLOR_MODE ? 4096 : 8192, 1024, HI_COLOR_MODE ? 8 : 4);
 		/** @type {Texture} */
-		this.paletteTex = Texture.blank('palettes', HICOLOR_MODE ? 256 : 16, 256, 32);
+		this.paletteTex = Texture.blank('palettes', HI_COLOR_MODE ? 256 : 16, 256, 32);
 
 		/** @type {Palette[]} */
 		this.palettes = [];
@@ -280,7 +281,7 @@ class MasterPack {
 			const s = this.sprites[i];
 			spriteBaker.bake(s.width, s.height, s.name, (destTexture, x, y) => {
 				s.copyToTexture(destTexture, x, y);
-				resultJson.sprites[s.name] = { x, y, w: s.width, h: s.height, hicol: HICOLOR_MODE ? 1 : 0, pal: s.palette.name };
+				resultJson.sprites[s.name] = { x, y, w: s.width, h: s.height, hicol: HI_COLOR_MODE ? 1 : 0, pal: s.palette.name };
 			});
 		}
 
@@ -289,7 +290,7 @@ class MasterPack {
 			const tileset = this.tilesets[i];
 			spriteBaker.bake(tileset.usedWidth, tileset.usedHeight, tileset.name, (destTexture, x, y) => {
 				tileset.copyToTexture(destTexture, x, y);
-				resultJson.sprites[tileset.name] = { x, y, w: tileset.usedWidth, h: tileset.usedHeight, tw: tileset.tileWidth, th: tileset.tileHeight, hicol: HICOLOR_MODE ? 1 : 0, pal: tileset.palettes[0].name };
+				resultJson.sprites[tileset.name] = { x, y, w: tileset.usedWidth, h: tileset.usedHeight, tw: tileset.tileWidth, th: tileset.tileHeight, hicol: HI_COLOR_MODE ? 1 : 0, pal: tileset.palettes[0].name };
 			});
 		}
 
@@ -358,8 +359,11 @@ const palettes = [
 	conv.createPalette('Level1'),
 ];
 
-conv.addSprite(Sprite.fromImage('font',
-	Texture.fromPng32('gfx/font.png'), palettes[0]));
+conv.addSprite(Sprite.fromImage('gradient',
+	Texture.fromPng32('gfx/gradient.png'), palettes[0]));
+
+// conv.addSprite(Sprite.fromImage('font',
+// 	Texture.fromPng32('gfx/font.png'), palettes[0]));
 
 conv.addSprite(Sprite.fromImage('mario',
 	Texture.fromPng32('gfx/mario-luigi-2.png').subtexture(80, 32, 224, 16), palettes[1]));
@@ -370,7 +374,7 @@ const map = Map.fromImage('level1',
 conv.addTileset(tileset);
 conv.addMap(map);
 
-//if (HICOLOR_MODE) {
+//if (USE_BIG_PALETTES) {
 //	while (palettes[0].colorData.length < 127)
 //		palettes[0].colorData.push(0);
 //	// 127=red

@@ -5,14 +5,14 @@ export const MAP_TEX_W = 1024, MAP_TEX_H = 1024;
 export const SPRITE_TEX_W = 1024, SPRITE_TEX_H = 1024;
 export let PALETTE_TEX_W, PALETTE_TEX_H = 256;
 export let SEMITRANSPARENT_CANVAS = false;
-export let TRUECOLOR_MODE = false;
+export const TRUECOLOR_MODE = true;
+export const LIMITED_COLOR_MODE = false;
 
 export const PALETTE_HICOLOR_FLAG = 1 << 15;
 
-export function setParams(screenWidth, screenHeight, trueColor = false, compositedFramebuffer = false) {
+export function setParams(screenWidth, screenHeight, compositedFramebuffer = false) {
 	SCREEN_WIDTH = screenWidth;
 	SCREEN_HEIGHT = screenHeight;
-	TRUECOLOR_MODE = trueColor;
 	SEMITRANSPARENT_CANVAS = compositedFramebuffer;
 }
 
@@ -65,7 +65,14 @@ export function declareReadTexel() {
 }
 
 export function declareReadPalette() {
-	return `vec4 readPalette(float x, float y) {
-				return texture2D(uSamplerPalettes, vec2(x, y));
-			}`;
+	if (LIMITED_COLOR_MODE) {
+		return `vec4 readPalette(float x, float y) {
+					vec4 data = texture2D(uSamplerPalettes, vec2(x, y));
+					return floor(data * 16.0) / 16.0;
+				}`;
+	} else {
+		return `vec4 readPalette(float x, float y) {
+					return texture2D(uSamplerPalettes, vec2(x, y));
+				}`;
+	}
 }
