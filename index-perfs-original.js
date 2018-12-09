@@ -5,7 +5,7 @@ import {
 	readFromTextureFloat, readFromTexture16,
 	readFromTexture8, writeToTextureAuto, writeToTextureFloat, bindToFramebuffer, readFromTexture32, writeToTexture32
 } from "./vdp/utils";
-import {HICOLOR_MODE, SCREEN_HEIGHT, SCREEN_WIDTH} from "./vdp/shaders";
+import {SCREEN_HEIGHT, SCREEN_WIDTH} from "./vdp/shaders";
 
 main();
 

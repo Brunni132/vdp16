@@ -1,13 +1,12 @@
 import {initShaderProgram, makeBuffer} from "./utils";
 import {
 	declareReadPalette,
-	declareReadTexel,
-	HICOLOR_MODE,
+	declareReadTexel, PALETTE_HICOLOR_FLAG,
 	PALETTE_TEX_H,
-	PALETTE_TEX_W} from "./shaders";
+	PALETTE_TEX_W
+} from "./shaders";
 
 const MAX_SPRITES = 128;
-const PALETTE_HICOLOR_FLAG = 1 << 15;
 
 export function initSpriteShaders(vdp) {
 	const gl = vdp.gl;
@@ -84,8 +83,7 @@ export function initSpriteShaders(vdp) {
 	};
 }
 
-export function drawSprite(vdp, xStart, yStart, xEnd, yEnd, uStart, vStart, uEnd, vEnd, palNo) {
-	if (HICOLOR_MODE) palNo |= PALETTE_HICOLOR_FLAG;
+export function drawSprite(vdp, xStart, yStart, xEnd, yEnd, uStart, vStart, uEnd, vEnd, palNo, hiColor) {
 	xStart = Math.floor(xStart);
 	yStart = Math.floor(yStart);
 	xEnd = Math.floor(xEnd);
@@ -94,6 +92,8 @@ export function drawSprite(vdp, xStart, yStart, xEnd, yEnd, uStart, vStart, uEnd
 	vStart = Math.floor(vStart);
 	uEnd = Math.floor(uEnd);
 	vEnd = Math.floor(vEnd);
+
+	if (hiColor) palNo |= PALETTE_HICOLOR_FLAG;
 
 	const gl = vdp.gl;
 	const prog = vdp.spriteProgram;

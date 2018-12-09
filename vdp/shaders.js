@@ -4,15 +4,20 @@ export const OTHER_TEX_W = 2048, OTHER_TEX_H = 16;
 export const MAP_TEX_W = 1024, MAP_TEX_H = 1024;
 export const SPRITE_TEX_W = 1024, SPRITE_TEX_H = 1024;
 export let PALETTE_TEX_W, PALETTE_TEX_H = 256;
-export let HICOLOR_MODE = false;
 export let SEMITRANSPARENT_CANVAS = false;
+export let TRUECOLOR_MODE = false;
 
-export function setParams(screenWidth, screenHeight, hiColor = false, compositedFramebuffer = false) {
+export const PALETTE_HICOLOR_FLAG = 1 << 15;
+
+export function setParams(screenWidth, screenHeight, trueColor = false, compositedFramebuffer = false) {
 	SCREEN_WIDTH = screenWidth;
 	SCREEN_HEIGHT = screenHeight;
-	PALETTE_TEX_W = hiColor ? 256 : 16;
-	HICOLOR_MODE = hiColor;
+	TRUECOLOR_MODE = trueColor;
 	SEMITRANSPARENT_CANVAS = compositedFramebuffer;
+}
+
+export function setTextureSize(paletteTexW) {
+	PALETTE_TEX_W = paletteTexW;
 }
 
 export function declareReadTexel() {

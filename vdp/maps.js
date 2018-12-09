@@ -2,15 +2,14 @@ import {initShaderProgram, makeBuffer} from "./utils";
 import {
 	declareReadPalette,
 	declareReadTexel,
-	HICOLOR_MODE,
-	MAP_TEX_H, MAP_TEX_W, OTHER_TEX_H, OTHER_TEX_W,
+	MAP_TEX_H, MAP_TEX_W, OTHER_TEX_H, OTHER_TEX_W, PALETTE_HICOLOR_FLAG,
 	PALETTE_TEX_H,
 	PALETTE_TEX_W,
 	SCREEN_HEIGHT,
-	SCREEN_WIDTH} from "./shaders";
+	SCREEN_WIDTH
+} from "./shaders";
 
 const MAX_BGS = 8;
-const PALETTE_HICOLOR_FLAG = 1 << 15;
 
 export function initMapShaders(vdp) {
 	const gl = vdp.gl;
@@ -199,11 +198,9 @@ export function initMapShaders(vdp) {
 	};
 }
 
-export function drawMap(vdp, uMap, vMap, uTileset, vTileset, mapWidth, mapHeight, tilesetWidth, tileWidth, tileHeight, winX, winY, winW, winH, scrollX, scrollY, palNo, linescrollBuffer, wrap = 1) {
+export function drawMap(vdp, uMap, vMap, uTileset, vTileset, mapWidth, mapHeight, tilesetWidth, tileWidth, tileHeight, winX, winY, winW, winH, scrollX, scrollY, palNo, hiColor, linescrollBuffer, wrap = 1) {
 	const gl = vdp.gl;
 	const prog = vdp.mapProgram;
-
-	if (HICOLOR_MODE) palNo |= PALETTE_HICOLOR_FLAG;
 
 	uMap = Math.floor(uMap);
 	vMap = Math.floor(vMap);
@@ -223,6 +220,7 @@ export function drawMap(vdp, uMap, vMap, uTileset, vTileset, mapWidth, mapHeight
 	scrollY = Math.floor(scrollY);
 
 	tilesetWidth = Math.floor(tilesetWidth / tileWidth);
+	if (hiColor) palNo |= PALETTE_HICOLOR_FLAG;
 
 	// x, y position, z for normal-prio tiles, base palette no
 	const positions = [

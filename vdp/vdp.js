@@ -10,13 +10,13 @@ import {mat3, mat4} from "../gl-matrix";
 import {drawSprite, initSpriteShaders} from "./sprites";
 import {drawMap, initMapShaders} from "./maps";
 import {
-	HICOLOR_MODE, MAP_TEX_H, MAP_TEX_W,
-	OTHER_TEX_W,
+	MAP_TEX_H, MAP_TEX_W,
+	OTHER_TEX_W, PALETTE_HICOLOR_FLAG,
 	PALETTE_TEX_H,
 	PALETTE_TEX_W, SCREEN_HEIGHT, SCREEN_WIDTH,
 	SEMITRANSPARENT_CANVAS,
-	setParams, SPRITE_TEX_H,
-	SPRITE_TEX_W
+	setParams, setTextureSize, SPRITE_TEX_H,
+	SPRITE_TEX_W, TRUECOLOR_MODE
 } from "./shaders";
 import {drawSupersimple, initSupersimpleShaders} from "./tests";
 
@@ -148,13 +148,10 @@ class VDP {
 	 */
 	constructor(canvas, done) {
 		this._initContext(canvas);
-		initMapShaders(this);
-		initSpriteShaders(this);
-		initSupersimpleShaders(this);
 		this._initMatrices();
 
 		const gl = this.gl;
-		const loadTextureType = HICOLOR_MODE ? loadTexture : loadTexture4444;
+		const loadTextureType = TRUECOLOR_MODE ? loadTexture : loadTexture4444;
 		// TODO Florian -- Use promises for loadTexture, make them all at the same time and wait for them all. Same for fetch
 		window.fetch('build/game.json').then((res) => res.json()).then((json) => {
 			this.gameData = json;
@@ -165,10 +162,9 @@ class VDP {
 				this.spriteTexture = tex;
 
 				loadTextureType(gl, 'build/palettes.png', (tex, image) => {
-					if (image.width !== 256 && HICOLOR_MODE || image.width !== 16 && !HICOLOR_MODE)
-						throw new Error('Mismatch in hi-color mode and passed textures');
-					if (image.width !== PALETTE_TEX_W || image.height !== PALETTE_TEX_H)
+					if (image.width !== 256 && image.width !== 16 || image.height !== PALETTE_TEX_H)
 						throw new Error('Mismatch in texture size');
+					setTextureSize(image.width);
 					this.paletteTexture = tex;
 
 					loadTexture(gl, 'build/maps.png', (tex, image) => {
@@ -181,6 +177,10 @@ class VDP {
 						// Only using 8 components, assuming that the last is always 1 (which is OK for affine transformations)
 						const mat = mat3.create();
 						writeToTextureFloat(gl, this.otherTexture, 0, 0, 2, 1, mat);
+
+						initMapShaders(this);
+						initSpriteShaders(this);
+						initSupersimpleShaders(this);
 						done();
 					});
 				});
@@ -217,7 +217,7 @@ class VDP {
 		const linescrollBuffer = opts.hasOwnProperty('linescrollBuffer') ? opts.linescrollBuffer : 0;
 		const wrap = opts.hasOwnProperty('wrap') ? opts.wrap : true;
 
-		drawMap(this, map.x, map.y, til.x, til.y, map.w, map.h, til.w, til.tw, til.th, winX, winY, winW, winH, scrollX, scrollY, pal.y, linescrollBuffer, wrap ? 1 : 0);
+		drawMap(this, map.x, map.y, til.x, til.y, map.w, map.h, til.w, til.tw, til.th, winX, winY, winW, winH, scrollX, scrollY, pal.y, til.hiColor, linescrollBuffer, wrap ? 1 : 0);
 	}
 
 	/**
@@ -236,7 +236,7 @@ class VDP {
 		const w = opts.hasOwnProperty('width') ? opts.width : sprite.w;
 		const h = opts.hasOwnProperty('height') ? opts.height : sprite.h;
 
-		drawSprite(this, x, y, x + w, y + h, sprite.x, sprite.y, sprite.x + sprite.w, sprite.y + sprite.h, pal.y);
+		drawSprite(this, x, y, x + w, y + h, sprite.x, sprite.y, sprite.x + sprite.w, sprite.y + sprite.h, pal.y, sprite.hiColor);
 	}
 
 	/**

@@ -12,6 +12,7 @@
  * @property h {number} height of sprite or tileset as a whole (pixels)
  * @property tw {number} tile width (pixels) if it's a tileset
  * @property th {number} tile height (pixels) if it's a tileset
+ * @property hicol {number} whether it's a high-color (8 bit) tile (1=yes, 0=4-bit)
  * @property pal {string} palette name
  */
 
