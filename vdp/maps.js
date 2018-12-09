@@ -204,6 +204,24 @@ export function drawMap(vdp, uMap, vMap, uTileset, vTileset, mapWidth, mapHeight
 	const prog = vdp.mapProgram;
 
 	if (HICOLOR_MODE) palNo |= PALETTE_HICOLOR_FLAG;
+
+	uMap = Math.floor(uMap);
+	vMap = Math.floor(vMap);
+	uTileset = Math.floor(uTileset);
+	vTileset = Math.floor(vTileset);
+	uTileset = Math.floor(uTileset);
+	mapWidth = Math.floor(mapWidth);
+	mapHeight = Math.floor(mapHeight);
+	tilesetWidth = Math.floor(tilesetWidth);
+	tileWidth = Math.floor(tileWidth);
+	tileHeight = Math.floor(tileHeight);
+	winX = Math.floor(winX);
+	winY = Math.floor(winY);
+	winW = Math.floor(winW);
+	winH = Math.floor(winH);
+	scrollX = Math.floor(scrollX);
+	scrollY = Math.floor(scrollY);
+
 	tilesetWidth = Math.floor(tilesetWidth / tileWidth);
 
 	// x, y position, z for normal-prio tiles, base palette no

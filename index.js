@@ -70,7 +70,7 @@ function main() {
 
 		vdp.drawBG('level1', { scrollX: 10, scrollY: 100 });
 		const marioSprite = vdp.sprite('mario').offsetted(0, 0, 16, 16);
-		vdp.drawSprite(marioSprite, 0, 0, { width: 16, height: 16 });
+		vdp.drawObj(marioSprite, 0, 0, { width: 16, height: 16 });
 
 		//mat4.scale(vdp.modelViewMatrix, vdp.modelViewMatrix, [1, 1, 1]);
 		//drawMap(vdp,
@@ -82,24 +82,24 @@ function main() {
 		// 	0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, // Window
 		//	0, 0, // Scroll
 		//	5, 0, 1);
-		//drawSprite(vdp,
+		//drawObj(vdp,
 		// 	10, 10, 10+24*2, 10+24*2,
 		// 	0, 0, 24, 24,
 		// 	0);
 		//
-		//drawSprite(vdp,
+		//drawObj(vdp,
 		// 	64, 80, 64+16, 80+16,
 		// 	128, 0, 128+16, 0+16,
 		// 	1);
-		// drawSprite(vdp,
+		// drawObj(vdp,
 		// 	80, 80, 80+16, 80+16,
 		// 	128, 0, 128+16, 0+16,
 		// 	2);
-		// drawSprite(vdp,
+		// drawObj(vdp,
 		// 	96, 80, 96+16, 80+16,
 		// 	128, 0, 128+16, 0+16,
 		// 	3);
-		// drawSprite(vdp,
+		// drawObj(vdp,
 		// 	104, 88, 104+16, 88+16,
 		// 	128, 0, 128+16, 0+16,
 		// 	3);
@@ -121,8 +121,8 @@ function main() {
 		// 	mat3.translate(mat2, mat2, [-SCREEN_WIDTH / 2, -SCREEN_HEIGHT / 2]);
 		// 	writeToTextureFloat(gl, vdp.otherTexture, 0, 0, 2, 1, mat2);
 		//
-		// 	// vdp.drawSprite(0, 0, 160, 160, 0, 0, 8, 8, 1);
-		// 	// vdp.drawSprite(70, 50, 160+70, 160+50, 0, 0, 8, 8);
+		// 	// vdp.drawObj(0, 0, 160, 160, 0, 0, 8, 8, 1);
+		// 	// vdp.drawObj(70, 50, 160+70, 160+50, 0, 0, 8, 8);
 		// 	drawMap(vdp,
 		// 		0, 0, // UV map
 		// 		0, 0, // UV tileset

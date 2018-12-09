@@ -252,7 +252,7 @@ class VDP {
 	 * @param opts.width {number} width on the screen (stretches the sprite compared to sprite.w)
 	 * @param opts.height {number} height on the screen (stretches the sprite compared to sprite.h)
 	 */
-	drawSprite(sprite, x, y, opts = {}) {
+	drawObj(sprite, x, y, opts = {}) {
 		if (typeof sprite === 'string') sprite = this.sprite(sprite);
 		// TODO Florian -- no need for such a param, since the user can modify sprite.designPalette himself…
 		const pal = this._getPalette(opts.hasOwnProperty('palette') ? opts.palette : sprite.designPalette);

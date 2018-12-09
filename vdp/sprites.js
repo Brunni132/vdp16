@@ -86,6 +86,14 @@ export function initSpriteShaders(vdp) {
 
 export function drawSprite(vdp, xStart, yStart, xEnd, yEnd, uStart, vStart, uEnd, vEnd, palNo) {
 	if (HICOLOR_MODE) palNo |= PALETTE_HICOLOR_FLAG;
+	xStart = Math.floor(xStart);
+	yStart = Math.floor(yStart);
+	xEnd = Math.floor(xEnd);
+	yEnd = Math.floor(yEnd);
+	uStart = Math.floor(uStart);
+	vStart = Math.floor(vStart);
+	uEnd = Math.floor(uEnd);
+	vEnd = Math.floor(vEnd);
 
 	const gl = vdp.gl;
 	const prog = vdp.spriteProgram;

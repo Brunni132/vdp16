@@ -89,7 +89,7 @@ function main() {
 						8, 8, // Tile size
 						5, 0, 1);
 				} else if (type === 1) {
-					vdp.drawSprite(
+					vdp.drawObj(
 						0, 0, SCREEN_WIDTH, SCREEN_HEIGHT,
 						2, 2, 3, 3,
 						0);
@@ -100,24 +100,24 @@ function main() {
 				}
 			}
 
-			vdp.drawSprite(
+			vdp.drawObj(
 				10, 10, 10 + 24 * 2, 10 + 24 * 2,
 				0, 0, 24, 24,
 				0);
 
-			vdp.drawSprite(
+			vdp.drawObj(
 				64, 80, 64 + 16, 80 + 16,
 				128, 0, 128 + 16, 0 + 16,
 				5);
-			vdp.drawSprite(
+			vdp.drawObj(
 				80, 80, 80 + 16, 80 + 16,
 				128, 0, 128 + 16, 0 + 16,
 				2);
-			vdp.drawSprite(
+			vdp.drawObj(
 				96, 80, 96 + 16, 80 + 16,
 				128, 0, 128 + 16, 0 + 16,
 				3);
-			vdp.drawSprite(
+			vdp.drawObj(
 				104, 88, 104 + 16, 88 + 16,
 				128, 0, 128 + 16, 0 + 16,
 				3);
@@ -139,8 +139,8 @@ function main() {
 				mat3.translate(mat2, mat2, [-SCREEN_WIDTH / 2, -SCREEN_HEIGHT / 2]);
 				writeToTextureFloat(gl, vdp.otherTexture, 0, 0, 2, 1, mat2);
 
-				// vdp.drawSprite(0, 0, 160, 160, 0, 0, 8, 8, 1);
-				// vdp.drawSprite(70, 50, 160+70, 160+50, 0, 0, 8, 8);
+				// vdp.drawObj(0, 0, 160, 160, 0, 0, 8, 8, 1);
+				// vdp.drawObj(70, 50, 160+70, 160+50, 0, 0, 8, 8);
 				vdp.drawMap(
 					0, 0, // UV map
 					0, 0, // UV tileset
