@@ -2,14 +2,13 @@ import {initShaderProgram, makeBuffer} from "./utils";
 import {
 	declareReadPalette,
 	declareReadTexel,
-	MAP_TEX_H, MAP_TEX_W, OTHER_TEX_H, OTHER_TEX_W, PALETTE_HICOLOR_FLAG,
+	MAP_TEX_H, MAP_TEX_W, MAX_BGS, OTHER_TEX_H, OTHER_TEX_W, PALETTE_HICOLOR_FLAG,
 	PALETTE_TEX_H,
 	PALETTE_TEX_W,
 	SCREEN_HEIGHT,
 	SCREEN_WIDTH
 } from "./shaders";
-
-const MAX_BGS = 8;
+import {drawPendingObj} from "./sprites";
 
 export function initMapShaders(vdp) {
 	const gl = vdp.gl;
@@ -27,7 +26,7 @@ export function initMapShaders(vdp) {
 			// TODO Florian -- use vec4 and extract in fragment program
 			varying vec2 vMapStart, vMapSize;
 			varying vec2 vTilesetStart;
-			varying float vTilesetWidth, vHighPrioTileZ;
+			varying float vTilesetWidth;
 			varying vec2 vTileSize;
 			varying mat3 vTransformationMatrix;
 			// [0] = linescroll buffer, if 0 use vTransformationMatrix always, [1] = whether to wrap around
@@ -52,7 +51,6 @@ export function initMapShaders(vdp) {
 				vTilesetStart = aMapInfo1.zw;
 				vMapSize = aMapInfo2.xy;
 				vTilesetWidth = aMapInfo2.z;
-				vHighPrioTileZ = aMapInfo2.w;
 				vTileSize = aMapInfo3.xy;
 				vTextureCoord = aMapInfo3.zw;
 				vOtherInfo = aMapInfo4.xy;
@@ -75,7 +73,7 @@ export function initMapShaders(vdp) {
 			varying vec2 vMapStart, vMapSize;
 			// tilesetSize is in tiles!
 			varying vec2 vTilesetStart;
-			varying float vTilesetWidth, vHighPrioTileZ;
+			varying float vTilesetWidth;
 			varying vec2 vTileSize;
 			varying mat3 vTransformationMatrix;
 			varying vec2 vOtherInfo;
@@ -170,7 +168,7 @@ export function initMapShaders(vdp) {
 		`;
 
 	const shaderProgram = initShaderProgram(gl, vsSource, fsSource);
-	const TOTAL_VERTICES = MAX_BGS * 4;
+	const TOTAL_VERTICES = MAX_BGS * 6;
 	vdp.mapProgram = {
 		program: shaderProgram,
 		attribLocations: {
@@ -180,7 +178,7 @@ export function initMapShaders(vdp) {
 			mapInfo3: gl.getAttribLocation(shaderProgram, 'aMapInfo3'),
 			mapInfo4: gl.getAttribLocation(shaderProgram, 'aMapInfo4')
 		},
-		buffers: {
+		glBuffers: {
 			xyzp: makeBuffer(gl, TOTAL_VERTICES * 4),
 			mapInfo1: makeBuffer(gl, TOTAL_VERTICES * 4),
 			mapInfo2: makeBuffer(gl, TOTAL_VERTICES * 4),
@@ -198,7 +196,9 @@ export function initMapShaders(vdp) {
 	};
 }
 
-export function drawMap(vdp, uMap, vMap, uTileset, vTileset, mapWidth, mapHeight, tilesetWidth, tileWidth, tileHeight, winX, winY, winW, winH, scrollX, scrollY, palNo, hiColor, linescrollBuffer, wrap = 1) {
+export function drawMap(vdp, uMap, vMap, uTileset, vTileset, mapWidth, mapHeight, tilesetWidth, tileWidth, tileHeight, winX, winY, winW, winH, scrollX, scrollY, palNo, hiColor, linescrollBuffer, wrap, z = 0) {
+	drawPendingObj(vdp);
+
 	const gl = vdp.gl;
 	const prog = vdp.mapProgram;
 
@@ -216,18 +216,19 @@ export function drawMap(vdp, uMap, vMap, uTileset, vTileset, mapWidth, mapHeight
 	winY = Math.floor(winY);
 	winW = Math.floor(winW);
 	winH = Math.floor(winH);
-	scrollX = Math.floor(scrollX);
-	scrollY = Math.floor(scrollY);
+	// Remove the + win* to start the map at the window instead of continuing it
+	scrollX = Math.floor(scrollX) + winX;
+	scrollY = Math.floor(scrollY) + winY;
 
 	tilesetWidth = Math.floor(tilesetWidth / tileWidth);
 	if (hiColor) palNo |= PALETTE_HICOLOR_FLAG;
 
 	// x, y position, z for normal-prio tiles, base palette no
 	const positions = [
-		winX, winY, 0, palNo,
-		winX + winW, winY, 0, palNo,
-		winX, winY + winH, 0, palNo,
-		winX + winW, winY + winH, 0, palNo,
+		winX, winY, z, palNo,
+		winX + winW, winY, z, palNo,
+		winX, winY + winH, z, palNo,
+		winX + winW, winY + winH, z, palNo,
 	];
 	// u, v map base, u, v tileset base
 	const infos1 = [
@@ -258,16 +259,16 @@ export function drawMap(vdp, uMap, vMap, uTileset, vTileset, mapWidth, mapHeight
 		linescrollBuffer, wrap, 0, 0
 	];
 
-	gl.bindBuffer(gl.ARRAY_BUFFER, prog.buffers.xyzp);
-	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
-	gl.bindBuffer(gl.ARRAY_BUFFER, prog.buffers.mapInfo1);
-	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(infos1), gl.STATIC_DRAW);
-	gl.bindBuffer(gl.ARRAY_BUFFER, prog.buffers.mapInfo2);
-	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(infos2), gl.STATIC_DRAW);
-	gl.bindBuffer(gl.ARRAY_BUFFER, prog.buffers.mapInfo3);
-	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(infos3), gl.STATIC_DRAW);
-	gl.bindBuffer(gl.ARRAY_BUFFER, prog.buffers.mapInfo4);
-	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(infos4), gl.STATIC_DRAW);
+	gl.bindBuffer(gl.ARRAY_BUFFER, prog.glBuffers.xyzp);
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STREAM_DRAW);
+	gl.bindBuffer(gl.ARRAY_BUFFER, prog.glBuffers.mapInfo1);
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(infos1), gl.STREAM_DRAW);
+	gl.bindBuffer(gl.ARRAY_BUFFER, prog.glBuffers.mapInfo2);
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(infos2), gl.STREAM_DRAW);
+	gl.bindBuffer(gl.ARRAY_BUFFER, prog.glBuffers.mapInfo3);
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(infos3), gl.STREAM_DRAW);
+	gl.bindBuffer(gl.ARRAY_BUFFER, prog.glBuffers.mapInfo4);
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(infos4), gl.STREAM_DRAW);
 
 	gl.useProgram(prog.program);
 	{
@@ -277,31 +278,31 @@ export function drawMap(vdp, uMap, vMap, uTileset, vTileset, mapWidth, mapHeight
 		const stride = 0;         // how many bytes to get from one set of values to the next
 															// 0 = use type and numComponents above
 		const offset = 0;         // how many bytes inside the buffer to start from
-		gl.bindBuffer(gl.ARRAY_BUFFER, prog.buffers.xyzp);
+		gl.bindBuffer(gl.ARRAY_BUFFER, prog.glBuffers.xyzp);
 		gl.vertexAttribPointer(prog.attribLocations.xyzp, numComponents, type, normalize, stride, offset);
 		gl.enableVertexAttribArray(prog.attribLocations.xyzp);
 	}
 	{
 		const num = 4, type = gl.FLOAT, normalize = false, stride = 0, offset = 0;
-		gl.bindBuffer(gl.ARRAY_BUFFER, prog.buffers.mapInfo1);
+		gl.bindBuffer(gl.ARRAY_BUFFER, prog.glBuffers.mapInfo1);
 		gl.vertexAttribPointer(prog.attribLocations.mapInfo1, num, type, normalize, stride, offset);
 		gl.enableVertexAttribArray(prog.attribLocations.mapInfo1);
 	}
 	{
 		const num = 4, type = gl.FLOAT, normalize = false, stride = 0, offset = 0;
-		gl.bindBuffer(gl.ARRAY_BUFFER, prog.buffers.mapInfo2);
+		gl.bindBuffer(gl.ARRAY_BUFFER, prog.glBuffers.mapInfo2);
 		gl.vertexAttribPointer(prog.attribLocations.mapInfo2, num, type, normalize, stride, offset);
 		gl.enableVertexAttribArray(prog.attribLocations.mapInfo2);
 	}
 	{
 		const num = 4, type = gl.FLOAT, normalize = false, stride = 0, offset = 0;
-		gl.bindBuffer(gl.ARRAY_BUFFER, prog.buffers.mapInfo3);
+		gl.bindBuffer(gl.ARRAY_BUFFER, prog.glBuffers.mapInfo3);
 		gl.vertexAttribPointer(prog.attribLocations.mapInfo3, num, type, normalize, stride, offset);
 		gl.enableVertexAttribArray(prog.attribLocations.mapInfo3);
 	}
 	{
 		const num = 4, type = gl.FLOAT, normalize = false, stride = 0, offset = 0;
-		gl.bindBuffer(gl.ARRAY_BUFFER, prog.buffers.mapInfo4);
+		gl.bindBuffer(gl.ARRAY_BUFFER, prog.glBuffers.mapInfo4);
 		gl.vertexAttribPointer(prog.attribLocations.mapInfo4, num, type, normalize, stride, offset);
 		gl.enableVertexAttribArray(prog.attribLocations.mapInfo4);
 	}

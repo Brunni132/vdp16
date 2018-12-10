@@ -1,12 +1,17 @@
 
 export let SCREEN_WIDTH, SCREEN_HEIGHT;
-export const OTHER_TEX_W = 2048, OTHER_TEX_H = 16;
-export const MAP_TEX_W = 1024, MAP_TEX_H = 1024;
-export const SPRITE_TEX_W = 1024, SPRITE_TEX_H = 1024;
+export let MAP_TEX_W = 1024, MAP_TEX_H = 1024;
+export let SPRITE_TEX_W = 1024, SPRITE_TEX_H = 1024;
 export let PALETTE_TEX_W, PALETTE_TEX_H = 256;
 export let SEMITRANSPARENT_CANVAS = false;
+
+export const OTHER_TEX_W = 2048, OTHER_TEX_H = 16;
+
 export const TRUECOLOR_MODE = true;
 export const LIMITED_COLOR_MODE = false;
+export const USE_PRIORITIES = true;
+export const MAX_BGS = 1;
+export const MAX_SPRITES = 512;
 
 export const PALETTE_HICOLOR_FLAG = 1 << 15;
 
@@ -16,8 +21,13 @@ export function setParams(screenWidth, screenHeight, compositedFramebuffer = fal
 	SEMITRANSPARENT_CANVAS = compositedFramebuffer;
 }
 
-export function setTextureSize(paletteTexW) {
+export function setTextureSizes(paletteTexW, paletteTexH, mapTexW, mapTexH, spriteTexW, spriteTexH) {
+	PALETTE_TEX_H = paletteTexH;
 	PALETTE_TEX_W = paletteTexW;
+	SPRITE_TEX_W = spriteTexW;
+	SPRITE_TEX_H = spriteTexH;
+	MAP_TEX_W = mapTexW;
+	MAP_TEX_H = mapTexH;
 }
 
 export function declareReadTexel() {

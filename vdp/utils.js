@@ -186,8 +186,7 @@ export function loadTexture4444(gl, url, done) {
 export function makeBuffer(gl, verticesCount) {
 	const result = gl.createBuffer();
 	gl.bindBuffer(gl.ARRAY_BUFFER, result);
-	// TODO Florian -- STREAM_DRAW
-	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(verticesCount), gl.STATIC_DRAW);
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(verticesCount), gl.STREAM_DRAW);
 	return result;
 }
 

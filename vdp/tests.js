@@ -48,7 +48,7 @@ export function initSupersimpleShaders(vdp) {
 			xyz: gl.getAttribLocation(shaderProgram, 'aXyz'),
 			uv: gl.getAttribLocation(shaderProgram, 'aUv'),
 		},
-		buffers: {
+		glBuffers: {
 			xyz: makeBuffer(gl, TOTAL_VERTICES * 3),
 			uv: makeBuffer(gl, TOTAL_VERTICES * 2)
 		},
@@ -78,10 +78,10 @@ export function drawSupersimple(vdp, xStart, yStart, xEnd, yEnd, uStart, vStart,
 		uEnd, vEnd,
 	];
 
-	gl.bindBuffer(gl.ARRAY_BUFFER, prog.buffers.xyz);
-	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
-	gl.bindBuffer(gl.ARRAY_BUFFER, prog.buffers.uv);
-	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(textureCoordinates), gl.STATIC_DRAW);
+	gl.bindBuffer(gl.ARRAY_BUFFER, prog.glBuffers.xyz);
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STREAM_DRAW);
+	gl.bindBuffer(gl.ARRAY_BUFFER, prog.glBuffers.uv);
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(textureCoordinates), gl.STREAM_DRAW);
 
 	gl.useProgram(prog.program);
 	{
@@ -91,13 +91,13 @@ export function drawSupersimple(vdp, xStart, yStart, xEnd, yEnd, uStart, vStart,
 		const stride = 0;         // how many bytes to get from one set of values to the next
 															// 0 = use type and numComponents above
 		const offset = 0;         // how many bytes inside the buffer to start from
-		gl.bindBuffer(gl.ARRAY_BUFFER, prog.buffers.xyz);
+		gl.bindBuffer(gl.ARRAY_BUFFER, prog.glBuffers.xyz);
 		gl.vertexAttribPointer(prog.attribLocations.xyz, numComponents, type, normalize, stride, offset);
 		gl.enableVertexAttribArray(prog.attribLocations.xyz);
 	}
 	{
 		const num = 2, type = gl.FLOAT, normalize = false, stride = 0, offset = 0;
-		gl.bindBuffer(gl.ARRAY_BUFFER, prog.buffers.uv);
+		gl.bindBuffer(gl.ARRAY_BUFFER, prog.glBuffers.uv);
 		gl.vertexAttribPointer(prog.attribLocations.uv, num, type, normalize, stride, offset);
 		gl.enableVertexAttribArray(prog.attribLocations.uv);
 	}

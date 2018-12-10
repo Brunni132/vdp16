@@ -7,7 +7,7 @@ import {
 	writeToTextureFloat
 } from "./utils";
 import {mat3, mat4} from "../gl-matrix";
-import {drawSprite, initSpriteShaders} from "./sprites";
+import {drawPendingObj, drawObj, initSpriteShaders} from "./sprites";
 import {drawMap, initMapShaders} from "./maps";
 import {
 	MAP_TEX_H, MAP_TEX_W,
@@ -15,8 +15,8 @@ import {
 	PALETTE_TEX_H,
 	PALETTE_TEX_W, SCREEN_HEIGHT, SCREEN_WIDTH,
 	SEMITRANSPARENT_CANVAS,
-	setParams, setTextureSize, SPRITE_TEX_H,
-	SPRITE_TEX_W, TRUECOLOR_MODE
+	setParams, setTextureSizes, SPRITE_TEX_H,
+	SPRITE_TEX_W, TRUECOLOR_MODE, USE_PRIORITIES
 } from "./shaders";
 import {drawSupersimple, initSupersimpleShaders} from "./tests";
 
@@ -127,15 +127,14 @@ class VDP {
 	 * mapInfo1: u, v map base, u, v tileset base
 	 * mapInfo2: map width, map height, tileset width, tileset height
 	 * mapInfo3: tile width, tile height, UV drawing (should be 0…1)
-	 * @property {{program: *, attribLocations: {xyzp: GLint, mapInfo1: GLint, mapInfo2: GLint, mapInfo3: GLint, mapInfo4: GLint}, buffers: {xyzp, mapInfo1, mapInfo2, mapInfo3, mapInfo4}, uniformLocations: {projectionMatrix: WebGLUniformLocation, modelViewMatrix: WebGLUniformLocation, uSamplerMaps: WebGLUniformLocation, uSamplerSprites: WebGLUniformLocation, uSamplerPalettes: WebGLUniformLocation, uSamplerOthers: WebGLUniformLocation}}} mapProgram
+	 * @property {{program: *, attribLocations: {xyzp: GLint, mapInfo1: GLint, mapInfo2: GLint, mapInfo3: GLint, mapInfo4: GLint}, glBuffers: {xyzp, mapInfo1, mapInfo2, mapInfo3, mapInfo4}, uniformLocations: {projectionMatrix: WebGLUniformLocation, modelViewMatrix: WebGLUniformLocation, uSamplerMaps: WebGLUniformLocation, uSamplerSprites: WebGLUniformLocation, uSamplerPalettes: WebGLUniformLocation, uSamplerOthers: WebGLUniformLocation}}} mapProgram
 	 */
-	/** @property {number} mapTexture */
 	/** @property {mat4} modelViewMatrix */
 	/** @property {mat4} projectionMatrix */
 	/**
-	 * @property {{program: *, arrayBuffers: {xyzp: Float32Array, uv: Float32Array}, attribLocations: {xyzp: GLint, uv: GLint}, buffers: {xyzp, uv}, uniformLocations: {projectionMatrix: WebGLUniformLocation, modelViewMatrix: WebGLUniformLocation, uSamplerSprites: WebGLUniformLocation, uSamplerPalettes: WebGLUniformLocation}}} spriteProgram
+	 * @property {{program: *, arrayBuffers: {xyzp: Float32Array, uv: Float32Array}, attribLocations: {xyzp: GLint, uv: GLint}, glBuffers: {xyzp, uv}, pendingVertices, uniformLocations: {projectionMatrix: WebGLUniformLocation, modelViewMatrix: WebGLUniformLocation, uSamplerSprites: WebGLUniformLocation, uSamplerPalettes: WebGLUniformLocation}}} spriteProgram
 	 */
-	/** @property {{program: *, arrayBuffers: {xyz: Float32Array, uv: Float32Array}, attribLocations: {xyz: GLint, uv: GLint}, buffers: {xyz, uv}, uniformLocations: {projectionMatrix: WebGLUniformLocation, modelViewMatrix: WebGLUniformLocation, uSamplerPalettes: WebGLUniformLocation}}} supersimpleProgram */
+	/** @property {{program: *, arrayBuffers: {xyz: Float32Array, uv: Float32Array}, attribLocations: {xyz: GLint, uv: GLint}, glBuffers: {xyz, uv}, uniformLocations: {projectionMatrix: WebGLUniformLocation, modelViewMatrix: WebGLUniformLocation, uSamplerPalettes: WebGLUniformLocation}}} supersimpleProgram */
 	/** @type {WebGLTexture} mapTexture */
 	/** @type {WebGLTexture} paletteTexture */
 	/** @type {WebGLTexture} spriteTexture */
@@ -155,21 +154,22 @@ class VDP {
 		window.fetch('build/game.json').then((res) => res.json()).then((json) => {
 			this.gameData = json;
 
-			loadTexture(gl, 'build/sprites.png', (tex, image) => {
-				if (image.width !== SPRITE_TEX_W || image.height !== SPRITE_TEX_H)
+			loadTexture(gl, 'build/sprites.png', (tex, spriteImage) => {
+				if (spriteImage.width !== SPRITE_TEX_W || spriteImage.height !== SPRITE_TEX_H)
 					throw new Error('Mismatch in texture size');
 				this.spriteTexture = tex;
 
-				loadTextureType(gl, 'build/palettes.png', (tex, image) => {
-					if (image.width !== 256 && image.width !== 16 || image.height !== PALETTE_TEX_H)
+				loadTextureType(gl, 'build/palettes.png', (tex, palImage) => {
+					if (palImage.width !== 256 && palImage.width !== 16 || palImage.height !== PALETTE_TEX_H)
 						throw new Error('Mismatch in texture size');
-					setTextureSize(image.width);
 					this.paletteTexture = tex;
 
-					loadTexture(gl, 'build/maps.png', (tex, image) => {
-						if (image.width !== MAP_TEX_W || image.height !== MAP_TEX_H)
+					loadTexture(gl, 'build/maps.png', (tex, mapImage) => {
+						if (mapImage.width !== MAP_TEX_W || mapImage.height !== MAP_TEX_H)
 							throw new Error('Mismatch in texture size');
 						this.mapTexture = tex;
+
+						setTextureSizes(palImage.width, palImage.height, mapImage.width, mapImage.height, spriteImage.width, spriteImage.height);
 
 						this.otherTexture = createDataTextureFloat(gl, OTHER_TEX_W, OTHER_TEX_W);
 						// Store a default identity matrix for linescroll buffer 0
@@ -215,8 +215,9 @@ class VDP {
 		const winH = opts.hasOwnProperty('winH') ? opts.winH : SCREEN_HEIGHT;
 		const linescrollBuffer = opts.hasOwnProperty('linescrollBuffer') ? opts.linescrollBuffer : 0;
 		const wrap = opts.hasOwnProperty('wrap') ? opts.wrap : true;
+		const prio = opts.prio || 0;
 
-		drawMap(this, map.x, map.y, til.x, til.y, map.w, map.h, til.w, til.tw, til.th, winX, winY, winW, winH, scrollX, scrollY, pal.y, til.hiColor, linescrollBuffer, wrap ? 1 : 0);
+		drawMap(this, map.x, map.y, til.x, til.y, map.w, map.h, til.w, til.tw, til.th, winX, winY, winW, winH, scrollX, scrollY, pal.y, til.hiColor, linescrollBuffer, wrap ? 1 : 0, prio);
 	}
 
 	/**
@@ -227,6 +228,7 @@ class VDP {
 	 * @param opts.palette {VdpPalette} specific palette to use (otherwise just uses the design palette of the sprite)
 	 * @param opts.width {number} width on the screen (stretches the sprite compared to sprite.w)
 	 * @param opts.height {number} height on the screen (stretches the sprite compared to sprite.h)
+	 * @param opts.prio {number} priority of the sprite
 	 */
 	drawObj(sprite, x, y, opts = {}) {
 		if (typeof sprite === 'string') sprite = this.sprite(sprite);
@@ -234,8 +236,9 @@ class VDP {
 		const pal = this._getPalette(opts.hasOwnProperty('palette') ? opts.palette : sprite.designPalette);
 		const w = opts.hasOwnProperty('width') ? opts.width : sprite.w;
 		const h = opts.hasOwnProperty('height') ? opts.height : sprite.h;
+		const prio = opts.prio || 0;
 
-		drawSprite(this, x, y, x + w, y + h, sprite.x, sprite.y, sprite.x + sprite.w, sprite.y + sprite.h, pal.y, sprite.hiColor);
+		drawObj(this, x, y, x + w, y + h, sprite.x, sprite.y, sprite.x + sprite.w, sprite.y + sprite.h, pal.y, sprite.hiColor, prio);
 	}
 
 	/**
@@ -451,10 +454,10 @@ class VDP {
 	_initMatrices() {
 		this.projectionMatrix = mat4.create();
 		// note: glmatrix.js always has the first argument as the destination to receive the result.
-		mat4.ortho(this.projectionMatrix, 0.0, SCREEN_WIDTH, SCREEN_HEIGHT, 0.0, 0.1, 100);
+		mat4.ortho(this.projectionMatrix, 0.0, SCREEN_WIDTH, SCREEN_HEIGHT, 0.0, -10, 10);
 
 		// Normally set in modelViewMatrix, but we want to allow an empty model view matrix
-		mat4.translate(this.projectionMatrix, this.projectionMatrix, [-0.0, 0.0, -0.1]);
+		//mat4.translate(this.projectionMatrix, this.projectionMatrix, [-0.0, 0.0, -0.1]);
 
 		this.modelViewMatrix = mat4.create();
 		// mat4.translate(this.modelViewMatrix, this.modelViewMatrix, [-0.0, 0.0, -0.1]);
@@ -471,13 +474,21 @@ class VDP {
 
 		// TODO Florian -- Set clear color to palette[0, 0]
 		gl.clearColor(0.0, 0.0, 0.5, 0.0);
-		gl.clearDepth(1.0);                 // Clear everything
-		// PERF: This is a lot slower if there's a discard in the fragment shader (and we need one?) because the GPU can't test & write to the depth buffer until after the fragment shader has been executed. So there's no point in using it I guess.
-		// gl.enable(gl.DEPTH_TEST);           // Enable depth testing
-		// gl.depthFunc(gl.LESS);            // Near things obscure far things
 
-		// Clear the canvas before we start drawing on it.
-		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+		if (USE_PRIORITIES) {
+			gl.clearDepth(1.0);                 // Clear everything
+			// PERF: This is a lot slower if there's a discard in the fragment shader (and we need one?) because the GPU can't test & write to the depth buffer until after the fragment shader has been executed. So there's no point in using it I guess.
+			gl.enable(gl.DEPTH_TEST);           // Enable depth testing
+			gl.depthFunc(gl.LEQUAL);            // Near things obscure far things
+			gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+		} else {
+			gl.clear(gl.COLOR_BUFFER_BIT);
+		}
+	}
+
+	_endFrame() {
+		drawPendingObj(this);
 	}
 }
 
@@ -513,6 +524,7 @@ export function runProgram(vdp, coroutine) {
 
 		vdp._startFrame();
 		coroutine.next();
+		vdp._endFrame();
 		window.requestAnimationFrame(step);
 	}
 

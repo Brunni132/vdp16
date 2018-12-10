@@ -1,12 +1,10 @@
 import {initShaderProgram, makeBuffer} from "./utils";
 import {
 	declareReadPalette,
-	declareReadTexel, PALETTE_HICOLOR_FLAG,
+	declareReadTexel, MAX_SPRITES, PALETTE_HICOLOR_FLAG,
 	PALETTE_TEX_H,
 	PALETTE_TEX_W
 } from "./shaders";
-
-const MAX_SPRITES = 128;
 
 export function initSpriteShaders(vdp) {
 	const gl = vdp.gl;
@@ -57,7 +55,8 @@ export function initSpriteShaders(vdp) {
 			}
 		`;
 
-	const TOTAL_VERTICES = MAX_SPRITES * 4;
+	// TODO Florian -- Use indexed VAOs
+	const TOTAL_VERTICES = MAX_SPRITES * 6;
 	const shaderProgram = initShaderProgram(gl, vsSource, fsSource);
 
 	vdp.spriteProgram = {
@@ -70,10 +69,11 @@ export function initSpriteShaders(vdp) {
 			xyzp: gl.getAttribLocation(shaderProgram, 'aXyzp'),
 			uv: gl.getAttribLocation(shaderProgram, 'aUv'),
 		},
-		buffers: {
+		glBuffers: {
 			xyzp: makeBuffer(gl, TOTAL_VERTICES * 4),
 			uv: makeBuffer(gl, TOTAL_VERTICES * 2)
 		},
+		pendingVertices: 0,
 		uniformLocations: {
 			projectionMatrix: gl.getUniformLocation(shaderProgram, 'uProjectionMatrix'),
 			modelViewMatrix: gl.getUniformLocation(shaderProgram, 'uModelViewMatrix'),
@@ -83,40 +83,19 @@ export function initSpriteShaders(vdp) {
 	};
 }
 
-export function drawSprite(vdp, xStart, yStart, xEnd, yEnd, uStart, vStart, uEnd, vEnd, palNo, hiColor) {
-	xStart = Math.floor(xStart);
-	yStart = Math.floor(yStart);
-	xEnd = Math.floor(xEnd);
-	yEnd = Math.floor(yEnd);
-	uStart = Math.floor(uStart);
-	vStart = Math.floor(vStart);
-	uEnd = Math.floor(uEnd);
-	vEnd = Math.floor(vEnd);
-
-	if (hiColor) palNo |= PALETTE_HICOLOR_FLAG;
+/**
+ * @param vdp {VDP}
+ */
+export function drawPendingObj(vdp) {
+	const prog = vdp.spriteProgram;
+	if (prog.pendingVertices < 3) return;
 
 	const gl = vdp.gl;
-	const prog = vdp.spriteProgram;
-	const positions = [
-		xStart, yStart, 0, palNo,
-		xEnd, yStart, 0, palNo,
-		xStart, yEnd, 0, palNo,
-		xEnd, yEnd, 0, palNo,
-	];
-
-	const textureCoordinates = [
-		uStart, vStart,
-		uEnd, vStart,
-		uStart, vEnd,
-		uEnd, vEnd,
-	];
-
-	// TODO Florian -- batching, reuse the array instead of creating a new one
-	// TODO Florian -- try STREAM_DRAW
-	gl.bindBuffer(gl.ARRAY_BUFFER, prog.buffers.xyzp);
-	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
-	gl.bindBuffer(gl.ARRAY_BUFFER, prog.buffers.uv);
-	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(textureCoordinates), gl.STATIC_DRAW);
+	// TODO Florian -- does slice make a copy? No need if it does.
+	gl.bindBuffer(gl.ARRAY_BUFFER, prog.glBuffers.xyzp);
+	gl.bufferData(gl.ARRAY_BUFFER, prog.arrayBuffers.xyzp.slice(0, 4 * prog.pendingVertices), gl.STREAM_DRAW);
+	gl.bindBuffer(gl.ARRAY_BUFFER, prog.glBuffers.uv);
+	gl.bufferData(gl.ARRAY_BUFFER, prog.arrayBuffers.uv.slice(0, 2 * prog.pendingVertices), gl.STREAM_DRAW);
 
 	gl.useProgram(prog.program);
 	{
@@ -126,13 +105,13 @@ export function drawSprite(vdp, xStart, yStart, xEnd, yEnd, uStart, vStart, uEnd
 		const stride = 0;         // how many bytes to get from one set of values to the next
 															// 0 = use type and numComponents above
 		const offset = 0;         // how many bytes inside the buffer to start from
-		gl.bindBuffer(gl.ARRAY_BUFFER, prog.buffers.xyzp);
+		gl.bindBuffer(gl.ARRAY_BUFFER, prog.glBuffers.xyzp);
 		gl.vertexAttribPointer(prog.attribLocations.xyzp, numComponents, type, normalize, stride, offset);
 		gl.enableVertexAttribArray(prog.attribLocations.xyzp);
 	}
 	{
 		const num = 2, type = gl.FLOAT, normalize = false, stride = 0, offset = 0;
-		gl.bindBuffer(gl.ARRAY_BUFFER, prog.buffers.uv);
+		gl.bindBuffer(gl.ARRAY_BUFFER, prog.glBuffers.uv);
 		gl.vertexAttribPointer(prog.attribLocations.uv, num, type, normalize, stride, offset);
 		gl.enableVertexAttribArray(prog.attribLocations.uv);
 	}
@@ -152,9 +131,50 @@ export function drawSprite(vdp, xStart, yStart, xEnd, yEnd, uStart, vStart, uEnd
 	gl.uniformMatrix4fv(prog.uniformLocations.projectionMatrix, false, vdp.projectionMatrix);
 	gl.uniformMatrix4fv(prog.uniformLocations.modelViewMatrix,false, vdp.modelViewMatrix);
 
-	{
-		const offset = 0;
-		const vertexCount = 4;
-		gl.drawArrays(gl.TRIANGLE_STRIP, offset, vertexCount);
+	gl.drawArrays(gl.TRIANGLES, 0, prog.pendingVertices);
+
+	prog.pendingVertices = 0;
+}
+
+export function drawObj(vdp, xStart, yStart, xEnd, yEnd, uStart, vStart, uEnd, vEnd, palNo, hiColor, z = 0) {
+	xStart = Math.floor(xStart);
+	yStart = Math.floor(yStart);
+	xEnd = Math.floor(xEnd);
+	yEnd = Math.floor(yEnd);
+	uStart = Math.floor(uStart);
+	vStart = Math.floor(vStart);
+	uEnd = Math.floor(uEnd);
+	vEnd = Math.floor(vEnd);
+
+	if (hiColor) palNo |= PALETTE_HICOLOR_FLAG;
+
+	const gl = vdp.gl;
+	const prog = vdp.spriteProgram;
+
+	prog.arrayBuffers.xyzp.set([
+		xStart, yStart, z, palNo,
+		xEnd, yStart, z, palNo,
+		xEnd, yEnd, z, palNo,
+
+		xStart, yStart, z, palNo,
+		xEnd, yEnd, z, palNo,
+		xStart, yEnd, z, palNo,
+	], 4 * prog.pendingVertices);
+
+	prog.arrayBuffers.uv.set([
+		uStart, vStart,
+		uEnd, vStart,
+		uEnd, vEnd,
+
+		uStart, vStart,
+		uEnd, vEnd,
+		uStart, vEnd,
+	], 2 * prog.pendingVertices);
+
+	prog.pendingVertices += 6;
+
+	if (prog.pendingVertices >= MAX_SPRITES * 6) {
+		console.log('Too many sprites');
+		drawPendingObj(vdp);
 	}
 }
