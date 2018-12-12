@@ -45,15 +45,15 @@ export function initMapShaders(vdp) {
 			}
 		
 			void main(void) {
-				gl_Position = uProjectionMatrix * uModelViewMatrix * vec4(aXyzp.xyz, 1);
-				vPaletteNo = aXyzp.w;
-				vMapStart = aMapInfo1.xy;
-				vTilesetStart = aMapInfo1.zw;
-				vMapSize = aMapInfo2.xy;
-				vTilesetWidth = aMapInfo2.z;
-				vTileSize = aMapInfo3.xy;
-				vTextureCoord = aMapInfo3.zw;
-				vOtherInfo = aMapInfo4.xy;
+				gl_Position = uProjectionMatrix * uModelViewMatrix * vec4(floor(aXyzp.xyz), 1);
+				vPaletteNo = floor(aXyzp.w);
+				vMapStart = floor(aMapInfo1.xy);
+				vTilesetStart = floor(aMapInfo1.zw);
+				vMapSize = floor(aMapInfo2.xy);
+				vTilesetWidth = floor(aMapInfo2.z);
+				vTileSize = floor(aMapInfo3.xy);
+				vTextureCoord = floor(aMapInfo3.zw);
+				vOtherInfo = floor(aMapInfo4.xy);
 				// If 0-255, use one transformation map-wide from the first line, if -1 never use transformations
 				if (aMapInfo4.x >= 0.0 && aMapInfo4.x < 256.0) {
 					vTransformationMatrix = readLinescrollBuffer(0, int(aMapInfo4.x) * 2);
@@ -202,20 +202,6 @@ export function drawMap(vdp, uMap, vMap, uTileset, vTileset, mapWidth, mapHeight
 	const gl = vdp.gl;
 	const prog = vdp.mapProgram;
 
-	uMap = Math.floor(uMap);
-	vMap = Math.floor(vMap);
-	uTileset = Math.floor(uTileset);
-	vTileset = Math.floor(vTileset);
-	uTileset = Math.floor(uTileset);
-	mapWidth = Math.floor(mapWidth);
-	mapHeight = Math.floor(mapHeight);
-	tilesetWidth = Math.floor(tilesetWidth);
-	tileWidth = Math.floor(tileWidth);
-	tileHeight = Math.floor(tileHeight);
-	winX = Math.floor(winX);
-	winY = Math.floor(winY);
-	winW = Math.floor(winW);
-	winH = Math.floor(winH);
 	// Remove the + win* to start the map at the window instead of continuing it
 	scrollX = Math.floor(scrollX) + winX;
 	scrollY = Math.floor(scrollY) + winY;

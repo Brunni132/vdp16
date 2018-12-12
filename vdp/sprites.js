@@ -23,9 +23,9 @@ export function initSpriteShaders(vdp) {
 			uniform sampler2D uSamplerSprites, uSamplerPalettes;
 		
 			void main(void) {
-				gl_Position = uProjectionMatrix * uModelViewMatrix * vec4(aXyzp.xyz, 1);
+				gl_Position = uProjectionMatrix * uModelViewMatrix * vec4(floor(aXyzp.xyz), 1);
 				vPaletteNo = aXyzp.w;
-				vTextureCoord = aUv;
+				vTextureCoord = floor(aUv);
 			}
 		`;
 	const fsSource = `
@@ -137,15 +137,6 @@ export function drawPendingObj(vdp) {
 }
 
 export function drawObj(vdp, xStart, yStart, xEnd, yEnd, uStart, vStart, uEnd, vEnd, palNo, hiColor, z = 0) {
-	xStart = Math.floor(xStart);
-	yStart = Math.floor(yStart);
-	xEnd = Math.floor(xEnd);
-	yEnd = Math.floor(yEnd);
-	uStart = Math.floor(uStart);
-	vStart = Math.floor(vStart);
-	uEnd = Math.floor(uEnd);
-	vEnd = Math.floor(vEnd);
-
 	if (hiColor) palNo |= PALETTE_HICOLOR_FLAG;
 
 	const gl = vdp.gl;
