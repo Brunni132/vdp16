@@ -7,13 +7,23 @@ export let SEMITRANSPARENT_CANVAS = false;
 
 export const OTHER_TEX_W = 2048, OTHER_TEX_H = 16;
 
-export const TRUECOLOR_MODE = true;
+// Use false for limited machine
+export const TRUECOLOR_MODE = false;
+// Only used in TRUECOLOR_MODE to simulate a limited 12-bit display
 export const LIMITED_COLOR_MODE = true;
+// Used for limited machine
 export const USE_PRIORITIES = true;
+// 4 on limited machine
 export const MAX_BGS = 1;
+// True on limited machine, false otherwise
+export const DISCARD_ALPHA = true;
+
 export const MAX_SPRITES = 1 << 16;
 
 export const PALETTE_HICOLOR_FLAG = 1 << 15;
+
+// TODO Florian -- refactor, per sprite/map
+export const envColor = [1, 1, 1, 1];
 
 export function setParams(screenWidth, screenHeight, compositedFramebuffer = false) {
 	SCREEN_WIDTH = screenWidth;
@@ -75,7 +85,7 @@ export function declareReadTexel() {
 }
 
 export function declareReadPalette() {
-	if (LIMITED_COLOR_MODE) {
+	if (LIMITED_COLOR_MODE && TRUECOLOR_MODE) {
 		return `vec4 readPalette(float x, float y) {
 					vec4 data = texture2D(uSamplerPalettes, vec2(x, y));
 					// Checked: same render as pre-posterization
@@ -86,4 +96,11 @@ export function declareReadPalette() {
 					return texture2D(uSamplerPalettes, vec2(x, y));
 				}`;
 	}
+}
+
+export function makeOutputColor(colorExpr) {
+	if (DISCARD_ALPHA) {
+		return `vec4((${colorExpr}).rgb * uEnvColor.rgb, 1)`;
+	}
+	return `${colorExpr} * uEnvColor`;
 }

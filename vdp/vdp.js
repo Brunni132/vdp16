@@ -10,6 +10,7 @@ import {mat3, mat4} from "../gl-matrix";
 import {drawPendingObj, drawObj, initSpriteShaders} from "./sprites";
 import {drawMap, initMapShaders} from "./maps";
 import {
+	envColor,
 	MAP_TEX_H, MAP_TEX_W,
 	OTHER_TEX_W, PALETTE_HICOLOR_FLAG,
 	PALETTE_TEX_H,
@@ -132,9 +133,9 @@ class VDP {
 	/** @property {mat4} modelViewMatrix */
 	/** @property {mat4} projectionMatrix */
 	/**
-	 * @property {{program: *, arrayBuffers: {xyzp: Float32Array, uv: Float32Array}, attribLocations: {xyzp: GLint, uv: GLint}, glBuffers: {xyzp, uv}, pendingVertices, uniformLocations: {projectionMatrix: WebGLUniformLocation, modelViewMatrix: WebGLUniformLocation, uSamplerSprites: WebGLUniformLocation, uSamplerPalettes: WebGLUniformLocation}}} spriteProgram
+	 * @property {{program: *, arrayBuffers: {xyzp: Float32Array, uv: Float32Array}, attribLocations: {xyzp: GLint, uv: GLint}, glBuffers: {xyzp, uv}, pendingVertices, uniformLocations: {envColor: WebGLUniformLocation, projectionMatrix: WebGLUniformLocation, modelViewMatrix: WebGLUniformLocation, uSamplerSprites: WebGLUniformLocation, uSamplerPalettes: WebGLUniformLocation}}} spriteProgram
 	 */
-	/** @property {{program: *, arrayBuffers: {xyz: Float32Array, uv: Float32Array}, attribLocations: {xyz: GLint, uv: GLint}, glBuffers: {xyz, uv}, uniformLocations: {projectionMatrix: WebGLUniformLocation, modelViewMatrix: WebGLUniformLocation, uSamplerPalettes: WebGLUniformLocation}}} supersimpleProgram */
+	/** @property {{program: *, arrayBuffers: {xyz: Float32Array, uv: Float32Array}, attribLocations: {xyz: GLint, uv: GLint}, glBuffers: {xyz, uv}, uniformLocations: {envColor: WebGLUniformLocation, projectionMatrix: WebGLUniformLocation, modelViewMatrix: WebGLUniformLocation, uSamplerPalettes: WebGLUniformLocation}}} supersimpleProgram */
 	/** @type {WebGLTexture} mapTexture */
 	/** @type {WebGLTexture} paletteTexture */
 	/** @type {WebGLTexture} spriteTexture */
@@ -334,6 +335,37 @@ class VDP {
 			const result = new Uint8Array(els * 4);
 			readFromTextureToExisting(this.gl, this.spriteTexture, s.x / 8, s.y, els, s.h, result);
 			return result;
+		}
+	}
+
+	/**
+	 *
+	 * @param effect {string}
+	 * @param [dstColor] {number} 12-bit color
+	 * @param [srcColor] {number} 12-bit color
+	 */
+	setBlendMethod(effect, dstColor = null, srcColor = null) {
+		const gl = this.gl;
+
+		envColor[0] = envColor[1] = envColor[2] = envColor[3] = 1;
+		if (effect === 'blend') {
+			gl.enable(gl.BLEND);
+			gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+		} else if (effect === 'add') {
+			gl.enable(gl.BLEND);
+			gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+		} else if (effect === 'color') {
+			// Background blend factor
+			gl.blendColor((dstColor & 0xf) / 15, (dstColor >> 4 & 0xf) / 15, (dstColor >> 8 & 0xf) / 15, (dstColor >> 12 & 0xf) / 15);
+			// Source blend factor defined in shader
+			envColor[0] = (srcColor & 0xf) / 15;
+			envColor[1] = (srcColor >> 4 & 0xf) / 15;
+			envColor[2] = (srcColor >> 8 & 0xf) / 15;
+			envColor[3] = (srcColor >> 12 & 0xf) / 15;
+			gl.blendFunc(gl.SRC_ALPHA, gl.CONSTANT_COLOR);
+			gl.enable(gl.BLEND);
+		} else {
+			gl.disable(gl.BLEND);
 		}
 	}
 

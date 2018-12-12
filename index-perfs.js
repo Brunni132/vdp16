@@ -16,16 +16,16 @@ function *main(vdp) {
 	// });
 	// vdp.writeMap('level1', mapData);
 
-	const palData = vdp.readPalette('Level1');
+	// const palData = vdp.readPalette('Level1');
 	//palData.forEach((d, i) => {
 	//	palData[i] = color32.blend(d, 0xff000000, 0);
 	//});
 	//vdp.writePalette('Level1', palData);
 
-	//const defaultPal = vdp.readPalette('Default');
-	//for (let i = 0; i < defaultPal.length; i++)
-	//	defaultPal[i] = i << 28 | i << 24 | 0xffffff;
-	//vdp.writePalette('Default', defaultPal);
+	// const defaultPal = vdp.readPalette('Default');
+	// for (let i = 0; i < defaultPal.length; i++)
+	// 	defaultPal[i] = i << 24 | 0xffffff;
+	// vdp.writePalette('Default', defaultPal);
 
 	//const defaultSprite = vdp.readSprite('gradient');
 	//for (let i = 0; i < 256; i++)
@@ -42,27 +42,32 @@ function *main(vdp) {
 		// 	vdp.writePalette('Level1', palData);
 		// }
 		// frameNo++;
-		//
-		//vdp.drawBG('level1', { scrollX: scroll, winW: SCREEN_WIDTH * 0.75, prio: 1 });
-		//vdp.drawBG('level1', { scrollX: scroll, winX: SCREEN_WIDTH * 0.75, prio: 1, palette: 'Mario' });
-		//
-		//// Take the (0, 0, 16, 16) part of the big mario sprite
-		//const marioSprite = vdp.sprite('mario').offsetted(0, 0, 16, 16);
-		//// And draw it 32x32 (2x zoom)
-		//vdp.drawObj(marioSprite, scroll + 16, 100, {width: -32, height: 32 });
-		//
-		//vdp.drawObj('gradient', 0, 180, { height: 8, prio: 1 });
-		//vdp.drawObj('gradient', 0, 172, { height: 8, palette: 'Level1', prio: 1 });
-		//
-		//scroll += 0.05;
 
-		const spr = vdp.sprite('mario').offsetted(0, 0, 32, 32);
-		const opts = { palette: vdp.palette(spr.designPalette) };
-		for (let j = 0; j < 520; j++) {
-			for (let i = 0; i < 100; i++) {
-				vdp.drawObj(spr, i, j, opts);
-			}
-		}
+		const gl = vdp.gl;
+		vdp.setBlendMethod('none');
+		vdp.drawBG('level1', { scrollX: scroll, winW: SCREEN_WIDTH * 0.75, prio: 1 });
+		vdp.drawBG('level1', { scrollX: scroll, winX: SCREEN_WIDTH * 0.75, prio: 1, palette: 'Mario' });
+
+		vdp.setBlendMethod('color', 0x0777, 0xffff);
+
+		// Take the (0, 0, 16, 16) part of the big mario sprite
+		const marioSprite = vdp.sprite('mario').offsetted(0, 0, 16, 16);
+		// And draw it 32x32 (2x zoom)
+		vdp.drawObj(marioSprite, scroll + 16, 160, {width: -32, height: 32, prio: 3 });
+
+		vdp.drawObj('gradient', 0, 180, { height: 8, prio: 1 });
+		vdp.drawObj('gradient', 0, 172, { height: 8, palette: 'Level1', prio: 1 });
+
+		scroll += 0.05;
+
+
+		// const spr = vdp.sprite('mario').offsetted(0, 0, 64, 64);
+		// const opts = { palette: vdp.palette(spr.designPalette) };
+		// for (let j = 0; j < 10; j++) {
+		// 	for (let i = 0; i < 100; i++) {
+		// 		vdp.drawObj(spr, i, j, opts);
+		// 	}
+		// }
 
 		yield 0;
 	}

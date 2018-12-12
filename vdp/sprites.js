@@ -1,7 +1,7 @@
 import {initShaderProgram, makeBuffer} from "./utils";
 import {
 	declareReadPalette,
-	declareReadTexel, MAX_SPRITES, PALETTE_HICOLOR_FLAG,
+	declareReadTexel, envColor, makeOutputColor, MAX_SPRITES, PALETTE_HICOLOR_FLAG,
 	PALETTE_TEX_H,
 	PALETTE_TEX_W
 } from "./shaders";
@@ -33,6 +33,7 @@ export function initSpriteShaders(vdp) {
 			
 			varying highp vec2 vTextureCoord;
 			varying highp float vPaletteNo;
+			uniform vec4 uEnvColor;
 			uniform sampler2D uSamplerSprites, uSamplerPalettes;
 	
 			${declareReadTexel()}
@@ -51,7 +52,9 @@ export function initSpriteShaders(vdp) {
 
 				// Color zero
 				if (texel < ${1.0 / (PALETTE_TEX_W)}) discard;
-				gl_FragColor = readPalette(texel, palette);
+
+				vec4 color = readPalette(texel, palette);
+				gl_FragColor = ${makeOutputColor('color')};
 			}
 		`;
 
@@ -75,6 +78,7 @@ export function initSpriteShaders(vdp) {
 		},
 		pendingVertices: 0,
 		uniformLocations: {
+			envColor: gl.getUniformLocation(shaderProgram, 'uEnvColor'),
 			projectionMatrix: gl.getUniformLocation(shaderProgram, 'uProjectionMatrix'),
 			modelViewMatrix: gl.getUniformLocation(shaderProgram, 'uModelViewMatrix'),
 			uSamplerSprites: gl.getUniformLocation(shaderProgram, 'uSamplerSprites'),
@@ -130,6 +134,8 @@ export function drawPendingObj(vdp) {
 	// Set the shader uniforms
 	gl.uniformMatrix4fv(prog.uniformLocations.projectionMatrix, false, vdp.projectionMatrix);
 	gl.uniformMatrix4fv(prog.uniformLocations.modelViewMatrix,false, vdp.modelViewMatrix);
+
+	gl.uniform4f(prog.uniformLocations.envColor, envColor[0], envColor[1], envColor[2], envColor[3]);
 
 	gl.drawArrays(gl.TRIANGLES, 0, prog.pendingVertices);
 

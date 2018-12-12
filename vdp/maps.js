@@ -1,7 +1,7 @@
 import {initShaderProgram, makeBuffer} from "./utils";
 import {
 	declareReadPalette,
-	declareReadTexel,
+	declareReadTexel, envColor, makeOutputColor,
 	MAP_TEX_H, MAP_TEX_W, MAX_BGS, OTHER_TEX_H, OTHER_TEX_W, PALETTE_HICOLOR_FLAG,
 	PALETTE_TEX_H,
 	PALETTE_TEX_W,
@@ -9,6 +9,8 @@ import {
 	SCREEN_WIDTH
 } from "./shaders";
 import {drawPendingObj} from "./sprites";
+
+export const mapEnvColor = [1, 1, 1, 1];
 
 export function initMapShaders(vdp) {
 	const gl = vdp.gl;
@@ -79,6 +81,7 @@ export function initMapShaders(vdp) {
 			varying vec2 vOtherInfo;
 			
 			uniform mat4 uModelViewMatrix;
+			uniform vec4 uEnvColor;
 			uniform sampler2D uSamplerMaps, uSamplerSprites, uSamplerPalettes, uSamplerOthers;
 						
 			// y > 0! x can be negative or positive
@@ -163,7 +166,8 @@ export function initMapShaders(vdp) {
 
 				// Color zero
 				if (texel < ${1.0 / PALETTE_TEX_W}) discard;
-				gl_FragColor = readPalette(texel, paletteOffset / ${PALETTE_TEX_H}.0);
+				vec4 color = readPalette(texel, paletteOffset / ${PALETTE_TEX_H}.0);
+				gl_FragColor = ${makeOutputColor('color')};
 			}
 		`;
 
@@ -186,6 +190,7 @@ export function initMapShaders(vdp) {
 			mapInfo4: makeBuffer(gl, TOTAL_VERTICES * 4)
 		},
 		uniformLocations: {
+			envColor: gl.getUniformLocation(shaderProgram, 'uEnvColor'),
 			projectionMatrix: gl.getUniformLocation(shaderProgram, 'uProjectionMatrix'),
 			modelViewMatrix: gl.getUniformLocation(shaderProgram, 'uModelViewMatrix'),
 			uSamplerMaps: gl.getUniformLocation(shaderProgram, 'uSamplerMaps'),
@@ -313,6 +318,8 @@ export function drawMap(vdp, uMap, vMap, uTileset, vTileset, mapWidth, mapHeight
 	// Set the shader uniforms
 	gl.uniformMatrix4fv(prog.uniformLocations.projectionMatrix, false, vdp.projectionMatrix);
 	gl.uniformMatrix4fv(prog.uniformLocations.modelViewMatrix,false, vdp.modelViewMatrix);
+
+	gl.uniform4f(prog.uniformLocations.envColor, envColor[0], envColor[1], envColor[2], envColor[3]);
 
 	{
 		const offset = 0;
