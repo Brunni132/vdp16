@@ -4,7 +4,7 @@
  */
 import {loadVdp, runProgram} from "./vdp/vdp";
 import * as color32 from "./vdp/color32";
-import {SCREEN_WIDTH} from "./vdp/shaders";
+import {SCREEN_HEIGHT, SCREEN_WIDTH} from "./vdp/shaders";
 
 /** @param vdp {VDP} */
 function *main(vdp) {
@@ -34,27 +34,36 @@ function *main(vdp) {
 
 	let frameNo = 0;
 	while (true) {
-		 if (frameNo % 10 === 0) {
-		 	const firstCol = palData[1];
-		 	for (let i = 1; i < palData.length - 1; i++)
-		 		palData[i] = palData[i + 1];
-		 	palData[palData.length - 1] = firstCol;
-		 	vdp.writePalette('Level1', palData);
-		 }
-		 frameNo++;
+		// if (frameNo % 10 === 0) {
+		// 	const firstCol = palData[1];
+		// 	for (let i = 1; i < palData.length - 1; i++)
+		// 		palData[i] = palData[i + 1];
+		// 	palData[palData.length - 1] = firstCol;
+		// 	vdp.writePalette('Level1', palData);
+		// }
+		// frameNo++;
+		//
+		//vdp.drawBG('level1', { scrollX: scroll, winW: SCREEN_WIDTH * 0.75, prio: 1 });
+		//vdp.drawBG('level1', { scrollX: scroll, winX: SCREEN_WIDTH * 0.75, prio: 1, palette: 'Mario' });
+		//
+		//// Take the (0, 0, 16, 16) part of the big mario sprite
+		//const marioSprite = vdp.sprite('mario').offsetted(0, 0, 16, 16);
+		//// And draw it 32x32 (2x zoom)
+		//vdp.drawObj(marioSprite, scroll + 16, 100, {width: -32, height: 32 });
+		//
+		//vdp.drawObj('gradient', 0, 180, { height: 8, prio: 1 });
+		//vdp.drawObj('gradient', 0, 172, { height: 8, palette: 'Level1', prio: 1 });
+		//
+		//scroll += 0.05;
 
-		vdp.drawBG('level1', { scrollX: scroll, winW: SCREEN_WIDTH * 0.75, prio: 1 });
-		vdp.drawBG('level1', { scrollX: scroll, winX: SCREEN_WIDTH * 0.75, prio: 1, palette: 'Mario' });
+		const spr = vdp.sprite('mario').offsetted(0, 0, 32, 32);
+		const opts = { palette: vdp.palette(spr.designPalette) };
+		for (let j = 0; j < 520; j++) {
+			for (let i = 0; i < 100; i++) {
+				vdp.drawObj(spr, i, j, opts);
+			}
+		}
 
-		// Take the (0, 0, 16, 16) part of the big mario sprite
-		const marioSprite = vdp.sprite('mario').offsetted(0, 0, 16, 16);
-		// And draw it 32x32 (2x zoom)
-		vdp.drawObj(marioSprite, scroll + 16, 100, {width: -32, height: 32 });
-
-		vdp.drawObj('gradient', 0, 180, { height: 8, prio: 1 });
-		vdp.drawObj('gradient', 0, 172, { height: 8, palette: 'Level1', prio: 1 });
-
-		scroll += 0.05;
 		yield 0;
 	}
 }

@@ -11,7 +11,7 @@ export const TRUECOLOR_MODE = true;
 export const LIMITED_COLOR_MODE = true;
 export const USE_PRIORITIES = true;
 export const MAX_BGS = 1;
-export const MAX_SPRITES = 512;
+export const MAX_SPRITES = 1 << 16;
 
 export const PALETTE_HICOLOR_FLAG = 1 << 15;
 

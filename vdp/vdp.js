@@ -511,20 +511,23 @@ export function loadVdp(canvas) {
  * @param {IterableIterator<number>} coroutine
  */
 export function runProgram(vdp, coroutine) {
-	let last = 0, called = 0;
+	let last = 0;
+	const times = [];
 
 	function step(timestamp) {
 		timestamp = Math.floor(timestamp / 1000);
-		if (timestamp !== last) {
-			console.log(`Called ${called} times`);
-			called = 0;
+		if (timestamp !== last && times.length > 0) {
+			console.log(`Called ${times.length} times. Avg=${times.reduce((a, b) => a + b) / times.length}ms`);
+			times.length = 0;
 		}
-		called++;
 		last = timestamp;
 
+		const before = window.performance.now();
 		vdp._startFrame();
 		coroutine.next();
 		vdp._endFrame();
+		times.push(window.performance.now() - before);
+
 		window.requestAnimationFrame(step);
 	}
 
