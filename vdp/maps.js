@@ -196,7 +196,7 @@ export function initMapShaders(vdp) {
 	};
 }
 
-export function drawMap(vdp, uMap, vMap, uTileset, vTileset, mapWidth, mapHeight, tilesetWidth, tileWidth, tileHeight, winX, winY, winW, winH, scrollX, scrollY, palNo, hiColor, linescrollBuffer, wrap, z = 0) {
+export function drawMap(vdp, uMap, vMap, uTileset, vTileset, mapWidth, mapHeight, tilesetWidth, tileWidth, tileHeight, winX, winY, winW, winH, scrollX, scrollY, palNo, hiColor, linescrollBuffer = -1, wrap = 1, z = 0) {
 	drawPendingObj(vdp);
 
 	const gl = vdp.gl;

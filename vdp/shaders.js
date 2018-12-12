@@ -8,7 +8,7 @@ export let SEMITRANSPARENT_CANVAS = false;
 export const OTHER_TEX_W = 2048, OTHER_TEX_H = 16;
 
 export const TRUECOLOR_MODE = true;
-export const LIMITED_COLOR_MODE = false;
+export const LIMITED_COLOR_MODE = true;
 export const USE_PRIORITIES = true;
 export const MAX_BGS = 1;
 export const MAX_SPRITES = 512;
@@ -78,7 +78,8 @@ export function declareReadPalette() {
 	if (LIMITED_COLOR_MODE) {
 		return `vec4 readPalette(float x, float y) {
 					vec4 data = texture2D(uSamplerPalettes, vec2(x, y));
-					return floor(data * 16.0) / 16.0;
+					// Checked: same render as pre-posterization
+					return floor(data * 16.0) / 15.0;
 				}`;
 	} else {
 		return `vec4 readPalette(float x, float y) {

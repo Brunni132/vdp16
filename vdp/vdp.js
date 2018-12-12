@@ -213,7 +213,7 @@ class VDP {
 		const winY = opts.hasOwnProperty('winY') ? opts.winY : 0;
 		const winW = opts.hasOwnProperty('winW') ? opts.winW : SCREEN_WIDTH;
 		const winH = opts.hasOwnProperty('winH') ? opts.winH : SCREEN_HEIGHT;
-		const linescrollBuffer = opts.hasOwnProperty('linescrollBuffer') ? opts.linescrollBuffer : 0;
+		const linescrollBuffer = opts.hasOwnProperty('linescrollBuffer') ? opts.linescrollBuffer : -1;
 		const wrap = opts.hasOwnProperty('wrap') ? opts.wrap : true;
 		const prio = opts.prio || 0;
 

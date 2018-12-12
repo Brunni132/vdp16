@@ -22,15 +22,15 @@ function *main(vdp) {
 	//});
 	//vdp.writePalette('Level1', palData);
 
-	const defaultPal = vdp.readPalette('Default');
-	for (let i = 0; i < defaultPal.length; i++)
-		defaultPal[i] = i << 28 | i << 24 | 0xffffff;
-	vdp.writePalette('Default', defaultPal);
+	//const defaultPal = vdp.readPalette('Default');
+	//for (let i = 0; i < defaultPal.length; i++)
+	//	defaultPal[i] = i << 28 | i << 24 | 0xffffff;
+	//vdp.writePalette('Default', defaultPal);
 
-	const defaultSprite = vdp.readSprite('gradient');
-	for (let i = 0; i < 256; i++)
-		defaultSprite[i] = i % 16;
-	vdp.writeSprite('gradient', defaultSprite);
+	//const defaultSprite = vdp.readSprite('gradient');
+	//for (let i = 0; i < 256; i++)
+	//	defaultSprite[i] = i % 16;
+	//vdp.writeSprite('gradient', defaultSprite);
 
 	let frameNo = 0;
 	while (true) {
@@ -52,7 +52,7 @@ function *main(vdp) {
 		vdp.drawObj(marioSprite, scroll + 16, 100, {width: -32, height: 32 });
 
 		vdp.drawObj('gradient', 0, 180, { height: 8, prio: 1 });
-		vdp.drawObj('gradient', 0, 179, { palette: 'Level1', prio: 1 });
+		vdp.drawObj('gradient', 0, 172, { height: 8, palette: 'Level1', prio: 1 });
 
 		scroll += 0.05;
 		yield 0;
