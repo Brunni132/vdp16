@@ -526,9 +526,24 @@ class VDP {
 
 /**
  * @param canvas {HTMLCanvasElement}
+ * @param [params] {Object}
+ * @param [params.resolution] {number} default is 0. 0=256x256, 1=320x224
  * @returns {Promise}
  */
-export function loadVdp(canvas) {
+export function loadVdp(canvas, params) {
+	params = params || {};
+	switch (params.resolution) {
+	case 1:
+		canvas.width = 320;
+		canvas.height = 224;
+		break;
+	default:
+		canvas.width = 256;
+		canvas.height = 256;
+		break;
+	}
+	canvas.style.width = `${canvas.width * 2}px`;
+	canvas.style.height = `${canvas.height * 2}px`;
 	setParams(canvas.width, canvas.height, false);
 	return new Promise(function (resolve) {
 		const vdp = new VDP(canvas, () => {

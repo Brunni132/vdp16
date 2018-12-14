@@ -73,4 +73,5 @@ function *main(vdp) {
 	}
 }
 
-loadVdp(document.querySelector("#glCanvas")).then(vdp => runProgram(vdp, main(vdp)));
+loadVdp(document.querySelector("#glCanvas"), { resolution: 1 }).then(
+	vdp => runProgram(vdp, main(vdp)));

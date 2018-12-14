@@ -98,6 +98,7 @@ export function declareReadPalette() {
 	}
 }
 
+// TODO Florian -- currently incompatible with posterization
 export function makeOutputColor(colorExpr) {
 	if (DISCARD_ALPHA) {
 		return `vec4((${colorExpr}).rgb * uEnvColor.rgb, 1)`;
