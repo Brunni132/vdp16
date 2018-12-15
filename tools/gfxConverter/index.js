@@ -190,15 +190,24 @@ class MasterPackBaker {
 // TODO Florian -- Maybe this should just reference a list of maps, palettes and sprites (mutable) then pack the thing at the end?
 class MasterPack {
 
-	// Lo-color mode: 8192x1024 sprites (4 MB), 256x16 RGBA4444 color RAM (8 kB), 2048x1024 maps (4 MB)
-	// Hi-color mode: 4096x1024 sprites (4 MB), 256x256 RGBA8888 color RAM (256 kB), 2048x1024 maps (4 MB)
-	constructor() {
-		/** @type {Texture} */
-		this.mapTex = Texture.blank('maps', 2048, 1024, 16);
-		/** @type {Texture} */
-		this.spriteTex = Texture.blank('sprites', HI_COLOR_MODE ? 4096 : 8192, 1024, HI_COLOR_MODE ? 8 : 4);
-		/** @type {Texture} */
-		this.paletteTex = Texture.blank('palettes', HI_COLOR_MODE ? 256 : 16, 256, 32);
+	/**
+	 * Lo-color mode: 8192x1024 sprites (4 MB), 256x16 RGBA4444 color RAM (8 kB), 2048x1024 maps (4 MB)
+	 * Hi-color mode: 4096x1024 sprites (4 MB), 256x256 RGBA8888 color RAM (256 kB), 2048x1024 maps (4 MB)
+	 * @param compact {boolean} use a smaller video memory (512 kB)
+	 */
+	constructor(compact) {
+		if (!compact) {
+			/** @type {Texture} */
+			this.mapTex = Texture.blank('maps', 2048, 1024, 16);
+			/** @type {Texture} */
+			this.spriteTex = Texture.blank('sprites', HI_COLOR_MODE ? 4096 : 8192, 1024, HI_COLOR_MODE ? 8 : 4);
+			/** @type {Texture} */
+			this.paletteTex = Texture.blank('palettes', HI_COLOR_MODE ? 256 : 16, 256, 32);
+		} else {
+			this.mapTex = Texture.blank('maps', 512, 512, 16);
+			this.spriteTex = Texture.blank('sprites', HI_COLOR_MODE ? 1024 : 2048, 512, HI_COLOR_MODE ? 8 : 4);
+			this.paletteTex = Texture.blank('palettes', HI_COLOR_MODE ? 256 : 16, 256, 32);
+		}
 
 		/** @type {Palette[]} */
 		this.palettes = [];
@@ -264,7 +273,10 @@ class MasterPack {
 		return null;
 	}
 
-	pack() {
+	/**
+	 * @param writeSample {boolean}
+	 */
+	pack(writeSample) {
 		/** @type {BigFile} */
 		const resultJson = { pals: {}, sprites: {}, maps: {}, data: {} };
 
@@ -308,8 +320,10 @@ class MasterPack {
 		//console.log(masterSpriteList.spriteEntries.map(e => ({ x: e.x, y: e.y, w: e.width, h: e.height, pal: e.designPalette.name })));
 		console.log(`Palette usage: ${(100 * (this.palettes.length / this.paletteTex.height)).toFixed(2)}%`.formatAs(utils.BRIGHT, utils.FG_CYAN));
 		console.log(`Map usage: ${(100 * mapBaker.memoryUsage()).toFixed(2)}%`.formatAs(utils.BRIGHT, utils.FG_CYAN));
-		console.log('Writing sample.png…');
-		this.writeSampleImage(resultJson, 'sample.png');
+		if (writeSample) {
+			console.log('Writing sample.png…');
+			this.writeSampleImage(resultJson, 'sample.png');
+		}
 
 		// Write all textures
 		console.log('Writing game data…');
@@ -348,7 +362,7 @@ class MasterPack {
 }
 
 // ---------- Your program ------------
-const conv = new MasterPack();
+const conv = new MasterPack(true);
 
 const palettes = [
 	conv.createPalette('Default'),
@@ -419,6 +433,6 @@ conv.addMap(map);
 //	conv.sprites.texture.setPixel(4, 0, 15);
 //}
 
-conv.pack();
+conv.pack(false);
 // ---------- End program ------------
 

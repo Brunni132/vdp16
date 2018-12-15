@@ -1,6 +1,6 @@
 import {
 	createDataTexture32,
-	createDataTextureFloat,
+	createDataTextureFloat, getColor,
 	loadTexture,
 	loadTexture4444,
 	readFromTexture32, readFromTextureToExisting, readFromTextureToExisting16, writeToTexture16, writeToTexture32,
@@ -19,7 +19,7 @@ import {
 	setParams, setTextureSizes, SPRITE_TEX_H,
 	SPRITE_TEX_W, TRUECOLOR_MODE, USE_PRIORITIES
 } from "./shaders";
-import {drawSupersimple, initSupersimpleShaders} from "./tests";
+import {drawOpaquePoly, initOpaquePolyShaders} from "./tests";
 
 class VdpMap {
 	/**
@@ -120,6 +120,28 @@ class VdpSprite {
 // 	}
 // }
 
+class TransparencyConfig {
+	/**
+	 * @param effect {string} 'none', 'color', 'blend' or 'premult'.
+	 * @param operation {string}
+	 * @param blendSrc {number|string}
+	 * @param blendDst {number|string}
+	 */
+	constructor(effect, operation, blendSrc, blendDst) {
+		this.effect = effect;
+		this.operation = operation;
+		this.blendSrc = blendSrc;
+		this.blendDst = blendDst;
+	}
+
+	/**
+	 * @param vdp {VDP}
+	 */
+	apply(vdp) {
+		console.log(`TEMP TODO`);
+	}
+}
+
 class VDP {
 	/** @property {WebGLRenderingContext} gl */
 	/** @property {BigFile} gameData */
@@ -135,7 +157,7 @@ class VDP {
 	/**
 	 * @property {{program: *, arrayBuffers: {xyzp: Float32Array, uv: Float32Array}, attribLocations: {xyzp: GLint, uv: GLint}, glBuffers: {xyzp, uv}, pendingVertices, uniformLocations: {envColor: WebGLUniformLocation, projectionMatrix: WebGLUniformLocation, modelViewMatrix: WebGLUniformLocation, uSamplerSprites: WebGLUniformLocation, uSamplerPalettes: WebGLUniformLocation}}} spriteProgram
 	 */
-	/** @property {{program: *, arrayBuffers: {xyz: Float32Array, uv: Float32Array}, attribLocations: {xyz: GLint, uv: GLint}, glBuffers: {xyz, uv}, uniformLocations: {envColor: WebGLUniformLocation, projectionMatrix: WebGLUniformLocation, modelViewMatrix: WebGLUniformLocation, uSamplerPalettes: WebGLUniformLocation}}} supersimpleProgram */
+	/** @property {{program: *, arrayBuffers: {xy: Float32Array, color: Float32Array}, attribLocations: {xy: GLint, color: GLint}, glBuffers: {xy, color}, uniformLocations: {projectionMatrix: WebGLUniformLocation, modelViewMatrix: WebGLUniformLocation}}} opaquePolyProgram */
 	/** @type {WebGLTexture} mapTexture */
 	/** @type {WebGLTexture} paletteTexture */
 	/** @type {WebGLTexture} spriteTexture */
@@ -146,6 +168,19 @@ class VDP {
 	 * @param done {function()}
 	 */
 	constructor(canvas, done) {
+		/** @type {number} backdrop color. */
+		this._backdropColor = 0x00800000;
+		/** @type {number} fade color (factor is the upper 8 bits). */
+		this._fadeColor = 0x00000000;
+		/** @type {TransparencyConfig} */
+		this._bgTransparency = new TransparencyConfig('color', 'add', 0x88ffffff, 0x88ffffff);
+		/** @type {TransparencyConfig} */
+		this._objTransparency = new TransparencyConfig('color', 'add', 0x88ffffff, 0x88ffffff);
+		/** @type {boolean} */
+		this._obj1AsMask = false;
+		this._noTransparency = new TransparencyConfig('none', 'add', 0, 0);
+		this._standardTransparency = new TransparencyConfig('blend', 'add', 0, 0);
+
 		this._initContext(canvas);
 		this._initMatrices();
 
@@ -156,8 +191,6 @@ class VDP {
 			this.gameData = json;
 
 			loadTexture(gl, 'build/sprites.png', (tex, spriteImage) => {
-				if (spriteImage.width !== SPRITE_TEX_W || spriteImage.height !== SPRITE_TEX_H)
-					throw new Error('Mismatch in texture size');
 				this.spriteTexture = tex;
 
 				loadTextureType(gl, 'build/palettes.png', (tex, palImage) => {
@@ -166,8 +199,6 @@ class VDP {
 					this.paletteTexture = tex;
 
 					loadTexture(gl, 'build/maps.png', (tex, mapImage) => {
-						if (mapImage.width !== MAP_TEX_W || mapImage.height !== MAP_TEX_H)
-							throw new Error('Mismatch in texture size');
 						this.mapTexture = tex;
 
 						setTextureSizes(palImage.width, palImage.height, mapImage.width, mapImage.height, spriteImage.width, spriteImage.height);
@@ -180,12 +211,65 @@ class VDP {
 
 						initMapShaders(this);
 						initSpriteShaders(this);
-						initSupersimpleShaders(this);
+						initOpaquePolyShaders(this);
 						done();
 					});
 				});
 			});
 		});
+	}
+
+	/**
+	 * Configures the backdrop (background color that is always present).
+	 * @param color {number|string} backdrop color
+	 */
+	configBDColor(color) {
+		this._backdropColor = getColor(color);
+	}
+
+	/**
+	 * Configure transparent background effect.
+	 * @param opts {Object}
+	 * @param opts.op {string} 'add' or 'sub'
+	 * @param opts.blendSrc {number|string} source tint (quantity of color to take from the blending object)
+	 * @param opts.blendDst {number|string} destination tint (quantity of color to take from the backbuffer when mixing)
+	 */
+	configBGTransparency(opts) {
+		if (opts.op !== 'add' && opts.op !== 'sub') {
+			throw new Error(`Invalid operation ${opts.op}`);
+		}
+		this._bgTransparency.operation = opts.op;
+		this._bgTransparency.blendSrc = getColor(opts.blendSrc);
+		this._bgTransparency.blendDst = getColor(opts.blendDst);
+	}
+
+	/**
+	 * Configures the fade.
+	 * @param color {number|string} destination color (suggested black or white).
+	 * @param factor {number} between 0 and 255. 0 means disabled, 255 means fully covered. The fade is only visible in
+	 * increments of 16 (i.e. 1-15 is equivalent to 0).
+	 */
+	configFade(color, factor) {
+		factor = Math.min(255, Math.max(0, factor));
+		this._fadeColor = (getColor(color) & 0xffffff) | (factor << 24);
+	}
+
+	/**
+	 * Configure effect for transparent sprites.
+	 * @param opts {Object}
+	 * @param opts.op {string} 'add' or 'sub'
+	 * @param opts.blendSrc {number|string} source tint (quantity of color to take from the blending object)
+	 * @param opts.blendDst {number|string} destination tint (quantity of color to take from the backbuffer when mixing)
+	 * @param opts.mask {boolean} whether to use mask
+	 */
+	configOBJTransparency(opts) {
+		if (opts.op !== 'add' && opts.op !== 'sub') {
+			throw new Error(`Invalid operation ${opts.op}`);
+		}
+		this._objTransparency.operation = opts.op;
+		this._objTransparency.blendSrc = getColor(opts.blendSrc);
+		this._objTransparency.blendDst = getColor(opts.blendDst);
+		this._obj1AsMask = !!opts.mask;
 	}
 
 	/**
@@ -339,37 +423,6 @@ class VDP {
 	}
 
 	/**
-	 *
-	 * @param effect {string}
-	 * @param [dstColor] {number} 12-bit color
-	 * @param [srcColor] {number} 12-bit color
-	 */
-	setBlendMethod(effect, dstColor = null, srcColor = null) {
-		const gl = this.gl;
-
-		envColor[0] = envColor[1] = envColor[2] = envColor[3] = 1;
-		if (effect === 'blend') {
-			gl.enable(gl.BLEND);
-			gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-		} else if (effect === 'add') {
-			gl.enable(gl.BLEND);
-			gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-		} else if (effect === 'color') {
-			// Background blend factor
-			gl.blendColor((dstColor & 0xf) / 15, (dstColor >> 4 & 0xf) / 15, (dstColor >> 8 & 0xf) / 15, (dstColor >> 12 & 0xf) / 15);
-			// Source blend factor defined in shader
-			envColor[0] = (srcColor & 0xf) / 15;
-			envColor[1] = (srcColor >> 4 & 0xf) / 15;
-			envColor[2] = (srcColor >> 8 & 0xf) / 15;
-			envColor[3] = (srcColor >> 12 & 0xf) / 15;
-			gl.blendFunc(gl.SRC_ALPHA, gl.CONSTANT_COLOR);
-			gl.enable(gl.BLEND);
-		} else {
-			gl.disable(gl.BLEND);
-		}
-	}
-
-	/**
 	 * @param name {string}
 	 * @returns {VdpSprite}
 	 */
@@ -437,6 +490,22 @@ class VDP {
 	}
 
 	// --------------------- PRIVATE ---------------------
+	_endFrame() {
+		const gl = this.gl;
+		drawPendingObj(this);
+
+		// Draw fade
+		if (this._fadeColor >>> 24 >= 0x10) {
+			this._setBlendMethod('blend');
+			gl.disable(gl.DEPTH_TEST);
+			drawOpaquePoly(this, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT,
+				(this._fadeColor & 0xf0) / 240,
+				(this._fadeColor >>> 8 & 0xf0) / 240,
+				(this._fadeColor >>> 16 & 0xf0) / 240,
+				(this._fadeColor >>> 24 & 0xf0) / 240);
+		}
+	}
+
 	/**
 	 * @param name {string|VdpMap}
 	 * @private
@@ -495,6 +564,41 @@ class VDP {
 		// mat4.translate(this.modelViewMatrix, this.modelViewMatrix, [-0.0, 0.0, -0.1]);
 	}
 
+	/**
+	 *
+	 * @param effect {string}
+	 * @param [dstColor] {number} 12-bit color
+	 * @param [srcColor] {number} 12-bit color
+	 */
+	_setBlendMethod(effect, dstColor = null, srcColor = null) {
+		const gl = this.gl;
+
+		envColor[0] = envColor[1] = envColor[2] = envColor[3] = 1;
+		if (effect === 'blend') {
+			gl.enable(gl.BLEND);
+			gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+		} else if (effect === 'add') {
+			gl.enable(gl.BLEND);
+			gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+		} else if (effect === 'color') {
+			// Background blend factor
+			gl.blendColor(
+				(dstColor & 0xf0) / 240,
+				(dstColor >>> 8 & 0xf0) / 240,
+				(dstColor >>> 16 & 0xf0) / 240,
+				(dstColor >>> 24 & 0xf0) / 240);
+			// Source blend factor defined in shader
+			envColor[0] = (srcColor & 0xf0) / 240;
+			envColor[1] = (srcColor >>> 8 & 0xf0) / 240;
+			envColor[2] = (srcColor >>> 16 & 0xf0) / 240;
+			envColor[3] = (srcColor >>> 24 & 0xf0) / 240;
+			gl.blendFunc(gl.SRC_ALPHA, gl.CONSTANT_COLOR);
+			gl.enable(gl.BLEND);
+		} else {
+			gl.disable(gl.BLEND);
+		}
+	}
+
 	_startFrame() {
 		const gl = this.gl;
 
@@ -504,8 +608,10 @@ class VDP {
 		gl.enable(gl.BLEND);
 		gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
-		// TODO Florian -- Set clear color to palette[0, 0]
-		gl.clearColor(0.0, 0.0, 0.5, 0.0);
+		gl.clearColor(
+			(this._backdropColor & 0xf0) / 240,
+			(this._backdropColor >>> 8 & 0xf0) / 240,
+			(this._backdropColor >>> 16 & 0xf0) / 240, 0);
 
 		if (USE_PRIORITIES) {
 			gl.clearDepth(1.0);                 // Clear everything
@@ -517,10 +623,6 @@ class VDP {
 		} else {
 			gl.clear(gl.COLOR_BUFFER_BIT);
 		}
-	}
-
-	_endFrame() {
-		drawPendingObj(this);
 	}
 }
 

@@ -183,6 +183,63 @@ export function loadTexture4444(gl, url, done) {
 	return texture;
 }
 
+/**
+ * Parses a color, always in 32-bit RGBA format.
+ * @param col {number|string} either a 12-bit number, a 32-bit number or a string (#rgb, #rrggbb, #rrggbbaa).
+ * @private
+ * @returns {number} the color in 32-bit RGBA format.
+ */
+export function getColor(col) {
+	if (typeof col === 'string') {
+		if (col.charAt(0) !== '#') col = ''; // fail
+
+		// Invert byte order
+		switch (col.length) {
+		case 4:
+			col = parseInt(col.substring(1), 16);
+			col = (col & 0xf) << 8 | (col & 0xf0) | (col >>> 8 & 0xff);
+			// 12 to 32 bits
+			return (col & 0xf) | (col & 0xf) << 4 |
+				(col & 0xf0) << 4 | (col & 0xf0) << 8 |
+				(col & 0xf00) << 8 | (col & 0xf00) << 12 | 0xff << 24;
+		case 5:
+			col = parseInt(col.substring(1), 16);
+			col = (col & 0xf) << 12 | (col >> 4 & 0xf) << 8 | (col >> 8 & 0xf) << 4 | (col >> 12 & 0xf);
+			return (col & 0xf) | (col & 0xf) << 4 |
+				(col & 0xf0) << 4 | (col & 0xf0) << 8 |
+				(col & 0xf00) << 8 | (col & 0xf00) << 12 |
+				(col & 0xf000) << 12 | (col & 0xf000) << 16;
+		case 7:
+			col = parseInt(col.substring(1), 16);
+			return (col & 0xff) << 16 | (col & 0xff00) | (col >>> 16 & 0xff) | 0xff << 24;
+		case 9:
+			col = parseInt(col.substring(1), 16);
+			return (col & 0xff) << 24 | (col >>> 8 & 0xff) << 16 | (col >>> 16 & 0xff) << 8 | (col >>> 24 & 0xff);
+		default:
+			throw new Error(`Invalid color string ${col}`);
+		}
+	}
+
+	if (col <= 0xfff) {
+		// 12-bit to 32
+		return (col & 0xf) | (col & 0xf) << 4 |
+			(col & 0xf0) << 4 | (col & 0xf0) << 8 |
+			(col & 0xf00) << 8 | (col & 0xf00) << 12 | 0xff << 24;
+	}
+	else if (col <= 0xffff) {
+		// 16-bit to 32
+		return (col & 0xf) | (col & 0xf) << 4 |
+			(col & 0xf0) << 4 | (col & 0xf0) << 8 |
+			(col & 0xf00) << 8 | (col & 0xf00) << 12 |
+			(col & 0xf000) << 12 | (col & 0xf000) << 16;
+	}
+	else if (col <= 0xffffff) {
+		// 24-bit to 32
+		return col | 0xff << 24;
+	}
+	return col;
+}
+
 export function makeBuffer(gl, verticesCount) {
 	const result = gl.createBuffer();
 	gl.bindBuffer(gl.ARRAY_BUFFER, result);

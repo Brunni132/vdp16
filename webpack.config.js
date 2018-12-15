@@ -1,7 +1,7 @@
 const path = require('path');
 
 module.exports = {
-	entry: './index-perfs.js',
+	entry: './game-main.js',
 	devtool: 'inline-source-map',
 	module: {
 	},

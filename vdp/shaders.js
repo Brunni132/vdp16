@@ -10,7 +10,7 @@ export const OTHER_TEX_W = 2048, OTHER_TEX_H = 16;
 // Use false for limited machine
 export const TRUECOLOR_MODE = false;
 // Only used in TRUECOLOR_MODE to simulate a limited 12-bit display
-export const LIMITED_COLOR_MODE = true;
+export const LIMITED_COLOR_MODE = false;
 // Used for limited machine
 export const USE_PRIORITIES = true;
 // 4 on limited machine
