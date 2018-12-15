@@ -240,11 +240,8 @@ export function getColor(col) {
 	return col;
 }
 
-export function makeBuffer(gl, verticesCount) {
-	const result = gl.createBuffer();
-	gl.bindBuffer(gl.ARRAY_BUFFER, result);
-	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(verticesCount), gl.STREAM_DRAW);
-	return result;
+export function makeBuffer(gl) {
+	return gl.createBuffer();
 }
 
 export function memcpy(dst, dstOffset, src, srcOffset, length) {

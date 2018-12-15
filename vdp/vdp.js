@@ -1,124 +1,29 @@
 import {
-	createDataTexture32,
-	createDataTextureFloat, getColor,
+	createDataTextureFloat,
+	getColor,
 	loadTexture,
 	loadTexture4444,
-	readFromTexture32, readFromTextureToExisting, readFromTextureToExisting16, writeToTexture16, writeToTexture32,
+	readFromTextureToExisting,
+	writeToTexture32,
 	writeToTextureFloat
 } from "./utils";
 import {mat3, mat4} from "../gl-matrix";
-import {drawPendingObj, drawObj, initSpriteShaders} from "./sprites";
+import {enqueueObj, drawPendingObj, initObjShaders, ObjBuffer, makeObjBuffer} from "./sprites";
 import {drawMap, initMapShaders} from "./maps";
 import {
 	envColor,
-	MAP_TEX_H, MAP_TEX_W,
-	OTHER_TEX_W, PALETTE_HICOLOR_FLAG,
+	OTHER_TEX_W,
 	PALETTE_TEX_H,
-	PALETTE_TEX_W, SCREEN_HEIGHT, SCREEN_WIDTH,
+	SCREEN_HEIGHT,
+	SCREEN_WIDTH,
 	SEMITRANSPARENT_CANVAS,
-	setParams, setTextureSizes, SPRITE_TEX_H,
-	SPRITE_TEX_W, TRUECOLOR_MODE, USE_PRIORITIES
+	setParams,
+	setTextureSizes,
+	TRUECOLOR_MODE,
+	USE_PRIORITIES
 } from "./shaders";
-import {drawOpaquePoly, initOpaquePolyShaders} from "./tests";
-
-class VdpMap {
-	/**
-	 * @property x {number} U position in the map texture (cells)
-	 * @property y {number} V position in the map texture (cells)
-	 * @property w {number} width of sprite (pixels)
-	 * @property h {number} height of sprite (pixels)
-	 * @property designTileset {string} name of the tileset (VdpSprite)
-	 * @property designPalette {string} name of the first palette (takes precedence over the one defined in the tileset); tiles can use this and the next 15 palettes via the bits 12-15 in the tile number.
-	 */
-	constructor(x, y, w, h, designTileset, designPalette) {
-		this.x = x;
-		this.y = y;
-		this.w = w;
-		this.h = h;
-		this.designTileset = designTileset;
-		this.designPalette = designPalette;
-	}
-
-	offsetted(x, y, w, h) {
-		this.x += x;
-		this.y += y;
-		this.w = w;
-		this.h = h;
-		return this;
-	}
-}
-
-class VdpPalette {
-	/**
-	 * @property y {number} V position of palette (color units)
-	 * @property size {number} count (color units)
-	 */
-	constructor(y, size) {
-		this.y = y;
-		this.size = size;
-	}
-
-	offsetted(y, size) {
-		this.y += y;
-		this.size = size;
-		return this;
-	}
-}
-
-class VdpSprite {
-	/**
-	 * @property x {number} U position in the sprite texture (pixels)
-	 * @property y {number} V position in the sprite texture (pixels)
-	 * @property w {number} width of sprite or tileset as a whole (pixels)
-	 * @property h {number} height of sprite or tileset as a whole (pixels)
-	 * @property tw {number} tile width (pixels) if it's a tileset
-	 * @property th {number} tile height (pixels) if it's a tileset
-	 * @property hiColor {boolean} whether it's a 8-bit-per-pixel tile (or 4-bit)
-	 * @property designPalette {string} design palette name (can be overriden)
-	 */
-	constructor(x, y, w, h, tw, th, hiColor, designPalette) {
-		this.x = x;
-		this.y = y;
-		this.w = w;
-		this.h = h;
-		this.tw = tw;
-		this.th = th;
-		this.hiColor = hiColor;
-		this.designPalette = designPalette;
-	}
-
-	offsetted(x, y, w, h) {
-		this.x += x;
-		this.y += y;
-		this.w = w;
-		this.h = h;
-		return this;
-	}
-}
-
-// class VdpMapBuffer {
-// 	/**
-// 	 * @property vramX {number}
-// 	 * @property vramY {number}
-// 	 * @property vramW {number}
-// 	 * @property vramH {number}
-// 	 * @property data {Uint16Array}
-// 	 */
-// 	constructor(vramX, vramY, vramW, vramH, data) {
-// 		this.vramX = vramX;
-// 		this.vramY = vramY;
-// 		this.vramW = vramW;
-// 		this.vramH = vramH;
-// 		this.data = data;
-// 	}
-//
-// 	/**
-// 	 * @param vdp
-// 	 */
-// 	commit(vdp) {
-//
-// 	}
-// }
+import {drawOpaquePoly, initOpaquePolyShaders} from "./generalpolys";
+import {VdpMap, VdpPalette, VdpSprite} from "./memory";
 
 class TransparencyConfig {
 	/**
@@ -142,6 +47,7 @@ class TransparencyConfig {
 	}
 }
 
+
 class VDP {
 	/** @property {WebGLRenderingContext} gl */
 	/** @property {BigFile} gameData */
@@ -155,7 +61,7 @@ class VDP {
 	/** @property {mat4} modelViewMatrix */
 	/** @property {mat4} projectionMatrix */
 	/**
-	 * @property {{program: *, arrayBuffers: {xyzp: Float32Array, uv: Float32Array}, attribLocations: {xyzp: GLint, uv: GLint}, glBuffers: {xyzp, uv}, pendingVertices, uniformLocations: {envColor: WebGLUniformLocation, projectionMatrix: WebGLUniformLocation, modelViewMatrix: WebGLUniformLocation, uSamplerSprites: WebGLUniformLocation, uSamplerPalettes: WebGLUniformLocation}}} spriteProgram
+	 * @property {{program: *, attribLocations: {xyzp: GLint, uv: GLint}, glBuffers: {xyzp, uv}, uniformLocations: {envColor: WebGLUniformLocation, projectionMatrix: WebGLUniformLocation, modelViewMatrix: WebGLUniformLocation, uSamplerSprites: WebGLUniformLocation, uSamplerPalettes: WebGLUniformLocation}}} spriteProgram
 	 */
 	/** @property {{program: *, arrayBuffers: {xy: Float32Array, color: Float32Array}, attribLocations: {xy: GLint, color: GLint}, glBuffers: {xy, color}, uniformLocations: {projectionMatrix: WebGLUniformLocation, modelViewMatrix: WebGLUniformLocation}}} opaquePolyProgram */
 	/** @type {WebGLTexture} mapTexture */
@@ -180,6 +86,14 @@ class VDP {
 		this._obj1AsMask = false;
 		this._noTransparency = new TransparencyConfig('none', 'add', 0, 0);
 		this._standardTransparency = new TransparencyConfig('blend', 'add', 0, 0);
+		/** @type {ObjBuffer} */
+		this._obj0Buffer = makeObjBuffer(480);
+		/** @type {ObjBuffer} */
+		this._obj1Buffer = makeObjBuffer(32);
+		/** @type {number} in 32x32 rects */
+		this._obj0Usage = 0;
+		/** @type {number} in 32x32 rects */
+		this._obj1Usage = 0;
 
 		this._initContext(canvas);
 		this._initMatrices();
@@ -210,7 +124,7 @@ class VDP {
 						writeToTextureFloat(gl, this.otherTexture, 0, 0, 2, 1, mat);
 
 						initMapShaders(this);
-						initSpriteShaders(this);
+						initObjShaders(this);
 						initOpaquePolyShaders(this);
 						done();
 					});
@@ -323,7 +237,7 @@ class VDP {
 		const h = opts.hasOwnProperty('height') ? opts.height : sprite.h;
 		const prio = opts.prio || 0;
 
-		drawObj(this, x, y, x + w, y + h, sprite.x, sprite.y, sprite.x + sprite.w, sprite.y + sprite.h, pal.y, sprite.hiColor, prio);
+		enqueueObj(this._obj0Buffer, x, y, x + w, y + h, sprite.x, sprite.y, sprite.x + sprite.w, sprite.y + sprite.h, pal.y, sprite.hiColor, prio);
 	}
 
 	/**
@@ -492,7 +406,7 @@ class VDP {
 	// --------------------- PRIVATE ---------------------
 	_endFrame() {
 		const gl = this.gl;
-		drawPendingObj(this);
+		drawPendingObj(this, this._obj0Buffer);
 
 		// Draw fade
 		if (this._fadeColor >>> 24 >= 0x10) {
@@ -602,12 +516,7 @@ class VDP {
 	_startFrame() {
 		const gl = this.gl;
 
-		// PERF: Has a moderate hit on performance (almost zero on the Surface Pro). It can even be faster if the image has pixel with zero alpha, the Surface Pro does some optimizations for fully transparent pixels. Else you have to discard them, and if you discard them you get even better performance.
-		// If you discard a lot of pixels there's almost no change. If the sprite is fully opaque there's no change either.
-		// In general it's probably better left on, the GPU already does all the optimizations.
-		gl.enable(gl.BLEND);
-		gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-
+		this._obj0Usage = this._obj1Usage = 0;
 		gl.clearColor(
 			(this._backdropColor & 0xf0) / 240,
 			(this._backdropColor >>> 8 & 0xf0) / 240,

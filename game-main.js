@@ -3,8 +3,7 @@
  * @returns {IterableIterator<number>}
  */
 import {loadVdp, runProgram} from "./vdp/vdp";
-import * as color32 from "./vdp/color32";
-import {SCREEN_HEIGHT, SCREEN_WIDTH} from "./vdp/shaders";
+import {SCREEN_WIDTH} from "./vdp/shaders";
 
 /** @param vdp {VDP} */
 function *main(vdp) {

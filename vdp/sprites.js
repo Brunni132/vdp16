@@ -1,12 +1,28 @@
 import {initShaderProgram, makeBuffer} from "./utils";
 import {
 	declareReadPalette,
-	declareReadTexel, envColor, makeOutputColor, MAX_SPRITES, PALETTE_HICOLOR_FLAG,
+	declareReadTexel, envColor, makeOutputColor, PALETTE_HICOLOR_FLAG,
 	PALETTE_TEX_H,
 	PALETTE_TEX_W
 } from "./shaders";
 
-export function initSpriteShaders(vdp) {
+class ObjBuffer {
+	/**
+	 * @param numVertices {number}
+	 */
+	constructor(numVertices) {
+		/** @type {Float32Array} */
+		this.xyzp = new Float32Array(numVertices * 4);
+		/** @type {Float32Array} */
+		this.uv = new Float32Array(numVertices * 2);
+		/** @type {number} */
+		this.usedVertices = 0;
+		/** @type {number} */
+		this.maxVertices = numVertices;
+	}
+}
+
+export function initObjShaders(vdp) {
 	const gl = vdp.gl;
 	// Vertex shader program
 	const vsSource = `
@@ -59,24 +75,18 @@ export function initSpriteShaders(vdp) {
 		`;
 
 	// TODO Florian -- Use indexed VAOs
-	const TOTAL_VERTICES = MAX_SPRITES * 6;
 	const shaderProgram = initShaderProgram(gl, vsSource, fsSource);
 
 	vdp.spriteProgram = {
 		program: shaderProgram,
-		arrayBuffers: {
-			xyzp: new Float32Array(TOTAL_VERTICES * 4),
-			uv: new Float32Array(TOTAL_VERTICES * 2)
-		},
 		attribLocations: {
 			xyzp: gl.getAttribLocation(shaderProgram, 'aXyzp'),
 			uv: gl.getAttribLocation(shaderProgram, 'aUv'),
 		},
 		glBuffers: {
-			xyzp: makeBuffer(gl, TOTAL_VERTICES * 4),
-			uv: makeBuffer(gl, TOTAL_VERTICES * 2)
+			xyzp: makeBuffer(gl),
+			uv: makeBuffer(gl)
 		},
-		pendingVertices: 0,
 		uniformLocations: {
 			envColor: gl.getUniformLocation(shaderProgram, 'uEnvColor'),
 			projectionMatrix: gl.getUniformLocation(shaderProgram, 'uProjectionMatrix'),
@@ -89,17 +99,18 @@ export function initSpriteShaders(vdp) {
 
 /**
  * @param vdp {VDP}
+ * @param objBuffer {ObjBuffer}
  */
-export function drawPendingObj(vdp) {
+export function drawPendingObj(vdp, objBuffer) {
 	const prog = vdp.spriteProgram;
-	if (prog.pendingVertices < 3) return;
+	if (objBuffer.usedVertices < 3) return;
 
 	const gl = vdp.gl;
 	// TODO Florian -- does slice make a copy? No need if it does.
 	gl.bindBuffer(gl.ARRAY_BUFFER, prog.glBuffers.xyzp);
-	gl.bufferData(gl.ARRAY_BUFFER, prog.arrayBuffers.xyzp.slice(0, 4 * prog.pendingVertices), gl.STREAM_DRAW);
+	gl.bufferData(gl.ARRAY_BUFFER, objBuffer.xyzp.slice(0, 4 * objBuffer.usedVertices), gl.STREAM_DRAW);
 	gl.bindBuffer(gl.ARRAY_BUFFER, prog.glBuffers.uv);
-	gl.bufferData(gl.ARRAY_BUFFER, prog.arrayBuffers.uv.slice(0, 2 * prog.pendingVertices), gl.STREAM_DRAW);
+	gl.bufferData(gl.ARRAY_BUFFER, objBuffer.uv.slice(0, 2 * objBuffer.usedVertices), gl.STREAM_DRAW);
 
 	gl.useProgram(prog.program);
 	{
@@ -137,18 +148,30 @@ export function drawPendingObj(vdp) {
 
 	gl.uniform4f(prog.uniformLocations.envColor, envColor[0], envColor[1], envColor[2], envColor[3]);
 
-	gl.drawArrays(gl.TRIANGLES, 0, prog.pendingVertices);
+	gl.drawArrays(gl.TRIANGLES, 0, objBuffer.usedVertices);
 
-	prog.pendingVertices = 0;
+	objBuffer.usedVertices = 0;
 }
 
-export function drawObj(vdp, xStart, yStart, xEnd, yEnd, uStart, vStart, uEnd, vEnd, palNo, hiColor, z = 0) {
+/**
+ *
+ * @param objBuffer {ObjBuffer}
+ * @param xStart {number}
+ * @param yStart {number}
+ * @param xEnd {number}
+ * @param yEnd {number}
+ * @param uStart {number}
+ * @param vStart {number}
+ * @param uEnd {number}
+ * @param vEnd {number}
+ * @param palNo {number}
+ * @param hiColor {boolean}
+ * @param z {number}
+ */
+export function enqueueObj(objBuffer, xStart, yStart, xEnd, yEnd, uStart, vStart, uEnd, vEnd, palNo, hiColor, z = 0) {
 	if (hiColor) palNo |= PALETTE_HICOLOR_FLAG;
 
-	const gl = vdp.gl;
-	const prog = vdp.spriteProgram;
-
-	prog.arrayBuffers.xyzp.set([
+	objBuffer.xyzp.set([
 		xStart, yStart, z, palNo,
 		xEnd, yStart, z, palNo,
 		xEnd, yEnd, z, palNo,
@@ -156,9 +179,9 @@ export function drawObj(vdp, xStart, yStart, xEnd, yEnd, uStart, vStart, uEnd, v
 		xStart, yStart, z, palNo,
 		xEnd, yEnd, z, palNo,
 		xStart, yEnd, z, palNo,
-	], 4 * prog.pendingVertices);
+	], 4 * objBuffer.usedVertices);
 
-	prog.arrayBuffers.uv.set([
+	objBuffer.uv.set([
 		uStart, vStart,
 		uEnd, vStart,
 		uEnd, vEnd,
@@ -166,12 +189,14 @@ export function drawObj(vdp, xStart, yStart, xEnd, yEnd, uStart, vStart, uEnd, v
 		uStart, vStart,
 		uEnd, vEnd,
 		uStart, vEnd,
-	], 2 * prog.pendingVertices);
+	], 2 * objBuffer.usedVertices);
 
-	prog.pendingVertices += 6;
+	objBuffer.usedVertices += 6;
+}
 
-	if (prog.pendingVertices >= MAX_SPRITES * 6) {
-		console.log('Too many sprites');
-		drawPendingObj(vdp);
-	}
+/**
+ * @param numSprites {number}
+ */
+export function makeObjBuffer(numSprites) {
+	return new ObjBuffer(numSprites * 6);
 }

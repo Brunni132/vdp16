@@ -10,7 +10,31 @@ import {
 } from "./shaders";
 import {drawPendingObj} from "./sprites";
 
-export const mapEnvColor = [1, 1, 1, 1];
+
+class MapBuffer {
+	/**
+	 * @param numVertices {number}
+	 */
+	constructor(numVertices) {
+		/** @type {Float32Array} */
+		this.xyzp = new Float32Array(numVertices * 4);
+		/** @type {Float32Array} */
+		this.mapInfo1 = new Float32Array(numVertices * 4);
+		/** @type {Float32Array} */
+		this.mapInfo2 = new Float32Array(numVertices * 4);
+		/** @type {Float32Array} */
+		this.mapInfo3 = new Float32Array(numVertices * 4);
+		/** @type {Float32Array} */
+		this.mapInfo4 = new Float32Array(numVertices * 4);
+		/** @type {number} */
+		this.usedVertices = 0;
+		/** @type {number} */
+		this.maxVertices = numVertices;
+	}
+
+}
+
+
 
 export function initMapShaders(vdp) {
 	const gl = vdp.gl;
@@ -183,11 +207,11 @@ export function initMapShaders(vdp) {
 			mapInfo4: gl.getAttribLocation(shaderProgram, 'aMapInfo4')
 		},
 		glBuffers: {
-			xyzp: makeBuffer(gl, TOTAL_VERTICES * 4),
-			mapInfo1: makeBuffer(gl, TOTAL_VERTICES * 4),
-			mapInfo2: makeBuffer(gl, TOTAL_VERTICES * 4),
-			mapInfo3: makeBuffer(gl, TOTAL_VERTICES * 4),
-			mapInfo4: makeBuffer(gl, TOTAL_VERTICES * 4)
+			xyzp: makeBuffer(gl),
+			mapInfo1: makeBuffer(gl),
+			mapInfo2: makeBuffer(gl),
+			mapInfo3: makeBuffer(gl),
+			mapInfo4: makeBuffer(gl)
 		},
 		uniformLocations: {
 			envColor: gl.getUniformLocation(shaderProgram, 'uEnvColor'),
@@ -202,8 +226,6 @@ export function initMapShaders(vdp) {
 }
 
 export function drawMap(vdp, uMap, vMap, uTileset, vTileset, mapWidth, mapHeight, tilesetWidth, tileWidth, tileHeight, winX, winY, winW, winH, scrollX, scrollY, palNo, hiColor, linescrollBuffer = -1, wrap = 1, z = 0) {
-	drawPendingObj(vdp);
-
 	const gl = vdp.gl;
 	const prog = vdp.mapProgram;
 
