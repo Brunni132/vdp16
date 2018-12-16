@@ -1,10 +1,15 @@
-import {initShaderProgram, makeBuffer} from "./utils";
+import {initShaderProgram, makeBuffer, makeRangeArray, TEMP_MakeDualTriangle} from "./utils";
 import {
 	declareReadPalette,
-	declareReadTexel, envColor, makeOutputColor, PALETTE_HICOLOR_FLAG,
+	declareReadTexel,
+	envColor,
+	makeOutputColor,
+	PALETTE_HICOLOR_FLAG,
 	PALETTE_TEX_H,
 	PALETTE_TEX_W
 } from "./shaders";
+
+const OBJ_BUFFER_STRIDE = 6;
 
 class ObjBuffer {
 	/**
@@ -19,6 +24,29 @@ class ObjBuffer {
 		this.usedVertices = 0;
 		/** @type {number} */
 		this.maxVertices = numVertices;
+	}
+
+	sort(frontToBack = true) {
+		const items = makeRangeArray(this.usedVertices / OBJ_BUFFER_STRIDE);
+		if (frontToBack) {
+			items.sort((a, b) =>
+				// First vertice, z component (3rd)
+				this.xyzp[OBJ_BUFFER_STRIDE * 4 * b + 2] - this.xyzp[OBJ_BUFFER_STRIDE * 4 * a + 2]);
+		} else {
+			items.sort((a, b) =>
+				this.xyzp[OBJ_BUFFER_STRIDE * 4 * a + 2] - this.xyzp[OBJ_BUFFER_STRIDE * 4 * b + 2]);
+		}
+
+		const originalXyzp = this.xyzp.slice();
+		const originalUv = this.uv.slice();
+		for (let i = 0; i < items.length; i++) {
+			this.xyzp.set(
+				originalXyzp.subarray(OBJ_BUFFER_STRIDE * 4 * items[i], OBJ_BUFFER_STRIDE * 4 * (items[i] + 1)),
+				OBJ_BUFFER_STRIDE * 4 * i);
+			this.uv.set(
+				originalUv.subarray(OBJ_BUFFER_STRIDE * 2 * items[i], OBJ_BUFFER_STRIDE * 2 * (items[i] + 1)),
+				OBJ_BUFFER_STRIDE * 2 * i);
+		}
 	}
 }
 
@@ -39,7 +67,7 @@ export function initObjShaders(vdp) {
 			uniform sampler2D uSamplerSprites, uSamplerPalettes;
 		
 			void main(void) {
-				gl_Position = uProjectionMatrix * uModelViewMatrix * vec4(floor(aXyzp.xyz), 1);
+				gl_Position = uProjectionMatrix * uModelViewMatrix * vec4(floor(aXyzp.xy), aXyzp.z, 1);
 				vPaletteNo = aXyzp.w;
 				vTextureCoord = floor(aUv);
 			}
@@ -102,15 +130,16 @@ export function initObjShaders(vdp) {
  * @param objBuffer {ObjBuffer}
  */
 export function drawPendingObj(vdp, objBuffer) {
-	const prog = vdp.spriteProgram;
 	if (objBuffer.usedVertices < 3) return;
 
+	const prog = vdp.spriteProgram;
 	const gl = vdp.gl;
-	// TODO Florian -- does slice make a copy? No need if it does.
+
+	const firstVertice = objBuffer.maxVertices - objBuffer.usedVertices;
 	gl.bindBuffer(gl.ARRAY_BUFFER, prog.glBuffers.xyzp);
-	gl.bufferData(gl.ARRAY_BUFFER, objBuffer.xyzp.slice(0, 4 * objBuffer.usedVertices), gl.STREAM_DRAW);
+	gl.bufferData(gl.ARRAY_BUFFER, objBuffer.xyzp.subarray(firstVertice * 4), gl.STREAM_DRAW);
 	gl.bindBuffer(gl.ARRAY_BUFFER, prog.glBuffers.uv);
-	gl.bufferData(gl.ARRAY_BUFFER, objBuffer.uv.slice(0, 2 * objBuffer.usedVertices), gl.STREAM_DRAW);
+	gl.bufferData(gl.ARRAY_BUFFER, objBuffer.uv.subarray(firstVertice * 2), gl.STREAM_DRAW);
 
 	gl.useProgram(prog.program);
 	{
@@ -171,32 +200,30 @@ export function drawPendingObj(vdp, objBuffer) {
 export function enqueueObj(objBuffer, xStart, yStart, xEnd, yEnd, uStart, vStart, uEnd, vEnd, palNo, hiColor, z = 0) {
 	if (hiColor) palNo |= PALETTE_HICOLOR_FLAG;
 
-	objBuffer.xyzp.set([
+	// Start from the end
+	objBuffer.usedVertices += OBJ_BUFFER_STRIDE;
+	const firstVertice = objBuffer.maxVertices - objBuffer.usedVertices;
+
+	objBuffer.xyzp.set(TEMP_MakeDualTriangle([
 		xStart, yStart, z, palNo,
 		xEnd, yStart, z, palNo,
-		xEnd, yEnd, z, palNo,
-
-		xStart, yStart, z, palNo,
-		xEnd, yEnd, z, palNo,
 		xStart, yEnd, z, palNo,
-	], 4 * objBuffer.usedVertices);
+		xEnd, yEnd, z, palNo,
+	], 4), 4 * firstVertice);
 
-	objBuffer.uv.set([
+	objBuffer.uv.set(TEMP_MakeDualTriangle([
 		uStart, vStart,
 		uEnd, vStart,
-		uEnd, vEnd,
-
-		uStart, vStart,
-		uEnd, vEnd,
 		uStart, vEnd,
-	], 2 * objBuffer.usedVertices);
+		uEnd, vEnd,
+	], 2), 2 * firstVertice);
 
-	objBuffer.usedVertices += 6;
 }
 
 /**
  * @param numSprites {number}
+ * @returns {ObjBuffer}
  */
 export function makeObjBuffer(numSprites) {
-	return new ObjBuffer(numSprites * 6);
+	return new ObjBuffer(numSprites * OBJ_BUFFER_STRIDE);
 }

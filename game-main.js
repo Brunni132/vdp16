@@ -43,6 +43,14 @@ function *main(vdp) {
 	// printCol(vdp._getColor(0x11121314));
 
 	while (true) {
+		// Note: reading from VRAM is very slow
+		// const palData = vdp.readPalette('Mario');
+		// const val = Math.floor(Math.min(15, scroll / 16));
+		// palData.forEach((v, i) => {
+		// 	palData[i] = val << 4 | val << 8 | val << 12;
+		// });
+		// vdp.writePalette('Mario', palData);
+
 		// if (frameNo % 10 === 0) {
 		// 	const firstCol = palData[1];
 		// 	for (let i = 1; i < palData.length - 1; i++)
@@ -53,22 +61,24 @@ function *main(vdp) {
 		// frameNo++;
 
 		const gl = vdp.gl;
-		vdp._setBlendMethod('none');
-		vdp.configFade('#fff', scroll * 64);
-		vdp.drawBG('level1', { scrollX: scroll, winW: SCREEN_WIDTH * 0.75, prio: 1 });
-		vdp.drawBG('level1', { scrollX: scroll, winX: SCREEN_WIDTH * 0.75, prio: 1, palette: 'Mario' });
+		// vdp.configFade('#fff', scroll);
+		vdp.configBGTransparency({ op: 'add', blendSrc: '#0ff', blendDst: '#000' });
+		// vdp.configOBJTransparency({ op: 'sub', blendSrc: '#fff', blendDst: '#fff' });
+		// vdp.configOBJTransparency({ op: 'add', blendDst: '#fff', blendSrc: '#000', mask: true });
+		vdp.configOBJTransparency({ op: 'add', blendDst: '#888', blendSrc: '#fff', mask: false});
+		vdp.drawBG('level1', { scrollX: scroll, winW: SCREEN_WIDTH * 0.25, prio: 0 });
+		vdp.drawBG('level1', { scrollX: scroll, winX: SCREEN_WIDTH * 0.25, prio: 0, transparent: true });
 
-		vdp._setBlendMethod('color', 0x0777, 0xffff);
+		vdp.drawObj('gradient', 0, 180, { height: 8, prio: 1, transparent: true });
+		vdp.drawObj('gradient', 0, 172, { height: 8, palette: 'Level1', prio: 1, transparent: true });
 
 		// Take the (0, 0, 16, 16) part of the big mario sprite
 		const marioSprite = vdp.sprite('mario').offsetted(0, 0, 16, 16);
 		// And draw it 32x32 (2x zoom)
-		vdp.drawObj(marioSprite, scroll + 16, 160, {width: -32, height: 32, prio: 3 });
+		vdp.drawObj(marioSprite, scroll + 16, 0, {width: -256, height: 256, prio: 1, transparent: true });
 
-		vdp.drawObj('gradient', 0, 180, { height: 8, prio: 1 });
-		vdp.drawObj('gradient', 0, 172, { height: 8, palette: 'Level1', prio: 1 });
 
-		scroll += 0.05;
+		scroll += 0.5;
 
 
 		// const spr = vdp.sprite('mario').offsetted(0, 0, 64, 64);

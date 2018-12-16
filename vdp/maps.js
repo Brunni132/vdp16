@@ -1,14 +1,19 @@
-import {initShaderProgram, makeBuffer} from "./utils";
+import {initShaderProgram, makeBuffer, TEMP_MakeDualTriangle} from "./utils";
 import {
 	declareReadPalette,
-	declareReadTexel, envColor, makeOutputColor,
-	MAP_TEX_H, MAP_TEX_W, MAX_BGS, OTHER_TEX_H, OTHER_TEX_W, PALETTE_HICOLOR_FLAG,
+	declareReadTexel,
+	envColor,
+	makeOutputColor,
+	MAP_TEX_H,
+	MAP_TEX_W,
+	MAX_BGS,
+	OTHER_TEX_H,
+	OTHER_TEX_W,
+	PALETTE_HICOLOR_FLAG,
 	PALETTE_TEX_H,
 	PALETTE_TEX_W,
-	SCREEN_HEIGHT,
-	SCREEN_WIDTH
+	SCREEN_HEIGHT
 } from "./shaders";
-import {drawPendingObj} from "./sprites";
 
 
 class MapBuffer {
@@ -71,7 +76,7 @@ export function initMapShaders(vdp) {
 			}
 		
 			void main(void) {
-				gl_Position = uProjectionMatrix * uModelViewMatrix * vec4(floor(aXyzp.xyz), 1);
+				gl_Position = uProjectionMatrix * uModelViewMatrix * vec4(floor(aXyzp.xy), aXyzp.z, 1);
 				vPaletteNo = floor(aXyzp.w);
 				vMapStart = floor(aMapInfo1.xy);
 				vTilesetStart = floor(aMapInfo1.zw);
@@ -225,63 +230,28 @@ export function initMapShaders(vdp) {
 	};
 }
 
-export function drawMap(vdp, uMap, vMap, uTileset, vTileset, mapWidth, mapHeight, tilesetWidth, tileWidth, tileHeight, winX, winY, winW, winH, scrollX, scrollY, palNo, hiColor, linescrollBuffer = -1, wrap = 1, z = 0) {
+/**
+ *
+ * @param vdp {VDP}
+ * @param mapBuffer {MapBuffer}
+ */
+export function drawPendingMap(vdp, mapBuffer) {
+	if (mapBuffer.usedVertices < 3) return;
+
 	const gl = vdp.gl;
 	const prog = vdp.mapProgram;
-
-	// Remove the + win* to start the map at the window instead of continuing it
-	scrollX = Math.floor(scrollX) + winX;
-	scrollY = Math.floor(scrollY) + winY;
-
-	tilesetWidth = Math.floor(tilesetWidth / tileWidth);
-	if (hiColor) palNo |= PALETTE_HICOLOR_FLAG;
-
-	// x, y position, z for normal-prio tiles, base palette no
-	const positions = [
-		winX, winY, z, palNo,
-		winX + winW, winY, z, palNo,
-		winX, winY + winH, z, palNo,
-		winX + winW, winY + winH, z, palNo,
-	];
-	// u, v map base, u, v tileset base
-	const infos1 = [
-		uMap, vMap, uTileset, vTileset,
-		uMap, vMap, uTileset, vTileset,
-		uMap, vMap, uTileset, vTileset,
-		uMap, vMap, uTileset, vTileset
-	];
-	// map width, map height, tileset width, z for hi-prio tiles
-	const infos2 = [
-		mapWidth, mapHeight, tilesetWidth, 0,
-		mapWidth, mapHeight, tilesetWidth, 0,
-		mapWidth, mapHeight, tilesetWidth, 0,
-		mapWidth, mapHeight, tilesetWidth, 0
-	];
-	// tile width, tile height, drawing uv
-	const infos3 = [
-		tileWidth, tileHeight, scrollX, scrollY,
-		tileWidth, tileHeight, scrollX + winW, scrollY,
-		tileWidth, tileHeight, scrollX, scrollY + winH,
-		tileWidth, tileHeight, scrollX + winW, scrollY + winH
-	];
-	// linescroll buffer (row no in otherTexture), whether to wrap around map size (0=off, 1=on)
-	const infos4 = [
-		linescrollBuffer, wrap, 0, 0,
-		linescrollBuffer, wrap, 0, 0,
-		linescrollBuffer, wrap, 0, 0,
-		linescrollBuffer, wrap, 0, 0
-	];
+	const firstVertice = mapBuffer.maxVertices - mapBuffer.usedVertices;
 
 	gl.bindBuffer(gl.ARRAY_BUFFER, prog.glBuffers.xyzp);
-	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STREAM_DRAW);
+	gl.bufferData(gl.ARRAY_BUFFER, mapBuffer.xyzp.subarray(firstVertice * 4), gl.STREAM_DRAW);
 	gl.bindBuffer(gl.ARRAY_BUFFER, prog.glBuffers.mapInfo1);
-	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(infos1), gl.STREAM_DRAW);
+	gl.bufferData(gl.ARRAY_BUFFER, mapBuffer.mapInfo1.subarray(firstVertice * 4), gl.STREAM_DRAW);
 	gl.bindBuffer(gl.ARRAY_BUFFER, prog.glBuffers.mapInfo2);
-	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(infos2), gl.STREAM_DRAW);
+	gl.bufferData(gl.ARRAY_BUFFER, mapBuffer.mapInfo2.subarray(firstVertice * 4), gl.STREAM_DRAW);
 	gl.bindBuffer(gl.ARRAY_BUFFER, prog.glBuffers.mapInfo3);
-	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(infos3), gl.STREAM_DRAW);
+	gl.bufferData(gl.ARRAY_BUFFER, mapBuffer.mapInfo3.subarray(firstVertice * 4), gl.STREAM_DRAW);
 	gl.bindBuffer(gl.ARRAY_BUFFER, prog.glBuffers.mapInfo4);
-	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(infos4), gl.STREAM_DRAW);
+	gl.bufferData(gl.ARRAY_BUFFER, mapBuffer.mapInfo4.subarray(firstVertice * 4), gl.STREAM_DRAW);
 
 	gl.useProgram(prog.program);
 	{
@@ -343,9 +313,88 @@ export function drawMap(vdp, uMap, vMap, uTileset, vTileset, mapWidth, mapHeight
 
 	gl.uniform4f(prog.uniformLocations.envColor, envColor[0], envColor[1], envColor[2], envColor[3]);
 
-	{
-		const offset = 0;
-		const vertexCount = 4;
-		gl.drawArrays(gl.TRIANGLE_STRIP, offset, vertexCount);
-	}
+	gl.drawArrays(gl.TRIANGLES, 0, mapBuffer.usedVertices);
+
+	mapBuffer.usedVertices = 0;
+}
+
+/**
+ *
+ * @param mapBuffer {MapBuffer}
+ * @param uMap {number}
+ * @param vMap {number}
+ * @param uTileset {number}
+ * @param vTileset {number}
+ * @param mapWidth {number}
+ * @param mapHeight {number}
+ * @param tilesetWidth {number}
+ * @param tileWidth {number}
+ * @param tileHeight {number}
+ * @param winX {number}
+ * @param winY {number}
+ * @param winW {number}
+ * @param winH {number}
+ * @param scrollX {number}
+ * @param scrollY {number}
+ * @param palNo {number}
+ * @param hiColor {boolean}
+ * @param linescrollBuffer {number}
+ * @param wrap {boolean}
+ * @param z {number}
+ */
+export function enqueueMap(mapBuffer, uMap, vMap, uTileset, vTileset, mapWidth, mapHeight, tilesetWidth, tileWidth, tileHeight, winX, winY, winW, winH, scrollX, scrollY, palNo, hiColor, linescrollBuffer = -1, wrap = 1, z = 0) {
+
+	// Remove the + win* to start the map at the window instead of continuing it
+	scrollX = Math.floor(scrollX) + winX;
+	scrollY = Math.floor(scrollY) + winY;
+
+	tilesetWidth = Math.floor(tilesetWidth / tileWidth);
+	if (hiColor) palNo |= PALETTE_HICOLOR_FLAG;
+
+	mapBuffer.usedVertices += 6;
+	const firstVertice = mapBuffer.maxVertices - mapBuffer.usedVertices;
+
+	// x, y position, z for normal-prio tiles, base palette no
+	mapBuffer.xyzp.set(TEMP_MakeDualTriangle([
+		winX, winY, z, palNo,
+		winX + winW, winY, z, palNo,
+		winX, winY + winH, z, palNo,
+		winX + winW, winY + winH, z, palNo,
+	], 4), 4 * firstVertice);
+	// u, v map base, u, v tileset base
+	mapBuffer.mapInfo1.set(TEMP_MakeDualTriangle([
+		uMap, vMap, uTileset, vTileset,
+		uMap, vMap, uTileset, vTileset,
+		uMap, vMap, uTileset, vTileset,
+		uMap, vMap, uTileset, vTileset
+	], 4), 4 * firstVertice);
+	// map width, map height, tileset width, z for hi-prio tiles
+	mapBuffer.mapInfo2.set(TEMP_MakeDualTriangle([
+		mapWidth, mapHeight, tilesetWidth, 0,
+		mapWidth, mapHeight, tilesetWidth, 0,
+		mapWidth, mapHeight, tilesetWidth, 0,
+		mapWidth, mapHeight, tilesetWidth, 0
+	], 4), 4 * firstVertice);
+	// tile width, tile height, drawing uv
+	mapBuffer.mapInfo3.set(TEMP_MakeDualTriangle([
+		tileWidth, tileHeight, scrollX, scrollY,
+		tileWidth, tileHeight, scrollX + winW, scrollY,
+		tileWidth, tileHeight, scrollX, scrollY + winH,
+		tileWidth, tileHeight, scrollX + winW, scrollY + winH
+	], 4), 4 * firstVertice);
+	// linescroll buffer (row no in otherTexture), whether to wrap around map size (0=off, 1=on)
+	mapBuffer.mapInfo4.set(TEMP_MakeDualTriangle([
+		linescrollBuffer, wrap, 0, 0,
+		linescrollBuffer, wrap, 0, 0,
+		linescrollBuffer, wrap, 0, 0,
+		linescrollBuffer, wrap, 0, 0
+	], 4), 4 * firstVertice);
+}
+
+/**
+ * @param numMaps {number}
+ * @returns {MapBuffer}
+ */
+export function makeMapBuffer(numMaps) {
+	return new MapBuffer(numMaps * 6);
 }

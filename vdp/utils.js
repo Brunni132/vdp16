@@ -41,7 +41,6 @@ export function createDataTextureFloat(gl, width, height) {
 	return texture;
 }
 
-
 //
 // creates a shader of the given type, uploads the source and
 // compiles it.
@@ -183,13 +182,31 @@ export function loadTexture4444(gl, url, done) {
 	return texture;
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Color
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * Extends a 16 bit RGBA color into a 32 bit RGBA color. Note that 0xRGBA will produce 0xAABBGGRR, reversing the byte
+ * order as OpenGL expects it.
+ * @param col {number}
+ * @returns {number}
+ */
+function extendColor16(col) {
+	return reverseColor32((col & 0xf) | (col & 0xf) << 4 |
+		(col & 0xf0) << 4 | (col & 0xf0) << 8 |
+		(col & 0xf00) << 8 | (col & 0xf00) << 12 |
+		(col & 0xf000) << 12 | (col & 0xf000) << 16);
+}
+
 /**
  * Parses a color, always in 32-bit RGBA format.
- * @param col {number|string} either a 12-bit number, a 32-bit number or a string (#rgb, #rrggbb, #rrggbbaa).
+ * @param col {number|string} either a 12-bit number (0xrgb0), a 32-bit number (0xaabbggrr)
+ * or a string (#rgb, #rrggbb, #rrggbbaa).
  * @private
  * @returns {number} the color in 32-bit RGBA format.
  */
-export function getColor(col) {
+export function parseColor(col) {
 	if (typeof col === 'string') {
 		if (col.charAt(0) !== '#') col = ''; // fail
 
@@ -197,41 +214,27 @@ export function getColor(col) {
 		switch (col.length) {
 		case 4:
 			col = parseInt(col.substring(1), 16);
-			col = (col & 0xf) << 8 | (col & 0xf0) | (col >>> 8 & 0xff);
-			// 12 to 32 bits
-			return (col & 0xf) | (col & 0xf) << 4 |
-				(col & 0xf0) << 4 | (col & 0xf0) << 8 |
-				(col & 0xf00) << 8 | (col & 0xf00) << 12 | 0xff << 24;
+			// col = (col & 0xf) << 8 | (col & 0xf0) | (col >>> 8 & 0xff);
+			return extendColor16(col << 4 | 0xf);
 		case 5:
 			col = parseInt(col.substring(1), 16);
-			col = (col & 0xf) << 12 | (col >> 4 & 0xf) << 8 | (col >> 8 & 0xf) << 4 | (col >> 12 & 0xf);
-			return (col & 0xf) | (col & 0xf) << 4 |
-				(col & 0xf0) << 4 | (col & 0xf0) << 8 |
-				(col & 0xf00) << 8 | (col & 0xf00) << 12 |
-				(col & 0xf000) << 12 | (col & 0xf000) << 16;
+			// col = (col & 0xf) << 12 | (col >> 4 & 0xf) << 8 | (col >> 8 & 0xf) << 4 | (col >> 12 & 0xf);
+			return extendColor16(col);
 		case 7:
 			col = parseInt(col.substring(1), 16);
-			return (col & 0xff) << 16 | (col & 0xff00) | (col >>> 16 & 0xff) | 0xff << 24;
+			// Pass a RGBA with alpha=ff
+			return reverseColor32(col << 8 | 0xff);
 		case 9:
 			col = parseInt(col.substring(1), 16);
-			return (col & 0xff) << 24 | (col >>> 8 & 0xff) << 16 | (col >>> 16 & 0xff) << 8 | (col >>> 24 & 0xff);
+			return reverseColor32(col);
 		default:
 			throw new Error(`Invalid color string ${col}`);
 		}
 	}
 
-	if (col <= 0xfff) {
-		// 12-bit to 32
-		return (col & 0xf) | (col & 0xf) << 4 |
-			(col & 0xf0) << 4 | (col & 0xf0) << 8 |
-			(col & 0xf00) << 8 | (col & 0xf00) << 12 | 0xff << 24;
-	}
-	else if (col <= 0xffff) {
+	if (col <= 0xffff) {
 		// 16-bit to 32
-		return (col & 0xf) | (col & 0xf) << 4 |
-			(col & 0xf0) << 4 | (col & 0xf0) << 8 |
-			(col & 0xf00) << 8 | (col & 0xf00) << 12 |
-			(col & 0xf000) << 12 | (col & 0xf000) << 16;
+		return extendColor16(col);
 	}
 	else if (col <= 0xffffff) {
 		// 24-bit to 32
@@ -240,6 +243,18 @@ export function getColor(col) {
 	return col;
 }
 
+/**
+ * Reverses the byte order of a RGBA color.
+ * @param col {number}
+ * @returns {number}
+ */
+function reverseColor32(col) {
+	return (col & 0xff) << 24 | (col >>> 8 & 0xff) << 16 | (col >>> 16 & 0xff) << 8 | (col >>> 24 & 0xff);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Buffer - memory
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 export function makeBuffer(gl) {
 	return gl.createBuffer();
 }
@@ -262,6 +277,22 @@ function bindToFramebuffer(gl, texture) {
 	} else {
 		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 	}
+}
+
+/**
+ * @param n {number}
+ * @returns {Array} an array with [0, 1, …, n-1]
+ */
+export function makeRangeArray(n) {
+	return Array.apply(null, {length: n}).map(Number.call, Number)
+}
+
+/**
+ * @param n {number}
+ * @returns {Array} an array with [n-1, n-2, …, 1, 0]
+ */
+export function makeReverseRangeArray(n) {
+	return Array.from({length: n}, (v, k) => n - 1 - k);
 }
 
 /**
@@ -393,4 +424,20 @@ export function writeToTextureFloat(gl, texture, x, y, w, h, array) {
 	gl.texSubImage2D(gl.TEXTURE_2D, 0,
 		x, y, w, h,
 		gl.RGBA, gl.FLOAT, array);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Other
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+export function TEMP_MakeDualTriangle(array, stride) {
+	// TODO Florian -- Replace with indexed vertices when possible
+	return [].concat.apply([], [
+		array.slice(0, stride),
+		array.slice(stride, 2 * stride),
+		array.slice(3 * stride, 4 * stride),
+
+		array.slice(0, 1 * stride),
+		array.slice(3 * stride, 4 * stride),
+		array.slice(2 * stride, 3 * stride)
+	]);
 }

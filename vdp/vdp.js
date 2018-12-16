@@ -1,15 +1,17 @@
 import {
 	createDataTextureFloat,
-	getColor,
 	loadTexture,
 	loadTexture4444,
+	parseColor,
 	readFromTextureToExisting,
+	readFromTextureToExisting16,
+	writeToTexture16,
 	writeToTexture32,
 	writeToTextureFloat
 } from "./utils";
 import {mat3, mat4} from "../gl-matrix";
-import {enqueueObj, drawPendingObj, initObjShaders, ObjBuffer, makeObjBuffer} from "./sprites";
-import {drawMap, initMapShaders} from "./maps";
+import {drawPendingObj, enqueueObj, initObjShaders, makeObjBuffer, ObjBuffer} from "./sprites";
+import {drawMap, drawPendingMap, enqueueMap, initMapShaders, makeMapBuffer} from "./maps";
 import {
 	envColor,
 	OTHER_TEX_W,
@@ -33,9 +35,13 @@ class TransparencyConfig {
 	 * @param blendDst {number|string}
 	 */
 	constructor(effect, operation, blendSrc, blendDst) {
+		/** @type {string} */
 		this.effect = effect;
+		/** @type {string} */
 		this.operation = operation;
+		/** @type {number} */
 		this.blendSrc = blendSrc;
+		/** @type {number} */
 		this.blendDst = blendDst;
 	}
 
@@ -43,7 +49,35 @@ class TransparencyConfig {
 	 * @param vdp {VDP}
 	 */
 	apply(vdp) {
-		console.log(`TEMP TODO`);
+		const gl = vdp.gl;
+		const {effect, blendSrc, blendDst, operation} = this;
+
+		envColor[0] = envColor[1] = envColor[2] = envColor[3] = 1;
+		gl.blendEquation(operation === 'sub' ? gl.FUNC_REVERSE_SUBTRACT : gl.FUNC_ADD);
+
+		if (effect === 'blend') {
+			gl.enable(gl.BLEND);
+			gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+		} else if (effect === 'add') {
+			gl.enable(gl.BLEND);
+			gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+		} else if (effect === 'color') {
+			// Background blend factor
+			gl.blendColor(
+				(blendDst & 0xf0) / 240,
+				(blendDst >>> 8 & 0xf0) / 240,
+				(blendDst >>> 16 & 0xf0) / 240,
+				(blendDst >>> 24 & 0xf0) / 240);
+			// Source blend factor defined in shader
+			envColor[0] = (blendSrc & 0xf0) / 240;
+			envColor[1] = (blendSrc >>> 8 & 0xf0) / 240;
+			envColor[2] = (blendSrc >>> 16 & 0xf0) / 240;
+			envColor[3] = (blendSrc >>> 24 & 0xf0) / 240;
+			gl.blendFunc(gl.SRC_ALPHA, gl.CONSTANT_COLOR);
+			gl.enable(gl.BLEND);
+		} else {
+			gl.disable(gl.BLEND);
+		}
 	}
 }
 
@@ -79,13 +113,17 @@ class VDP {
 		/** @type {number} fade color (factor is the upper 8 bits). */
 		this._fadeColor = 0x00000000;
 		/** @type {TransparencyConfig} */
-		this._bgTransparency = new TransparencyConfig('color', 'add', 0x88ffffff, 0x88ffffff);
+		this._bgTransparency = new TransparencyConfig('color', 'add', 0x888888, 0x888888);
 		/** @type {TransparencyConfig} */
-		this._objTransparency = new TransparencyConfig('color', 'add', 0x88ffffff, 0x88ffffff);
+		this._objTransparency = new TransparencyConfig('color', 'add', 0x888888, 0x888888);
 		/** @type {boolean} */
 		this._obj1AsMask = false;
 		this._noTransparency = new TransparencyConfig('none', 'add', 0, 0);
 		this._standardTransparency = new TransparencyConfig('blend', 'add', 0, 0);
+		/** @type {MapBuffer} */
+		this._bgBuffer = makeMapBuffer(4);
+		/** @type {MapBuffer} */
+		this._tbgBuffer = makeMapBuffer(1);
 		/** @type {ObjBuffer} */
 		this._obj0Buffer = makeObjBuffer(480);
 		/** @type {ObjBuffer} */
@@ -138,7 +176,7 @@ class VDP {
 	 * @param color {number|string} backdrop color
 	 */
 	configBDColor(color) {
-		this._backdropColor = getColor(color);
+		this._backdropColor = parseColor(color);
 	}
 
 	/**
@@ -153,8 +191,8 @@ class VDP {
 			throw new Error(`Invalid operation ${opts.op}`);
 		}
 		this._bgTransparency.operation = opts.op;
-		this._bgTransparency.blendSrc = getColor(opts.blendSrc);
-		this._bgTransparency.blendDst = getColor(opts.blendDst);
+		this._bgTransparency.blendSrc = parseColor(opts.blendSrc);
+		this._bgTransparency.blendDst = parseColor(opts.blendDst);
 	}
 
 	/**
@@ -165,7 +203,7 @@ class VDP {
 	 */
 	configFade(color, factor) {
 		factor = Math.min(255, Math.max(0, factor));
-		this._fadeColor = (getColor(color) & 0xffffff) | (factor << 24);
+		this._fadeColor = (parseColor(color) & 0xffffff) | (factor << 24);
 	}
 
 	/**
@@ -181,8 +219,8 @@ class VDP {
 			throw new Error(`Invalid operation ${opts.op}`);
 		}
 		this._objTransparency.operation = opts.op;
-		this._objTransparency.blendSrc = getColor(opts.blendSrc);
-		this._objTransparency.blendDst = getColor(opts.blendDst);
+		this._objTransparency.blendSrc = parseColor(opts.blendSrc);
+		this._objTransparency.blendDst = parseColor(opts.blendDst);
 		this._obj1AsMask = !!opts.mask;
 	}
 
@@ -199,6 +237,7 @@ class VDP {
 	 * @param opts.linescrollBuffer {number} number of the linescroll buffer to use
 	 * @param opts.wrap {boolean} whether to wrap the map at the bounds (defaults to true)
 	 * @param opts.tileset {string|VdpSprite} custom tileset to use.
+	 * @param opts.transparent {boolean}
 	 */
 	drawBG(map, opts = {}) {
 		if (typeof map === 'string') map = this.map(map);
@@ -215,8 +254,9 @@ class VDP {
 		const linescrollBuffer = opts.hasOwnProperty('linescrollBuffer') ? opts.linescrollBuffer : -1;
 		const wrap = opts.hasOwnProperty('wrap') ? opts.wrap : true;
 		const prio = opts.prio || 0;
+		const buffer = opts.transparent ? this._tbgBuffer : this._bgBuffer;
 
-		drawMap(this, map.x, map.y, til.x, til.y, map.w, map.h, til.w, til.tw, til.th, winX, winY, winW, winH, scrollX, scrollY, pal.y, til.hiColor, linescrollBuffer, wrap ? 1 : 0, prio);
+		enqueueMap(buffer, map.x, map.y, til.x, til.y, map.w, map.h, til.w, til.tw, til.th, winX, winY, winW, winH, scrollX, scrollY, pal.y, til.hiColor, linescrollBuffer, wrap ? 1 : 0, prio);
 	}
 
 	/**
@@ -228,6 +268,7 @@ class VDP {
 	 * @param opts.width {number} width on the screen (stretches the sprite compared to sprite.w)
 	 * @param opts.height {number} height on the screen (stretches the sprite compared to sprite.h)
 	 * @param opts.prio {number} priority of the sprite
+	 * @param opts.transparent {boolean}
 	 */
 	drawObj(sprite, x, y, opts = {}) {
 		if (typeof sprite === 'string') sprite = this.sprite(sprite);
@@ -236,8 +277,9 @@ class VDP {
 		const w = opts.hasOwnProperty('width') ? opts.width : sprite.w;
 		const h = opts.hasOwnProperty('height') ? opts.height : sprite.h;
 		const prio = opts.prio || 0;
+		const buffer = opts.transparent ? this._obj1Buffer: this._obj0Buffer;
 
-		enqueueObj(this._obj0Buffer, x, y, x + w, y + h, sprite.x, sprite.y, sprite.x + sprite.w, sprite.y + sprite.h, pal.y, sprite.hiColor, prio);
+		enqueueObj(buffer, x, y, x + w, y + h, sprite.x, sprite.y, sprite.x + sprite.w, sprite.y + sprite.h, pal.y, sprite.hiColor, prio);
 	}
 
 	/**
@@ -284,7 +326,7 @@ class VDP {
 	 * of the palette memory using new VdpPalette(…) or offset an existing map, using vdp.map('myMap').offsetted(…).
 	 * @param blank [boolean=false] set to true if you don't care about the current content of the memory (you're going
 	 * to write only and you need a buffer for that)
-	 * @return {Uint32Array}
+	 * @return {Uint16Array} contains color entries, encoded as 0xRGBA
 	 */
 	readPalette(palette, blank = false) {
 		const pal = this._getPalette(palette);
@@ -297,13 +339,12 @@ class VDP {
 	 * @param w {number}
 	 * @param h {number}
 	 * @param blank {boolean}
-	 * @returns {Uint32Array}
+	 * @returns {Uint16Array} contains color entries, encoded as 0xRGBA
 	 */
 	readPaletteMemory(x, y, w, h, blank = false) {
-		if (!TRUECOLOR_MODE) throw new Error('Not supported yet in lo-color mode');
-		const result = new Uint32Array(w * h);
+		const result = new Uint16Array(w * h);
 		if (!blank) {
-			readFromTextureToExisting(this.gl, this.paletteTexture, x, y, w, h, new Uint8Array(result.buffer));
+			readFromTextureToExisting16(this.gl, this.paletteTexture, x, y, w, h, result);
 		}
 		return result;
 	}
@@ -361,11 +402,23 @@ class VDP {
 
 	/**
 	 * @param palette {string|VdpPalette}
-	 * @param data {Uint8ClampedArray}
+	 * @param data {Uint16Array} color entries, encoded as 0xRGBA
 	 */
 	writePalette(palette, data) {
 		const pal = this._getPalette(palette);
 		this.writePaletteMemory(0, pal.y, pal.size, 1, data);
+	}
+
+	/**
+	 *
+	 * @param x {number}
+	 * @param y {number}
+	 * @param w {number}
+	 * @param h {number}
+	 * @param data {Uint16Array} color entries, encoded as 0xRGBA
+	 */
+	writePaletteMemory(x, y, w, h, data) {
+		writeToTexture16(this.gl, this.paletteTexture, x, y, w, h, data);
 	}
 
 	/**
@@ -390,27 +443,37 @@ class VDP {
 		}
 	}
 
-	/**
-	 *
-	 * @param x {number}
-	 * @param y {number}
-	 * @param w {number}
-	 * @param h {number}
-	 * @param data {Uint32Array}
-	 */
-	writePaletteMemory(x, y, w, h, data) {
-		if (!TRUECOLOR_MODE) throw new Error('Not supported yet in lo-color mode');
-		writeToTexture32(this.gl, this.paletteTexture, x, y, w, h, new Uint8Array(data.buffer));
-	}
-
 	// --------------------- PRIVATE ---------------------
 	_endFrame() {
 		const gl = this.gl;
+
+		this._noTransparency.apply(this);
+		drawPendingMap(this, this._bgBuffer);
+
+		if (this._obj1AsMask) {
+			// Draw BG, transparent OBJ in reverse order, then normal OBJ
+			this._objTransparency.apply(this);
+			this._obj1Buffer.sort();
+			drawPendingObj(this, this._obj1Buffer);
+		}
+
 		drawPendingObj(this, this._obj0Buffer);
+
+		this._bgTransparency.apply(this);
+		gl.depthMask(false);
+		drawPendingMap(this, this._tbgBuffer);
+		gl.depthMask(true);
+
+		if (!this._obj1AsMask) {
+			this._objTransparency.apply(this);
+			// Draw in reverse order
+			this._obj1Buffer.sort();
+			drawPendingObj(this, this._obj1Buffer);
+		}
 
 		// Draw fade
 		if (this._fadeColor >>> 24 >= 0x10) {
-			this._setBlendMethod('blend');
+			this._standardTransparency.apply(this);
 			gl.disable(gl.DEPTH_TEST);
 			drawOpaquePoly(this, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT,
 				(this._fadeColor & 0xf0) / 240,
@@ -526,7 +589,7 @@ class VDP {
 			gl.clearDepth(1.0);                 // Clear everything
 			// PERF: This is a lot slower if there's a discard in the fragment shader (and we need one?) because the GPU can't test & write to the depth buffer until after the fragment shader has been executed. So there's no point in using it I guess.
 			gl.enable(gl.DEPTH_TEST);           // Enable depth testing
-			gl.depthFunc(gl.LEQUAL);            // Near things obscure far things
+			gl.depthFunc(gl.LESS);            // Near things obscure far things
 			gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
 		} else {
