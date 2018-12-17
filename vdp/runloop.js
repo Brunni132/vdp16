@@ -47,7 +47,7 @@ export function runProgram(vdp, coroutine) {
 		const timestampInt = Math.floor(timestamp / 1000);
 
 		if (timestampInt !== lastInt && times.length > 0) {
-			console.log(`Avg=${times.reduce((a, b) => a + b) / times.length}ms, r=${renderedFrames}, s=${skippedFrames}, u=${times.length}; ${framerateAdj.getFramerate()}Hz`);
+			console.log(`Upd=${(times.reduce((a, b) => a + b) / times.length).toFixed(3)}ms; r=${renderedFrames}, s=${skippedFrames}, u=${times.length}; ${framerateAdj.getFramerate().toFixed(2)}Hz`);
 			times.length = 0;
 			renderedFrames = skippedFrames = 0;
 		}
