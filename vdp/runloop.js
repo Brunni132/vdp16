@@ -1,5 +1,7 @@
-import {MAX_ACCEPTABLE_DT, MAX_LATE, MIN_ACCEPTABLE_DT, setParams} from "./shaders";
+import {MAX_ACCEPTABLE_DT, MAX_LATE, MIN_ACCEPTABLE_DT, REGULAR_DT, setParams} from "./shaders";
 import {VDP} from "./vdp";
+
+const DISPLAY_REFRESH_RATE = true;
 
 /**
  * @param canvas {HTMLCanvasElement}
@@ -37,8 +39,8 @@ export function loadVdp(canvas, params) {
 export function runProgram(vdp, coroutine) {
 	// All in seconds except last
 	let last = 0, lastInt = 0, late = 0;
-	const times = [];
-	let updateFrames = 0;
+	const times = [], deltas = [];
+	let renderedFrames = 0, skippedFrames = 0;
 
 	function step(timestamp) {
 		// Timestamp is in milliseconds
@@ -46,37 +48,44 @@ export function runProgram(vdp, coroutine) {
 		const diff = (timestamp - last) / 1000;
 
 		if (timestampInt !== lastInt && times.length > 0) {
-			console.log(`Called ${times.length} times. Avg=${times.reduce((a, b) => a + b) / times.length}ms, framecount=${updateFrames}`);
+			console.log(`Avg=${times.reduce((a, b) => a + b) / times.length}ms, r=${renderedFrames}, s=${skippedFrames}, u=${times.length}`);
+			if (DISPLAY_REFRESH_RATE && timestampInt % 5 === 0) console.log(`Refresh rate: ${deltas.length / deltas.reduce((a, b) => a + b)}`);
 			times.length = 0;
-			updateFrames = 0;
+			deltas.length = 0;
+			renderedFrames = skippedFrames = 0;
 		}
 
-		if (diff >= MIN_ACCEPTABLE_DT && diff <= MAX_ACCEPTABLE_DT) {
-		} else {
-			late += diff;
+		if (diff > MAX_ACCEPTABLE_DT) {
+			late += diff - MAX_ACCEPTABLE_DT;
 			if (late > MAX_LATE) late = 0;
+		} else if (diff < MIN_ACCEPTABLE_DT) {
+			late += diff - MIN_ACCEPTABLE_DT;
 		}
 
 		last = timestamp;
 		lastInt = timestampInt;
+		if (DISPLAY_REFRESH_RATE) deltas.push(diff);
 
-		if (late > -MIN_ACCEPTABLE_DT) {
-			const before = window.performance.now();
+		if (late <= -REGULAR_DT) {
+			late += REGULAR_DT;
+		} else {
 			while (true) {
+				const before = window.performance.now();
 				vdp._startFrame();
 				coroutine.next();
 				vdp._endFrame();
-				updateFrames += 1;
+				times.push(window.performance.now() - before);
 
-				if (late >= MIN_ACCEPTABLE_DT) {
-					late -= MIN_ACCEPTABLE_DT;
+				if (late >= REGULAR_DT) {
+					late -= REGULAR_DT;
+					skippedFrames += 1;
 				} else {
 					break;
 				}
 			}
-			times.push(window.performance.now() - before);
 		}
 
+		renderedFrames += 1;
 		window.requestAnimationFrame(step);
 	}
 

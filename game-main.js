@@ -83,7 +83,7 @@ function *main(vdp) {
 		vdp.drawObj(marioSprite, scroll + 16, 0, {width: -256, height: 256, prio: 1, transparent: true });
 
 
-		scroll += 0.5;
+		scroll += 1;
 
 
 		// const spr = vdp.sprite('mario').offsetted(0, 0, 64, 64);
