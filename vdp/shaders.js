@@ -17,11 +17,6 @@ export const USE_PRIORITIES = true;
 export const MAX_BGS = 1;
 // True on limited machine, false otherwise
 export const DISCARD_ALPHA = true;
-// Framerate expectations (works OK on a 60 Hz display; if you have a higher resolution display, you may want to set MIN_ACCEPTABLE_DT=REGULAR_DT=MAX_ACCEPTABLE_DT)
-export const MIN_ACCEPTABLE_DT = 1 / 60.44;
-export const REGULAR_DT = 1 / 59.94;
-export const MAX_ACCEPTABLE_DT = 1 / 59.44;
-export const MAX_LATE = 1 / 4.0;
 
 export const MAX_SPRITES = 1 << 16;
 

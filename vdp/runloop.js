@@ -1,7 +1,6 @@
-import {MAX_ACCEPTABLE_DT, MAX_LATE, MIN_ACCEPTABLE_DT, REGULAR_DT, setParams} from "./shaders";
+import {setParams} from "./shaders";
 import {VDP} from "./vdp";
-
-const DISPLAY_REFRESH_RATE = true;
+import {FramerateAdjuster, NOMINAL_FRAMERATE} from "./FramerateAdjuster";
 
 /**
  * @param canvas {HTMLCanvasElement}
@@ -38,54 +37,44 @@ export function loadVdp(canvas, params) {
  */
 export function runProgram(vdp, coroutine) {
 	// All in seconds except last
-	let last = 0, lastInt = 0, late = 0;
-	const times = [], deltas = [];
+	let lastInt = 0;
+	const times = [];
+	const framerateAdj = new FramerateAdjuster();
 	let renderedFrames = 0, skippedFrames = 0;
 
 	function step(timestamp) {
 		// Timestamp is in milliseconds
 		const timestampInt = Math.floor(timestamp / 1000);
-		const diff = (timestamp - last) / 1000;
 
 		if (timestampInt !== lastInt && times.length > 0) {
-			console.log(`Avg=${times.reduce((a, b) => a + b) / times.length}ms, r=${renderedFrames}, s=${skippedFrames}, u=${times.length}`);
-			if (DISPLAY_REFRESH_RATE && timestampInt % 5 === 0) console.log(`Refresh rate: ${deltas.length / deltas.reduce((a, b) => a + b)}`);
+			console.log(`Avg=${times.reduce((a, b) => a + b) / times.length}ms, r=${renderedFrames}, s=${skippedFrames}, u=${times.length}; ${framerateAdj.getFramerate()}Hz`);
 			times.length = 0;
-			deltas.length = 0;
 			renderedFrames = skippedFrames = 0;
 		}
 
-		if (diff > MAX_ACCEPTABLE_DT) {
-			late += diff - MAX_ACCEPTABLE_DT;
-			if (late > MAX_LATE) late = 0;
-		} else if (diff < MIN_ACCEPTABLE_DT) {
-			late += diff - MIN_ACCEPTABLE_DT;
-		}
-
-		last = timestamp;
 		lastInt = timestampInt;
-		if (DISPLAY_REFRESH_RATE) deltas.push(diff);
 
-		if (late <= -REGULAR_DT) {
-			late += REGULAR_DT;
+		// The algorithm depends on the refresh rate of the screen. Use smooth if close, use simple otherwise as smooth will produce some speed variations.
+		const framerate = framerateAdj.getFramerate();
+		let toRender;
+		if (framerate >= NOMINAL_FRAMERATE - 1 && framerate <= NOMINAL_FRAMERATE + 1) {
+			toRender = framerateAdj.doSimplest(timestamp);
 		} else {
-			while (true) {
-				const before = window.performance.now();
-				vdp._startFrame();
-				coroutine.next();
-				vdp._endFrame();
-				times.push(window.performance.now() - before);
-
-				if (late >= REGULAR_DT) {
-					late -= REGULAR_DT;
-					skippedFrames += 1;
-				} else {
-					break;
-				}
-			}
+			toRender = framerateAdj.doStandard(timestamp);
 		}
 
-		renderedFrames += 1;
+		// Render the expected number of frames
+		for (let i = 0; i < toRender; i++) {
+			const before = window.performance.now();
+			vdp._startFrame();
+			coroutine.next();
+			vdp._endFrame();
+			times.push(window.performance.now() - before);
+		}
+
+		if (toRender > 0) renderedFrames += 1;
+		if (toRender > 1) skippedFrames += toRender - 1;
+
 		window.requestAnimationFrame(step);
 	}
 
