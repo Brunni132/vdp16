@@ -180,6 +180,12 @@ class VDP {
 	}
 
 	/**
+	 * @param mat {mat3} affine transformation matrix
+	 */
+	configBGTransform(mat) {
+	}
+
+	/**
 	 * Configure transparent background effect.
 	 * @param opts {Object}
 	 * @param opts.op {string} 'add' or 'sub'
@@ -204,6 +210,16 @@ class VDP {
 	configFade(color, factor) {
 		factor = Math.min(255, Math.max(0, factor));
 		this._fadeColor = (parseColor(color) & 0xffffff) | (factor << 24);
+	}
+
+	/**
+	 * @param mat {mat3} affine transformation matrix
+	 * @param [opts] {Object}
+	 * @param [opts.targetOBJ0] {boolean}
+	 * @param [opts.targetOBJ1] {boolean}
+	 */
+	configOBJTransform(mat, opts) {
+
 	}
 
 	/**
