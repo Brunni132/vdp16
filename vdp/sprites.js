@@ -59,7 +59,7 @@ export function initObjShaders(vdp) {
 			// The 2 first are the texture position
 			attribute vec2 aUv;
 	
-			uniform mat4 uModelViewMatrix;
+			uniform mat3 uModelViewMatrix;
 			uniform mat4 uProjectionMatrix;
 	
 			varying highp vec2 vTextureCoord;
@@ -67,7 +67,8 @@ export function initObjShaders(vdp) {
 			uniform sampler2D uSamplerSprites, uSamplerPalettes;
 		
 			void main(void) {
-				gl_Position = uProjectionMatrix * uModelViewMatrix * vec4(floor(aXyzp.xy), aXyzp.z, 1);
+				// Only scale the final matrix (we can always say that the VDP supports fixed point math inside for matrix multiplication)
+				gl_Position = uProjectionMatrix * vec4(floor(uModelViewMatrix * vec3(aXyzp.xy, aXyzp.z)), 1);
 				vPaletteNo = aXyzp.w;
 				vTextureCoord = floor(aUv);
 			}
@@ -173,7 +174,7 @@ export function drawPendingObj(vdp, objBuffer) {
 
 	// Set the shader uniforms
 	gl.uniformMatrix4fv(prog.uniformLocations.projectionMatrix, false, vdp.projectionMatrix);
-	gl.uniformMatrix4fv(prog.uniformLocations.modelViewMatrix,false, vdp.modelViewMatrix);
+	gl.uniformMatrix3fv(prog.uniformLocations.modelViewMatrix,false, vdp.modelViewMatrix);
 
 	gl.uniform4f(prog.uniformLocations.envColor, envColor[0], envColor[1], envColor[2], envColor[3]);
 

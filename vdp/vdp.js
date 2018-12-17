@@ -81,8 +81,11 @@ class TransparencyConfig {
 	}
 }
 
+const NO_TRANSPARENCY = new TransparencyConfig('none', 'add', 0, 0);
+const STANDARD_TRANSPARENCY = new TransparencyConfig('blend', 'add', 0, 0);
+const IDENTITY_MAT3 = mat3.create();
 
-class VDP {
+export class VDP {
 	/** @property {WebGLRenderingContext} gl */
 	/** @property {BigFile} gameData */
 	/**
@@ -92,7 +95,7 @@ class VDP {
 	 * mapInfo3: tile width, tile height, UV drawing (should be 0…1)
 	 * @property {{program: *, attribLocations: {xyzp: GLint, mapInfo1: GLint, mapInfo2: GLint, mapInfo3: GLint, mapInfo4: GLint}, glBuffers: {xyzp, mapInfo1, mapInfo2, mapInfo3, mapInfo4}, uniformLocations: {projectionMatrix: WebGLUniformLocation, modelViewMatrix: WebGLUniformLocation, uSamplerMaps: WebGLUniformLocation, uSamplerSprites: WebGLUniformLocation, uSamplerPalettes: WebGLUniformLocation, uSamplerOthers: WebGLUniformLocation}}} mapProgram
 	 */
-	/** @property {mat4} modelViewMatrix */
+	/** @property {mat3} modelViewMatrix */
 	/** @property {mat4} projectionMatrix */
 	/**
 	 * @property {{program: *, attribLocations: {xyzp: GLint, uv: GLint}, glBuffers: {xyzp, uv}, uniformLocations: {envColor: WebGLUniformLocation, projectionMatrix: WebGLUniformLocation, modelViewMatrix: WebGLUniformLocation, uSamplerSprites: WebGLUniformLocation, uSamplerPalettes: WebGLUniformLocation}}} spriteProgram
@@ -118,8 +121,6 @@ class VDP {
 		this._objTransparency = new TransparencyConfig('color', 'add', 0x888888, 0x888888);
 		/** @type {boolean} */
 		this._obj1AsMask = false;
-		this._noTransparency = new TransparencyConfig('none', 'add', 0, 0);
-		this._standardTransparency = new TransparencyConfig('blend', 'add', 0, 0);
 		/** @type {MapBuffer} */
 		this._bgBuffer = makeMapBuffer(4);
 		/** @type {MapBuffer} */
@@ -132,6 +133,10 @@ class VDP {
 		this._obj0Usage = 0;
 		/** @type {number} in 32x32 rects */
 		this._obj1Usage = 0;
+		/** @type {mat3} transformation matrix for OBJ0 (opaque) */
+		this._obj0LayerTransform = mat3.create();
+		/** @type {mat3} transformation matrix for OBJ1 (transparent) */
+		this._obj1LayerTransform = mat3.create();
 
 		this._initContext(canvas);
 		this._initMatrices();
@@ -180,12 +185,6 @@ class VDP {
 	}
 
 	/**
-	 * @param mat {mat3} affine transformation matrix
-	 */
-	configBGTransform(mat) {
-	}
-
-	/**
 	 * Configure transparent background effect.
 	 * @param opts {Object}
 	 * @param opts.op {string} 'add' or 'sub'
@@ -213,13 +212,13 @@ class VDP {
 	}
 
 	/**
-	 * @param mat {mat3} affine transformation matrix
 	 * @param [opts] {Object}
-	 * @param [opts.targetOBJ0] {boolean}
-	 * @param [opts.targetOBJ1] {boolean}
+	 * @param [opts.obj0Transform] {mat3} affine transformation matrix for standard objects
+	 * @param [opts.obj1Transform] {mat3} affine transformation matrix for transparent objects
 	 */
-	configOBJTransform(mat, opts) {
-
+	configOBJTransform(opts) {
+		if (opts.obj0Transform) mat3.copy(this._obj0LayerTransform, opts.obj0Transform);
+		if (opts.obj1Transform) mat3.copy(this._obj1LayerTransform, opts.obj1Transform);
 	}
 
 	/**
@@ -460,20 +459,33 @@ class VDP {
 	}
 
 	// --------------------- PRIVATE ---------------------
+	/**
+	 * @param objBuffer {ObjBuffer}
+	 * @param transparencyConfig {TransparencyConfig}
+	 * @param layerTransform {mat3}
+	 * @private
+	 */
+	_drawObjLayer(objBuffer, transparencyConfig, layerTransform) {
+		// Use config only for that poly list
+		mat3.invert(this.modelViewMatrix, layerTransform);
+		transparencyConfig.apply(this);
+		drawPendingObj(this, objBuffer);
+		mat3.identity(this.modelViewMatrix);
+	}
+
 	_endFrame() {
 		const gl = this.gl;
 
-		this._noTransparency.apply(this);
+		NO_TRANSPARENCY.apply(this);
 		drawPendingMap(this, this._bgBuffer);
 
 		if (this._obj1AsMask) {
 			// Draw BG, transparent OBJ in reverse order, then normal OBJ
-			this._objTransparency.apply(this);
 			this._obj1Buffer.sort();
-			drawPendingObj(this, this._obj1Buffer);
+			this._drawObjLayer(this._obj1Buffer, this._objTransparency, this._obj1LayerTransform);
 		}
 
-		drawPendingObj(this, this._obj0Buffer);
+		this._drawObjLayer(this._obj0Buffer, this._objTransparency, this._obj0LayerTransform);
 
 		this._bgTransparency.apply(this);
 		gl.depthMask(false);
@@ -481,15 +493,14 @@ class VDP {
 		gl.depthMask(true);
 
 		if (!this._obj1AsMask) {
-			this._objTransparency.apply(this);
 			// Draw in reverse order
 			this._obj1Buffer.sort();
-			drawPendingObj(this, this._obj1Buffer);
+			this._drawObjLayer(this._obj1Buffer, this._objTransparency, this._obj1LayerTransform);
 		}
 
 		// Draw fade
 		if (this._fadeColor >>> 24 >= 0x10) {
-			this._standardTransparency.apply(this);
+			STANDARD_TRANSPARENCY.apply(this);
 			gl.disable(gl.DEPTH_TEST);
 			drawOpaquePoly(this, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT,
 				(this._fadeColor & 0xf0) / 240,
@@ -553,7 +564,7 @@ class VDP {
 		// Normally set in modelViewMatrix, but we want to allow an empty model view matrix
 		//mat4.translate(this.projectionMatrix, this.projectionMatrix, [-0.0, 0.0, -0.1]);
 
-		this.modelViewMatrix = mat4.create();
+		this.modelViewMatrix = mat3.create();
 		// mat4.translate(this.modelViewMatrix, this.modelViewMatrix, [-0.0, 0.0, -0.1]);
 	}
 
@@ -612,61 +623,4 @@ class VDP {
 			gl.clear(gl.COLOR_BUFFER_BIT);
 		}
 	}
-}
-
-/**
- * @param canvas {HTMLCanvasElement}
- * @param [params] {Object}
- * @param [params.resolution] {number} default is 0. 0=256x256, 1=320x224
- * @returns {Promise}
- */
-export function loadVdp(canvas, params) {
-	params = params || {};
-	switch (params.resolution) {
-	case 1:
-		canvas.width = 320;
-		canvas.height = 224;
-		break;
-	default:
-		canvas.width = 256;
-		canvas.height = 256;
-		break;
-	}
-	canvas.style.width = `${canvas.width * 2}px`;
-	canvas.style.height = `${canvas.height * 2}px`;
-	setParams(canvas.width, canvas.height, false);
-	return new Promise(function (resolve) {
-		const vdp = new VDP(canvas, () => {
-			vdp._startFrame();
-			resolve(vdp);
-		});
-	});
-}
-
-/**
- * @param {VDP} vdp
- * @param {IterableIterator<number>} coroutine
- */
-export function runProgram(vdp, coroutine) {
-	let last = 0;
-	const times = [];
-
-	function step(timestamp) {
-		timestamp = Math.floor(timestamp / 1000);
-		if (timestamp !== last && times.length > 0) {
-			console.log(`Called ${times.length} times. Avg=${times.reduce((a, b) => a + b) / times.length}ms`);
-			times.length = 0;
-		}
-		last = timestamp;
-
-		const before = window.performance.now();
-		vdp._startFrame();
-		coroutine.next();
-		vdp._endFrame();
-		times.push(window.performance.now() - before);
-
-		window.requestAnimationFrame(step);
-	}
-
-	window.requestAnimationFrame(step);
 }

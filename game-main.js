@@ -2,8 +2,9 @@
  * @param vdp {VDP}
  * @returns {IterableIterator<number>}
  */
-import {loadVdp, runProgram} from "./vdp/vdp";
+import {loadVdp, runProgram} from "./vdp/runloop";
 import {SCREEN_WIDTH} from "./vdp/shaders";
+import {mat3} from "./gl-matrix";
 
 /** @param vdp {VDP} */
 function *main(vdp) {
@@ -41,6 +42,10 @@ function *main(vdp) {
 	// 		(c >>> 24 & 0xff));
 	// }
 	// printCol(vdp._getColor(0x11121314));
+
+	// const trans = mat3.create();
+	// mat3.scale(trans, trans, [2, 2]);
+	// vdp.configOBJTransform({ obj1Transform: trans });
 
 	while (true) {
 		// Note: reading from VRAM is very slow

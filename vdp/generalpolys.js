@@ -8,13 +8,13 @@ export function initOpaquePolyShaders(vdp) {
 			attribute vec2 aXy;
 			attribute vec4 aColor;
 	
-			uniform mat4 uModelViewMatrix;
+			uniform mat3 uModelViewMatrix;
 			uniform mat4 uProjectionMatrix;
 	
 			varying lowp vec4 vColor;
 		
 			void main(void) {
-				gl_Position = uProjectionMatrix * uModelViewMatrix * vec4(aXy.x, aXy.y, 0, 1);
+				gl_Position = uProjectionMatrix * vec4(floor(uModelViewMatrix * vec3(aXy, 0)), 1);
 				vColor = aColor;
 			}
 		`;
@@ -106,7 +106,7 @@ export function drawOpaquePoly(vdp, xStart, yStart, xEnd, yEnd, colorR, colorG, 
 
 	// Set the shader uniforms
 	gl.uniformMatrix4fv(prog.uniformLocations.projectionMatrix, false, vdp.projectionMatrix);
-	gl.uniformMatrix4fv(prog.uniformLocations.modelViewMatrix,false, vdp.modelViewMatrix);
+	gl.uniformMatrix3fv(prog.uniformLocations.modelViewMatrix,false, vdp.modelViewMatrix);
 
 	{
 		const offset = 0;

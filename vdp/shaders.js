@@ -17,6 +17,10 @@ export const USE_PRIORITIES = true;
 export const MAX_BGS = 1;
 // True on limited machine, false otherwise
 export const DISCARD_ALPHA = true;
+// Framerate expectations
+export const MIN_ACCEPTABLE_DT = 1 / 61.0;
+export const MAX_ACCEPTABLE_DT = 1 / 59.0;
+export const MAX_LATE = 1 / 4.0;
 
 export const MAX_SPRITES = 1 << 16;
 

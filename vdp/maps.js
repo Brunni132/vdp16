@@ -50,7 +50,8 @@ export function initMapShaders(vdp) {
 			attribute vec4 aMapInfo2;
 			attribute vec4 aMapInfo3;
 			attribute vec4 aMapInfo4;
-			uniform mat4 uModelViewMatrix, uProjectionMatrix;
+			uniform mat3 uModelViewMatrix;
+			uniform mat4 uProjectionMatrix;
 
 			varying vec2 vTextureCoord;
 			varying float vPaletteNo;
@@ -76,7 +77,8 @@ export function initMapShaders(vdp) {
 			}
 		
 			void main(void) {
-				gl_Position = uProjectionMatrix * uModelViewMatrix * vec4(floor(aXyzp.xy), aXyzp.z, 1);
+				// Only scale the final matrix (we can always say that the VDP supports fixed point math inside for matrix multiplication)
+				gl_Position = uProjectionMatrix * vec4(floor(uModelViewMatrix * aXyzp.xyz), 1);
 				vPaletteNo = floor(aXyzp.w);
 				vMapStart = floor(aMapInfo1.xy);
 				vTilesetStart = floor(aMapInfo1.zw);
@@ -109,7 +111,7 @@ export function initMapShaders(vdp) {
 			varying mat3 vTransformationMatrix;
 			varying vec2 vOtherInfo;
 			
-			uniform mat4 uModelViewMatrix;
+			uniform mat3 uModelViewMatrix;
 			uniform vec4 uEnvColor;
 			uniform sampler2D uSamplerMaps, uSamplerSprites, uSamplerPalettes, uSamplerOthers;
 						
@@ -309,7 +311,7 @@ export function drawPendingMap(vdp, mapBuffer) {
 
 	// Set the shader uniforms
 	gl.uniformMatrix4fv(prog.uniformLocations.projectionMatrix, false, vdp.projectionMatrix);
-	gl.uniformMatrix4fv(prog.uniformLocations.modelViewMatrix,false, vdp.modelViewMatrix);
+	gl.uniformMatrix3fv(prog.uniformLocations.modelViewMatrix,false, vdp.modelViewMatrix);
 
 	gl.uniform4f(prog.uniformLocations.envColor, envColor[0], envColor[1], envColor[2], envColor[3]);
 
