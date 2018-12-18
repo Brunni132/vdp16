@@ -155,10 +155,6 @@ export class VDP {
 		this._obj0Buffer = makeObjBuffer('Opaque sprites [OBJ0]', 480);
 		/** @type {ObjBuffer} */
 		this._obj1Buffer = makeObjBuffer('Transparent sprites [OBJ1]', 32);
-		/** @type {number} in 32x32 rects */
-		this._obj0Usage = 0;
-		/** @type {number} in 32x32 rects */
-		this._obj1Usage = 0;
 		/** @type {LayerTransform} transformation matrix for OBJ0 (opaque) */
 		this._obj0LayerTransform = new LayerTransform();
 		/** @type {LayerTransform} transformation matrix for OBJ1 (transparent) */
