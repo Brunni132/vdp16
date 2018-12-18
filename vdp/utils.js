@@ -280,11 +280,13 @@ function bindToFramebuffer(gl, texture) {
 }
 
 /**
+ * @param first {number}
  * @param n {number}
- * @returns {Array} an array with [0, 1, …, n-1]
+ * @returns {Array} an array with [first, first+1, …, first+n-1]
  */
-export function makeRangeArray(n) {
-	return Array.apply(null, {length: n}).map(Number.call, Number)
+export function makeRangeArray(first, n) {
+	return Array.from({length: n}, (v, k) => first + k);
+	//return Array.apply(null, {length: n}).map(Number.call, Number)
 }
 
 /**

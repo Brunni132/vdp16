@@ -26,15 +26,44 @@ class ObjBuffer {
 		this.maxVertices = numVertices;
 	}
 
+	/**
+	 * Returns the first vertice to draw, which is also the last one inserted. In case you want to add a new component,
+	 * subtract from usedVertices (typically 4 or 6 for a quad) then set the buffers at the position of the firstVertice.
+	 * @returns {number} the index of the first vertice in the arrays (there are `usedVertices` then). Note that you'll
+	 * need to multiply by OBJ_BUFFER_STRIDE * <components per entry> to address the arrays.
+	 */
+	get firstVertice() {
+		return 	this.maxVertices - this.usedVertices;
+	}
+
+	/**
+	 * @returns {number} the z component of an object at the index-th position
+	 * @param index {number}
+	 */
+	getZOfObject(index) {
+		return this.xyzp[OBJ_BUFFER_STRIDE * 4 * index + 2];
+	}
+
+	/**
+	 * @returns {{w: number, h: number}} the size of an object at the index-th position.
+	 * @param index {number}
+	 */
+	getSizeOfObject(index) {
+		// (left,top) in row 0.xy, (right,bottom) in row 2.xy
+		const vert = OBJ_BUFFER_STRIDE * 4 * index;
+		return {
+			w: this.xyzp[vert + 4 * 2] - this.xyzp[vert],
+			h: this.xyzp[vert + 4 * 2 + 1] - this.xyzp[vert + 1]
+		};
+	}
+
 	sort(frontToBack = true) {
-		const items = makeRangeArray(this.usedVertices / OBJ_BUFFER_STRIDE);
+		const items = makeRangeArray(this.firstVertice / OBJ_BUFFER_STRIDE, this.usedVertices / OBJ_BUFFER_STRIDE);
 		if (frontToBack) {
-			items.sort((a, b) =>
-				// First vertice, z component (3rd)
-				this.xyzp[OBJ_BUFFER_STRIDE * 4 * b + 2] - this.xyzp[OBJ_BUFFER_STRIDE * 4 * a + 2]);
+			// First vertice, z component (3rd)
+			items.sort((a, b) => this.getZOfObject(b) - this.getZOfObject(a));
 		} else {
-			items.sort((a, b) =>
-				this.xyzp[OBJ_BUFFER_STRIDE * 4 * a + 2] - this.xyzp[OBJ_BUFFER_STRIDE * 4 * b + 2]);
+			items.sort((a, b) => this.getZOfObject(a) - this.getZOfObject(b));
 		}
 
 		const originalXyzp = this.xyzp.slice();
@@ -136,7 +165,7 @@ export function drawPendingObj(vdp, objBuffer) {
 	const prog = vdp.spriteProgram;
 	const gl = vdp.gl;
 
-	const firstVertice = objBuffer.maxVertices - objBuffer.usedVertices;
+	const firstVertice = objBuffer.firstVertice;
 	gl.bindBuffer(gl.ARRAY_BUFFER, prog.glBuffers.xyzp);
 	gl.bufferData(gl.ARRAY_BUFFER, objBuffer.xyzp.subarray(firstVertice * 4), gl.STREAM_DRAW);
 	gl.bindBuffer(gl.ARRAY_BUFFER, prog.glBuffers.uv);
@@ -203,7 +232,7 @@ export function enqueueObj(objBuffer, xStart, yStart, xEnd, yEnd, uStart, vStart
 
 	// Start from the end
 	objBuffer.usedVertices += OBJ_BUFFER_STRIDE;
-	const firstVertice = objBuffer.maxVertices - objBuffer.usedVertices;
+	const firstVertice = objBuffer.firstVertice;
 
 	objBuffer.xyzp.set(TEMP_MakeDualTriangle([
 		xStart, yStart, z, palNo,

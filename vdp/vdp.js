@@ -9,7 +9,7 @@ import {
 	writeToTexture32,
 	writeToTextureFloat
 } from "./utils";
-import {mat3, mat4} from "../gl-matrix";
+import {mat3, mat4, vec2, vec3} from "../gl-matrix";
 import {drawPendingObj, enqueueObj, initObjShaders, makeObjBuffer, ObjBuffer} from "./sprites";
 import {drawMap, drawPendingMap, enqueueMap, initMapShaders, makeMapBuffer} from "./maps";
 import {
@@ -81,9 +81,41 @@ class TransparencyConfig {
 	}
 }
 
+class LayerTransform {
+	constructor() {
+		/** @type {mat3} */
+		this.mat = mat3.create();
+		/** @type {vec3} */
+		this.scaling = vec3.create();
+		this.setMatrix(mat3.create());
+	}
+
+	/**
+	 * @param outMat3 {mat3} output inverted matrix for use with transformation.
+	 */
+	getInvertedMatrixIn(outMat3) {
+		mat3.invert(outMat3, this.mat);
+	}
+
+	/**
+	 * Sets the non-inverted matrix.
+	 * @param mat {mat3} new affine transform
+	 */
+	setMatrix(mat) {
+		mat3.copy(this.mat, mat);
+		const inverted = mat3.create();
+		mat3.invert(inverted, mat);
+		const fullMat = mat4.fromValues(
+			inverted[0], inverted[1], inverted[2], 0,
+			inverted[3], inverted[4], inverted[5], 0,
+			inverted[6], inverted[7], inverted[8], 0,
+			0, 0, 0, 1);
+		mat4.getScaling(this.scaling, fullMat);
+	}
+}
+
 const NO_TRANSPARENCY = new TransparencyConfig('none', 'add', 0, 0);
 const STANDARD_TRANSPARENCY = new TransparencyConfig('blend', 'add', 0, 0);
-const IDENTITY_MAT3 = mat3.create();
 
 export class VDP {
 	/** @property {WebGLRenderingContext} gl */
@@ -133,10 +165,10 @@ export class VDP {
 		this._obj0Usage = 0;
 		/** @type {number} in 32x32 rects */
 		this._obj1Usage = 0;
-		/** @type {mat3} transformation matrix for OBJ0 (opaque) */
-		this._obj0LayerTransform = mat3.create();
-		/** @type {mat3} transformation matrix for OBJ1 (transparent) */
-		this._obj1LayerTransform = mat3.create();
+		/** @type {LayerTransform} transformation matrix for OBJ0 (opaque) */
+		this._obj0LayerTransform = new LayerTransform();
+		/** @type {LayerTransform} transformation matrix for OBJ1 (transparent) */
+		this._obj1LayerTransform = new LayerTransform();
 
 		this._initContext(canvas);
 		this._initMatrices();
@@ -217,8 +249,8 @@ export class VDP {
 	 * @param [opts.obj1Transform] {mat3} affine transformation matrix for transparent objects
 	 */
 	configOBJTransform(opts) {
-		if (opts.obj0Transform) mat3.copy(this._obj0LayerTransform, opts.obj0Transform);
-		if (opts.obj1Transform) mat3.copy(this._obj1LayerTransform, opts.obj1Transform);
+		if (opts.obj0Transform) this._obj0LayerTransform.setMatrix(opts.obj0Transform);
+		if (opts.obj1Transform) this._obj1LayerTransform.setMatrix(opts.obj1Transform);
 	}
 
 	/**
@@ -460,14 +492,47 @@ export class VDP {
 
 	// --------------------- PRIVATE ---------------------
 	/**
+	 * Computes the number of pixels that an object uses with the transform. Note that even offscreen pixels count toward
+	 * the limit!
+	 * @param x {number}
+	 * @param y {number}
+	 * @param w {number}
+	 * @param h {number}
+	 * @param layerTransform {LayerTransform}
+	 * @returns {number} number of blocks (32x32)
+	 * @private
+	 */
+	_computeObjectSize(x, y, w, h, layerTransform) {
+		w *= layerTransform.scaling[0];
+		h *= layerTransform.scaling[1];
+		return Math.ceil(w / 32) * Math.ceil(h / 32);
+	}
+
+	/**
+	 *
+	 * @param objBuffer {ObjBuffer}
+	 * @param layerTransform {LayerTransform}
+	 * @param first {number}
+	 * @param count {number}
+	 * @private
+	 */
+	_computeUsedObjects(objBuffer, layerTransform, first, count) {
+		for (let i = first; i < first + count; i++) {
+			if (i <= objBuffer.)
+
+		}
+
+	}
+
+	/**
 	 * @param objBuffer {ObjBuffer}
 	 * @param transparencyConfig {TransparencyConfig}
-	 * @param layerTransform {mat3}
+	 * @param layerTransform {LayerTransform}
 	 * @private
 	 */
 	_drawObjLayer(objBuffer, transparencyConfig, layerTransform) {
 		// Use config only for that poly list
-		mat3.invert(this.modelViewMatrix, layerTransform);
+		layerTransform.getInvertedMatrixIn(this.modelViewMatrix);
 		transparencyConfig.apply(this);
 		drawPendingObj(this, objBuffer);
 		mat3.identity(this.modelViewMatrix);

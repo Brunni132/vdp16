@@ -43,9 +43,9 @@ function *main(vdp) {
 	// }
 	// printCol(vdp._getColor(0x11121314));
 
-	// const trans = mat3.create();
-	// mat3.scale(trans, trans, [2, 2]);
-	// vdp.configOBJTransform({ obj1Transform: trans });
+	 const trans = mat3.create();
+	 mat3.scale(trans, trans, [2, 2]);
+	 vdp.configOBJTransform({ obj1Transform: trans });
 
 	while (true) {
 		// Note: reading from VRAM is very slow

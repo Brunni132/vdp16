@@ -37,6 +37,13 @@ class MapBuffer {
 		this.maxVertices = numVertices;
 	}
 
+	/**
+	 * @returns {number} the index of the first vertice in the arrays (there are `usedVertices` then). Note that you'll
+	 * need to multiply by OBJ_BUFFER_STRIDE * <components per entry> to address the arrays.
+	 */
+	get firstVertice() {
+		return 	this.maxVertices - this.usedVertices;
+	}
 }
 
 
@@ -242,7 +249,7 @@ export function drawPendingMap(vdp, mapBuffer) {
 
 	const gl = vdp.gl;
 	const prog = vdp.mapProgram;
-	const firstVertice = mapBuffer.maxVertices - mapBuffer.usedVertices;
+	const firstVertice = mapBuffer.firstVertice;
 
 	gl.bindBuffer(gl.ARRAY_BUFFER, prog.glBuffers.xyzp);
 	gl.bufferData(gl.ARRAY_BUFFER, mapBuffer.xyzp.subarray(firstVertice * 4), gl.STREAM_DRAW);
@@ -354,7 +361,7 @@ export function enqueueMap(mapBuffer, uMap, vMap, uTileset, vTileset, mapWidth, 
 	if (hiColor) palNo |= PALETTE_HICOLOR_FLAG;
 
 	mapBuffer.usedVertices += 6;
-	const firstVertice = mapBuffer.maxVertices - mapBuffer.usedVertices;
+	const firstVertice = mapBuffer.firstVertice;
 
 	// x, y position, z for normal-prio tiles, base palette no
 	mapBuffer.xyzp.set(TEMP_MakeDualTriangle([

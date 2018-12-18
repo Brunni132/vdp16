@@ -91,7 +91,10 @@ export class FramerateAdjuster {
 	 * @private
 	 */
 	_addToFramerate(diff) {
-		this._framerateSum = this._framerateSum * (FRAMERATE_SAMPLES - 1) / FRAMERATE_SAMPLES + diff;
+		// Ignore long breaks
+		if (diff < MAX_LATE) {
+			this._framerateSum = this._framerateSum * (FRAMERATE_SAMPLES - 1) / FRAMERATE_SAMPLES + diff;
+		}
 	}
 
 	/**
