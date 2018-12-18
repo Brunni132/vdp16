@@ -1,5 +1,5 @@
 import {
-	createDataTextureFloat,
+	createDataTextureFloat, getScalingFactorOfMatrix,
 	loadTexture,
 	loadTexture4444,
 	parseColor,
@@ -26,6 +26,11 @@ import {
 } from "./shaders";
 import {drawOpaquePoly, initOpaquePolyShaders} from "./generalpolys";
 import {VdpMap, VdpPalette, VdpSprite} from "./memory";
+
+const BG_LIMIT = 4;
+const TBG_LIMIT = 1;
+const OBJ1_CELL_LIMIT = 64;
+const OBJ0_CELL_LIMIT = 480;
 
 class TransparencyConfig {
 	/**
@@ -85,9 +90,6 @@ class LayerTransform {
 	constructor() {
 		/** @type {mat3} */
 		this.mat = mat3.create();
-		/** @type {vec3} */
-		this.scaling = vec3.create();
-		this.setMatrix(mat3.create());
 	}
 
 	/**
@@ -103,14 +105,6 @@ class LayerTransform {
 	 */
 	setMatrix(mat) {
 		mat3.copy(this.mat, mat);
-		const inverted = mat3.create();
-		mat3.invert(inverted, mat);
-		const fullMat = mat4.fromValues(
-			inverted[0], inverted[1], inverted[2], 0,
-			inverted[3], inverted[4], inverted[5], 0,
-			inverted[6], inverted[7], inverted[8], 0,
-			0, 0, 0, 1);
-		mat4.getScaling(this.scaling, fullMat);
 	}
 }
 
@@ -154,13 +148,13 @@ export class VDP {
 		/** @type {boolean} */
 		this._obj1AsMask = false;
 		/** @type {MapBuffer} */
-		this._bgBuffer = makeMapBuffer(4);
+		this._bgBuffer = makeMapBuffer('Opaque BG [BG]', BG_LIMIT);
 		/** @type {MapBuffer} */
-		this._tbgBuffer = makeMapBuffer(1);
+		this._tbgBuffer = makeMapBuffer('Transparent BG [TBG]', TBG_LIMIT);
 		/** @type {ObjBuffer} */
-		this._obj0Buffer = makeObjBuffer(480);
+		this._obj0Buffer = makeObjBuffer('Opaque sprites [OBJ0]', 480);
 		/** @type {ObjBuffer} */
-		this._obj1Buffer = makeObjBuffer(32);
+		this._obj1Buffer = makeObjBuffer('Transparent sprites [OBJ1]', 32);
 		/** @type {number} in 32x32 rects */
 		this._obj0Usage = 0;
 		/** @type {number} in 32x32 rects */
@@ -303,6 +297,11 @@ export class VDP {
 		const prio = opts.prio || 0;
 		const buffer = opts.transparent ? this._tbgBuffer : this._bgBuffer;
 
+		if (this._bgBuffer.usedLayers + this._tbgBuffer.usedLayers >= BG_LIMIT) {
+			console.log(`Too many BGs (${this._bgBuffer.usedLayers} opaque, ${this._tbgBuffer.usedLayers} transparent), ignoring drawBG`);
+			return;
+		}
+
 		enqueueMap(buffer, map.x, map.y, til.x, til.y, map.w, map.h, til.w, til.tw, til.th, winX, winY, winW, winH, scrollX, scrollY, pal.y, til.hiColor, linescrollBuffer, wrap ? 1 : 0, prio);
 	}
 
@@ -435,6 +434,24 @@ export class VDP {
 	}
 
 	/**
+	 * @returns {number}
+	 */
+	totalUsedOBJ0() {
+		const tempMat = mat3.create();
+		this._obj0LayerTransform.getInvertedMatrixIn(tempMat);
+		return this._obj0Buffer.computeUsedObjects(getScalingFactorOfMatrix(tempMat));
+	}
+
+	/**
+	 * @returns {number}
+	 */
+	totalUsedOBJ1() {
+		const tempMat = mat3.create();
+		this._obj1LayerTransform.getInvertedMatrixIn(tempMat);
+		return this._obj1Buffer.computeUsedObjects(getScalingFactorOfMatrix(tempMat));
+	}
+
+	/**
 	 * @param map {string|VdpMap} name of the map (or map itself). You may also write to an arbitrary portion of the map
 	 * memory using new VdpMap(…) or offset an existing map, using vdp.map('myMap').offsetted(…).
 	 * @param data {Uint16Array} map data to write
@@ -492,54 +509,36 @@ export class VDP {
 
 	// --------------------- PRIVATE ---------------------
 	/**
-	 * Computes the number of pixels that an object uses with the transform. Note that even offscreen pixels count toward
-	 * the limit!
-	 * @param x {number}
-	 * @param y {number}
-	 * @param w {number}
-	 * @param h {number}
-	 * @param layerTransform {LayerTransform}
-	 * @returns {number} number of blocks (32x32)
+	 * @returns {number}
 	 * @private
 	 */
-	_computeObjectSize(x, y, w, h, layerTransform) {
-		w *= layerTransform.scaling[0];
-		h *= layerTransform.scaling[1];
-		return Math.ceil(w / 32) * Math.ceil(h / 32);
-	}
-
-	/**
-	 *
-	 * @param objBuffer {ObjBuffer}
-	 * @param layerTransform {LayerTransform}
-	 * @param first {number}
-	 * @param count {number}
-	 * @private
-	 */
-	_computeUsedObjects(objBuffer, layerTransform, first, count) {
-		for (let i = first; i < first + count; i++) {
-			if (i <= objBuffer.)
-
-		}
-
+	_computeOBJ0Limit() {
+		const layers = this._bgBuffer.usedLayers + this._tbgBuffer.usedLayers;
+		let limit = OBJ0_CELL_LIMIT;
+		if (layers >= 3) limit -= 128;
+		if (layers >= 4) limit -= 128;
+		return limit;
 	}
 
 	/**
 	 * @param objBuffer {ObjBuffer}
 	 * @param transparencyConfig {TransparencyConfig}
 	 * @param layerTransform {LayerTransform}
+	 * @param objLimit {number} max number of cells drawable
 	 * @private
 	 */
-	_drawObjLayer(objBuffer, transparencyConfig, layerTransform) {
+	_drawObjLayer(objBuffer, transparencyConfig, layerTransform, objLimit = 0) {
 		// Use config only for that poly list
 		layerTransform.getInvertedMatrixIn(this.modelViewMatrix);
 		transparencyConfig.apply(this);
-		drawPendingObj(this, objBuffer);
+		drawPendingObj(this, objBuffer, objLimit);
 		mat3.identity(this.modelViewMatrix);
 	}
 
 	_endFrame() {
 		const gl = this.gl;
+		// Do before drawing stuff since it flushes the buffer
+		const obj0Limit = this._computeOBJ0Limit();
 
 		NO_TRANSPARENCY.apply(this);
 		drawPendingMap(this, this._bgBuffer);
@@ -547,10 +546,10 @@ export class VDP {
 		if (this._obj1AsMask) {
 			// Draw BG, transparent OBJ in reverse order, then normal OBJ
 			this._obj1Buffer.sort();
-			this._drawObjLayer(this._obj1Buffer, this._objTransparency, this._obj1LayerTransform);
+			this._drawObjLayer(this._obj1Buffer, this._objTransparency, this._obj1LayerTransform, OBJ1_CELL_LIMIT);
 		}
 
-		this._drawObjLayer(this._obj0Buffer, this._objTransparency, this._obj0LayerTransform);
+		this._drawObjLayer(this._obj0Buffer, this._objTransparency, this._obj0LayerTransform, obj0Limit);
 
 		this._bgTransparency.apply(this);
 		gl.depthMask(false);
@@ -560,7 +559,7 @@ export class VDP {
 		if (!this._obj1AsMask) {
 			// Draw in reverse order
 			this._obj1Buffer.sort();
-			this._drawObjLayer(this._obj1Buffer, this._objTransparency, this._obj1LayerTransform);
+			this._drawObjLayer(this._obj1Buffer, this._objTransparency, this._obj1LayerTransform, OBJ1_CELL_LIMIT);
 		}
 
 		// Draw fade

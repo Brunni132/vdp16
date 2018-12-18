@@ -1,4 +1,25 @@
+import {mat4, vec3} from "../gl-matrix";
+
 const assert = require('assert');
+
+/**
+ * @param mat {mat3}
+ * @returns {vec3}
+ */
+export function getScalingFactorOfMatrix(mat) {
+	const scaling = vec3.create();
+	const fullMat = mat4.fromValues(
+		mat[0], mat[1], mat[2], 0,
+		mat[3], mat[4], mat[5], 0,
+		mat[6], mat[7], mat[8], 0,
+		0, 0, 0, 1);
+	mat4.getScaling(scaling, fullMat);
+	return scaling;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Texture
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // export function createDataTexture8(gl, width, height) {
 // 	const texture = gl.createTexture();

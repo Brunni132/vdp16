@@ -82,7 +82,6 @@ function *main(vdp) {
 		// And draw it 32x32 (2x zoom)
 		vdp.drawObj(marioSprite, scroll + 16, 0, {width: -256, height: 256, prio: 1, transparent: true });
 
-
 		scroll += 1;
 
 

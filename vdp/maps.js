@@ -15,12 +15,16 @@ import {
 	SCREEN_HEIGHT
 } from "./shaders";
 
+const BG_BUFFER_STRIDE = 6;
 
 class MapBuffer {
 	/**
+	 * @param name {string} for debugging
 	 * @param numVertices {number}
 	 */
-	constructor(numVertices) {
+	constructor(name, numVertices) {
+		/** @type {string} */
+		this.name = name;
 		/** @type {Float32Array} */
 		this.xyzp = new Float32Array(numVertices * 4);
 		/** @type {Float32Array} */
@@ -43,6 +47,13 @@ class MapBuffer {
 	 */
 	get firstVertice() {
 		return 	this.maxVertices - this.usedVertices;
+	}
+
+	/**
+	 * @returns {number}
+	 */
+	get usedLayers() {
+		return this.usedVertices / BG_BUFFER_STRIDE;
 	}
 }
 
@@ -210,7 +221,6 @@ export function initMapShaders(vdp) {
 		`;
 
 	const shaderProgram = initShaderProgram(gl, vsSource, fsSource);
-	const TOTAL_VERTICES = MAX_BGS * 6;
 	vdp.mapProgram = {
 		program: shaderProgram,
 		attribLocations: {
@@ -360,7 +370,11 @@ export function enqueueMap(mapBuffer, uMap, vMap, uTileset, vTileset, mapWidth, 
 	tilesetWidth = Math.floor(tilesetWidth / tileWidth);
 	if (hiColor) palNo |= PALETTE_HICOLOR_FLAG;
 
-	mapBuffer.usedVertices += 6;
+	if (mapBuffer.usedVertices >= mapBuffer.maxVertices) {
+		console.log(`${mapBuffer.name} overuse (max ${mapBuffer.maxVertices / BG_BUFFER_STRIDE}), ignoring drawBG`);
+		return;
+	}
+	mapBuffer.usedVertices += BG_BUFFER_STRIDE;
 	const firstVertice = mapBuffer.firstVertice;
 
 	// x, y position, z for normal-prio tiles, base palette no
@@ -401,9 +415,10 @@ export function enqueueMap(mapBuffer, uMap, vMap, uTileset, vTileset, mapWidth, 
 }
 
 /**
+ * @param name {string} for debugging
  * @param numMaps {number}
  * @returns {MapBuffer}
  */
-export function makeMapBuffer(numMaps) {
-	return new MapBuffer(numMaps * 6);
+export function makeMapBuffer(name, numMaps) {
+	return new MapBuffer(name, numMaps * BG_BUFFER_STRIDE);
 }
