@@ -1,5 +1,6 @@
 import {
-	createDataTextureFloat, getScalingFactorOfMatrix,
+	createDataTextureFloat,
+	getScalingFactorOfMatrix,
 	loadTexture,
 	loadTexture4444,
 	parseColor,
@@ -9,7 +10,7 @@ import {
 	writeToTexture32,
 	writeToTextureFloat
 } from "./utils";
-import {mat3, mat4, vec2, vec3} from "../gl-matrix";
+import {mat3, mat4} from "../gl-matrix";
 import {drawPendingObj, enqueueObj, initObjShaders, makeObjBuffer, ObjBuffer} from "./sprites";
 import {drawMap, drawPendingMap, enqueueMap, initMapShaders, makeMapBuffer} from "./maps";
 import {
@@ -19,7 +20,6 @@ import {
 	SCREEN_HEIGHT,
 	SCREEN_WIDTH,
 	SEMITRANSPARENT_CANVAS,
-	setParams,
 	setTextureSizes,
 	TRUECOLOR_MODE,
 	USE_PRIORITIES
@@ -163,6 +163,13 @@ export class VDP {
 		this._obj0LayerTransform = new LayerTransform();
 		/** @type {LayerTransform} transformation matrix for OBJ1 (transparent) */
 		this._obj1LayerTransform = new LayerTransform();
+		/** @type {{peakOBJ0: number, peakOBJ1: number, peakBG: number, worstOBJLimit: number}} */
+		this.stats = {
+			peakOBJ0: 0,
+			peakOBJ1: 0,
+			peakBG: 0,
+			worstOBJLimit: OBJ0_CELL_LIMIT
+		};
 
 		this._initContext(canvas);
 		this._initMatrices();
@@ -329,6 +336,21 @@ export class VDP {
 	}
 
 	/**
+	 * Get and reset the VDP stats.
+	 * @returns {{peakOBJ0: number, peakOBJ1: number, peakBG: number, worstOBJLimit: number}}
+	 */
+	getStats() {
+		const result = this.stats;
+		this.stats = {
+			peakOBJ0: 0,
+			peakOBJ1: 0,
+			peakBG: 0,
+			worstOBJLimit: OBJ0_CELL_LIMIT
+		};
+		return result;
+	}
+
+	/**
 	 * @param name {string}
 	 * @returns {VdpMap}
 	 */
@@ -434,24 +456,6 @@ export class VDP {
 	}
 
 	/**
-	 * @returns {number}
-	 */
-	totalUsedOBJ0() {
-		const tempMat = mat3.create();
-		this._obj0LayerTransform.getInvertedMatrixIn(tempMat);
-		return this._obj0Buffer.computeUsedObjects(getScalingFactorOfMatrix(tempMat));
-	}
-
-	/**
-	 * @returns {number}
-	 */
-	totalUsedOBJ1() {
-		const tempMat = mat3.create();
-		this._obj1LayerTransform.getInvertedMatrixIn(tempMat);
-		return this._obj1Buffer.computeUsedObjects(getScalingFactorOfMatrix(tempMat));
-	}
-
-	/**
 	 * @param map {string|VdpMap} name of the map (or map itself). You may also write to an arbitrary portion of the map
 	 * memory using new VdpMap(…) or offset an existing map, using vdp.map('myMap').offsetted(…).
 	 * @param data {Uint16Array} map data to write
@@ -521,6 +525,18 @@ export class VDP {
 	}
 
 	/**
+	 * Take one frame in account for the stats. Read with _readStats.
+	 * @param obj0Limit {number}
+	 * @private
+	 */
+	_computeStats(obj0Limit) {
+		this.stats.peakBG = Math.max(this.stats.peakBG, this._bgBuffer.usedLayers + this._tbgBuffer.usedLayers);
+		this.stats.peakOBJ0 = Math.max(this.stats.peakOBJ0, this._totalUsedOBJ0());
+		this.stats.peakOBJ1 = Math.max(this.stats.peakOBJ1, this._totalUsedOBJ1());
+		this.stats.worstOBJLimit = Math.min(this.stats.worstOBJLimit, obj0Limit);
+	}
+
+	/**
 	 * @param objBuffer {ObjBuffer}
 	 * @param transparencyConfig {TransparencyConfig}
 	 * @param layerTransform {LayerTransform}
@@ -539,6 +555,8 @@ export class VDP {
 		const gl = this.gl;
 		// Do before drawing stuff since it flushes the buffer
 		const obj0Limit = this._computeOBJ0Limit();
+
+		this._computeStats(obj0Limit);
 
 		NO_TRANSPARENCY.apply(this);
 		drawPendingMap(this, this._bgBuffer);
@@ -686,5 +704,23 @@ export class VDP {
 		} else {
 			gl.clear(gl.COLOR_BUFFER_BIT);
 		}
+	}
+
+	/**
+	 * @returns {number}
+	 */
+	_totalUsedOBJ0() {
+		const tempMat = mat3.create();
+		this._obj0LayerTransform.getInvertedMatrixIn(tempMat);
+		return this._obj0Buffer.computeUsedObjects(getScalingFactorOfMatrix(tempMat));
+	}
+
+	/**
+	 * @returns {number}
+	 */
+	_totalUsedOBJ1() {
+		const tempMat = mat3.create();
+		this._obj1LayerTransform.getInvertedMatrixIn(tempMat);
+		return this._obj1Buffer.computeUsedObjects(getScalingFactorOfMatrix(tempMat));
 	}
 }
