@@ -4,7 +4,7 @@
  */
 import {loadVdp, runProgram} from "./vdp/runloop";
 import {SCREEN_WIDTH} from "./vdp/shaders";
-import {mat3} from "./gl-matrix";
+import {color16} from "./vdp/color16";
 
 const TextLayer = {
 	/**
@@ -13,8 +13,8 @@ const TextLayer = {
 	setup: function(vdp) {
 		this.vdp = vdp;
 		this.tileset = vdp.sprite('text');
-		this.map = vdp.readMap('text', true);
 		this.mapWidth = vdp.map('text').w;
+		this.map = vdp.readMap('text', vdp.SOURCE_BLANK);
 	},
 	clear: function() {
 		this.map.fill(0);
@@ -33,14 +33,14 @@ const TextLayer = {
 		return 15;
 	},
 	drawText: function (x, y, text) {
-		// TODO Florian -- Make a 2D map buffer (it would contain the map data and an accessor)
 		for (let i = 0; i < text.length; i++) {
 			this.map[this.mapWidth * y + x + i] = this.getCharTile(text.charCodeAt(i));
 		}
-
-		// TODO Florian -- Write only the required part
-		// TODO Florian -- Maybe optimize the reading of maps
+	},
+	drawLayer: function() {
+		// Update and draw
 		this.vdp.writeMap('text', this.map);
+		this.vdp.drawBG('text');
 	}
 };
 
@@ -70,12 +70,23 @@ function *main(vdp) {
 	//	defaultSprite[i] = i % 16;
 	//vdp.writeSprite('gradient', defaultSprite);
 
-	let frameNo = 0;
-	vdp.configBDColor('#008');
-
 	TextLayer.setup(vdp);
 	TextLayer.clear();
-	TextLayer.drawText(3, 3, 'Hello world');
+
+	const pal = vdp.readPalette('Mario');
+	pal.forEach((c, i) => pal[i] = color16.blend(pal[i], 0xf00f, 0.5));
+	vdp.writePalette('Mario', pal);
+
+	//const pal2 = vdp.readPalette('Mario');
+	//pal2.forEach((col, i) => {
+	//	const c = color16.extract(pal2[i]);
+	//	c.r = 15;
+	//	pal2[i] = color16.make(c);
+	//});
+	//vdp.writePalette('Mario', pal2);
+
+	//const map = vdp.readMap('level1');
+
 
 	// function printCol(c) {
 	// 	console.log(`TEMP `, (c & 0xff),
@@ -89,7 +100,46 @@ function *main(vdp) {
 	// mat3.scale(trans, trans, [2, 2]);
 	// vdp.configOBJTransform({ obj1Transform: trans });
 
+	const pals = vdp.readPaletteMemory(0, 0, 256, 5, vdp.SOURCE_CURRENT);
+	pals.forEach((col, i) => pals[i] = 0);
+	vdp.writePaletteMemory(0, 0, 256, 5, pals);
+
+
 	while (true) {
+		//if (scroll === 620) {
+		//	const originalPal = vdp.readPalette('Mario', vdp.SOURCE_ROM);
+		//	vdp.writePalette('Mario', originalPal);
+		//}
+
+		if (scroll >= 0 && scroll < 200 && scroll % 2 === 0 || scroll >= 500 && scroll < 600) {
+			const rom = vdp.readPaletteMemory(0, 0, 256, 5, vdp.SOURCE_ROM);
+			const current = vdp.readPaletteMemory(0, 0, 256, 5, vdp.SOURCE_CURRENT);
+			rom[0] = 0xbfff;
+			current.forEach((col, i) => {
+				const finalCol = color16.extract(rom[i]);
+				let {r, g, b} = color16.extract(current[i]);
+
+				if (finalCol.b > b) b += 1;
+				else if (finalCol.g > g) g += 1;
+				else if (finalCol.r > r) r += 1;
+
+				current[i] = color16.make(r, g, b);
+			});
+			vdp.writePaletteMemory(0, 0, 256, 5, current);
+		}
+
+		if (scroll >= 200 && scroll <= 400 && scroll % 4 === 0) {
+			const pals = vdp.readPaletteMemory(0, 0, 256, 5, vdp.SOURCE_CURRENT);
+			pals.forEach((col, i) => {
+				let { r, g, b } = color16.extract(col);
+				if (r > 0) r -= 1;
+				else if (g > 0) g -= 1;
+				else if (b > 0) b -= 1;
+				pals[i] = color16.make(r, g, b);
+			});
+			vdp.writePaletteMemory(0, 0, 256, 5, pals);
+		}
+
 		// Note: reading from VRAM is very slow
 		// const palData = vdp.readPalette('Mario');
 		// const val = Math.floor(Math.min(15, scroll / 16));
@@ -113,17 +163,20 @@ function *main(vdp) {
 		// vdp.configOBJTransparency({ op: 'sub', blendSrc: '#fff', blendDst: '#fff' });
 		// vdp.configOBJTransparency({ op: 'add', blendDst: '#fff', blendSrc: '#000', mask: true });
 		vdp.configOBJTransparency({ op: 'add', blendDst: '#888', blendSrc: '#fff', mask: false});
-		vdp.drawBG('level1', { scrollX: scroll, winW: SCREEN_WIDTH * 0.5, prio: 0 });
-		vdp.drawBG('level1', { scrollX: scroll, winX: SCREEN_WIDTH * 0.5, prio: 2, transparent: true });
-		vdp.drawBG('text');
+		vdp.drawBG('level1', { scrollX: scroll });
+		//vdp.drawBG('level1', { scrollX: scroll, winW: SCREEN_WIDTH * 0.5, prio: 0 });
+		//vdp.drawBG('level1', { scrollX: scroll, winX: SCREEN_WIDTH * 0.5, prio: 2, transparent: true });
+
+		TextLayer.drawText(1, 1, `Hello world ${scroll}`);
+		TextLayer.drawLayer();
 
 		vdp.drawObj('gradient', 0, 180, { height: 8, prio: 1, transparent: true });
 		vdp.drawObj('gradient', 0, 172, { height: 8, palette: 'Level1', prio: 1, transparent: true });
 
 		// Take the (0, 0, 16, 16) part of the big mario sprite
-		// const marioSprite = vdp.sprite('mario').offsetted(0, 0, 16, 16);
+		 const marioSprite = vdp.sprite('mario').offsetted(0, 0, 16, 16);
 		// And draw it 32x32 (2x zoom)
-		// vdp.drawObj(marioSprite, scroll + 16, 0, {width: -256, height: 256, prio: 0, transparent: false });
+		 vdp.drawObj(marioSprite, scroll / 2, 0, {width: -256, height: 256, prio: 0, transparent: false });
 
 		scroll += 1;
 

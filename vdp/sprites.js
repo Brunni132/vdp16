@@ -16,7 +16,7 @@ const OBJ_CELL_SIZE = 32;
 const OBJ_BUFFER_STRIDE = 6;
 
 // TODO Florian -- Refactor to use zero-based indexes (and document) for all helper functions, like MapBuffer
-class ObjBuffer {
+export class ObjBuffer {
 	/**
 	 * @param name {string} for debugging
 	 * @param numVertices {number}
@@ -150,7 +150,8 @@ class ObjBuffer {
 			const current = this._computeObjectCells(size, scaling);
 
 			if (cells + current > maxCells) {
-				// Limit the width of this sprite -- Doesn't work because we need to scale the UV too with floating point UV rendering
+
+				// TODO Florian -- Limit the width of this sprite -- Doesn't work because we need to scale the UV too with floating point UV rendering
 				//const cellsTall = Math.ceil(size.h * layerTransform.scaling[1] / OBJ_CELL_SIZE);
 				//const allowedCellsWide = (maxCells - cells) / cellsTall;
 				//this.setWidthOfObject(i, allowedCellsWide * OBJ_CELL_SIZE);

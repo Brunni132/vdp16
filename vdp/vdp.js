@@ -1,18 +1,7 @@
-import {
-	createDataTextureFloat,
-	getScalingFactorOfMatrix,
-	loadTexture,
-	loadTexture4444,
-	parseColor, readFromTexture32,
-	readFromTextureToExisting,
-	readFromTextureToExisting16,
-	writeToTexture16,
-	writeToTexture32,
-	writeToTextureFloat
-} from "./utils";
+import {createDataTextureFloat, getScalingFactorOfMatrix, loadTexture, loadTexture4444, parseColor} from "./utils";
 import {mat3, mat4} from "../gl-matrix";
 import {drawPendingObj, enqueueObj, initObjShaders, makeObjBuffer, ObjBuffer} from "./sprites";
-import {drawMap, drawPendingMap, enqueueMap, initMapShaders, makeMapBuffer} from "./maps";
+import {drawPendingMap, enqueueMap, initMapShaders, makeMapBuffer} from "./maps";
 import {
 	envColor,
 	OTHER_TEX_W,
@@ -26,12 +15,13 @@ import {
 import {drawOpaquePoly, initOpaquePolyShaders} from "./generalpolys";
 import {VdpMap, VdpPalette, VdpSprite} from "./memory";
 import {
-	makeCopyOfTexture,
 	makeShadowFromTexture16,
+	makeShadowFromTexture4444,
 	makeShadowFromTexture8,
-	readFromShadowTexture,
-	readFromShadowTexture16
-} from "./shadow";
+	ShadowTexture
+} from "./shadowtexture";
+import {color32} from "./color32";
+import {color16} from "./color16";
 
 const BG_LIMIT = 4;
 const TBG_LIMIT = 1;
@@ -143,8 +133,6 @@ export class VDP {
 	 * @param done {function()}
 	 */
 	constructor(canvas, done) {
-		/** @type {number} backdrop color. */
-		this._backdropColor = 0x00800000;
 		/** @type {number} fade color (factor is the upper 8 bits). */
 		this._fadeColor = 0x00000000;
 		/** @type {TransparencyConfig} */
@@ -185,6 +173,10 @@ export class VDP {
 		/** @type {ShadowTexture} copy of the VRAM data for fast read access from the program */
 		this.shadowSpriteTex = null;
 
+		this.SOURCE_CURRENT = 0;
+		this.SOURCE_ROM = 1;
+		this.SOURCE_BLANK = 2;
+
 		this._initContext(canvas);
 		this._initMatrices();
 
@@ -195,6 +187,7 @@ export class VDP {
 
 			loadTexture(gl, 'build/sprites.png', (tex, spriteImage) => {
 				this.spriteTexture = tex;
+
 				this.romSpriteTex = makeShadowFromTexture8(gl, tex, spriteImage);
 				this.shadowSpriteTex = this.romSpriteTex.clone();
 
@@ -202,7 +195,7 @@ export class VDP {
 					if (palImage.width !== 256 && palImage.width !== 16 || palImage.height !== PALETTE_TEX_H)
 						throw new Error('Mismatch in texture size');
 					this.paletteTexture = tex;
-					this.romPaletteTex = makeShadowFromTexture16(gl, tex, palImage);
+					this.romPaletteTex = makeShadowFromTexture4444(gl, tex, palImage);
 					this.shadowPaletteTex = this.romPaletteTex.clone();
 
 					loadTexture(gl, 'build/maps.png', (tex, mapImage) => {
@@ -213,6 +206,8 @@ export class VDP {
 						setTextureSizes(palImage.width, palImage.height, mapImage.width, mapImage.height, spriteImage.width, spriteImage.height);
 
 						this.otherTexture = createDataTextureFloat(gl, OTHER_TEX_W, OTHER_TEX_W);
+						// Startup color
+						this.configBDColor('#008');
 
 						initMapShaders(this);
 						initObjShaders(this);
@@ -229,7 +224,7 @@ export class VDP {
 	 * @param color {number|string} backdrop color
 	 */
 	configBDColor(color) {
-		this._backdropColor = parseColor(color);
+		this.shadowPaletteTex.buffer[0] = color16.parseColor(color);
 	}
 
 	/**
@@ -244,8 +239,8 @@ export class VDP {
 			throw new Error(`Invalid operation ${opts.op}`);
 		}
 		this._bgTransparency.operation = opts.op;
-		this._bgTransparency.blendSrc = parseColor(opts.blendSrc);
-		this._bgTransparency.blendDst = parseColor(opts.blendDst);
+		this._bgTransparency.blendSrc = color32.parseColor(opts.blendSrc);
+		this._bgTransparency.blendDst = color32.parseColor(opts.blendDst);
 	}
 
 	/**
@@ -256,7 +251,7 @@ export class VDP {
 	 */
 	configFade(color, factor) {
 		factor = Math.min(255, Math.max(0, factor));
-		this._fadeColor = (parseColor(color) & 0xffffff) | (factor << 24);
+		this._fadeColor = (color32.parseColor(color) & 0xffffff) | (factor << 24);
 	}
 
 	/**
@@ -282,8 +277,8 @@ export class VDP {
 			throw new Error(`Invalid operation ${opts.op}`);
 		}
 		this._objTransparency.operation = opts.op;
-		this._objTransparency.blendSrc = parseColor(opts.blendSrc);
-		this._objTransparency.blendDst = parseColor(opts.blendDst);
+		this._objTransparency.blendSrc = color32.parseColor(opts.blendSrc);
+		this._objTransparency.blendDst = color32.parseColor(opts.blendDst);
 		this._obj1AsMask = !!opts.mask;
 	}
 
@@ -394,27 +389,29 @@ export class VDP {
 	/**
 	 * @param map {string|VdpMap} name of the map (or map itself). You may also query an arbitrary portion of the map
 	 * memory using new VdpMap(…) or offset an existing map, using vdp.map('myMap').offsetted(…).
-	 * @param blank [boolean=false] set to true if you don't care about the current content of the memory (you're going
-	 * to write only and you need a buffer for that)
+	 * @param source [number=vdp.SOURCE_CURRENT] set to vdp.SOURCE_BLANK if you don't care about the current content of
+	 * the memory (you're going to write only and you need a buffer for that), vdp.SOURCE_CURRENT to read the current
+	 * contents of the memory (as was written the last time with writeMap) or vdp.SOURCE_ROM to get the original data
+	 * as downloaded from the cartridge.
 	 * @return {Uint16Array}
 	 */
-	readMap(map, blank = false) {
+	readMap(map, source = this.SOURCE_CURRENT) {
 		const m = this._getMap(map);
 		const result = new Uint16Array(m.w * m.h);
-		if (!blank) this.shadowMapTex.readToBuffer(m.x, m.y, m.w, m.h, result);
+		if (source === this.SOURCE_CURRENT) this.shadowMapTex.readToBuffer(m.x, m.y, m.w, m.h, result);
+		if (source === this.SOURCE_ROM) this.romMapTex.readToBuffer(m.x, m.y, m.w, m.h, result);
 		return result;
 	}
 
 	/**
 	 * @param palette {string|VdpPalette} name of the palette (or palette itself). You may also query an arbitrary portion
 	 * of the palette memory using new VdpPalette(…) or offset an existing map, using vdp.map('myMap').offsetted(…).
-	 * @param blank [boolean=false] set to true if you don't care about the current content of the memory (you're going
-	 * to write only and you need a buffer for that)
+	 * @param source [number=vdp.SOURCE_CURRENT] look at readMap for more info.
 	 * @return {Uint16Array} contains color entries, encoded as 0xRGBA
 	 */
-	readPalette(palette, blank = false) {
+	readPalette(palette, source = this.SOURCE_CURRENT) {
 		const pal = this._getPalette(palette);
-		return this.readPaletteMemory(0, pal.y, pal.size, 1, blank);
+		return this.readPaletteMemory(0, pal.y, pal.size, 1, source);
 	}
 
 	/**
@@ -422,38 +419,34 @@ export class VDP {
 	 * @param y {number}
 	 * @param w {number}
 	 * @param h {number}
-	 * @param blank {boolean}
+	 * @param source [number=vdp.SOURCE_CURRENT] look at readMap for more info.
 	 * @returns {Uint16Array} contains color entries, encoded as 0xRGBA
 	 */
-	readPaletteMemory(x, y, w, h, blank = false) {
+	readPaletteMemory(x, y, w, h, source = this.SOURCE_CURRENT) {
 		const result = new Uint16Array(w * h);
-		if (!blank) this.shadowPaletteTex.readToBuffer(x, y, w, h, result);
+		if (source === this.SOURCE_CURRENT) this.shadowPaletteTex.readToBuffer(x, y, w, h, result);
+		if (source === this.SOURCE_ROM) this.romPaletteTex.readToBuffer(x, y, w, h, result);
 		return result;
 	}
 
 	/**
 	 * @param sprite {string|VdpSprite} name of the sprite (or sprite itself). You may also query an arbitrary portion of the
 	 * sprite memory using new VdpSprite(…) or offset an existing sprite, using vdp.sprite('mySprite').offsetted(…).
-	 * @param blank [boolean=false] set to true if you don't care about the current content of the memory (you're going
-	 * to write only and you need a buffer for that)
+	 * @param source [number=vdp.SOURCE_CURRENT] look at readMap for more info.
 	 * @return {Uint8Array} the tileset data. For hi-color sprites, each entry represents one pixel. For lo-color sprites,
 	 * each entry corresponds to two packed pixels, of 4 bits each.
 	 */
-	readSprite(sprite, blank = false) {
+	readSprite(sprite, source = this.SOURCE_CURRENT) {
 		const s = this._getSprite(sprite);
-		if (s.hiColor) {
-			const result = new Uint8Array(s.w, s.h);
-			if (!blank) this.shadowSpriteTex.readToBuffer(s.x, s.y, s.w, s.h, result);
-			return result;
 
-		} else {
-			if (s.x % 2 !== 0) throw new Error('Lo-color sprites need to be aligned to 2 pixels');
+		if (!s.hiColor && s.x % 2 !== 0) throw new Error('Lo-color sprites need to be aligned to 2 pixels');
+		const x = s.hiColor ? s.x : (s.x / 2);
+		const w = s.hiColor ? s.w : Math.ceil(s.w / 2);
 
-			const w = Math.ceil(s.w / 2);
-			const result = new Uint8Array(w * s.h);
-			if (!blank) this.shadowSpriteTex.readToBuffer(s.x / 2, s.y, w, s.h, result);
-			return result;
-		}
+		const result = new Uint8Array(w * s.h);
+		if (source === this.SOURCE_CURRENT) this.shadowSpriteTex.readToBuffer(x, s.y, w, s.h, result);
+		if (source === this.SOURCE_ROM) this.romSpriteTex.readToBuffer(x, s.y, w, s.h, result);
+		return result;
 	}
 
 	/**
@@ -474,9 +467,7 @@ export class VDP {
 	writeMap(map, data) {
 		const m = this._getMap(map);
 		this.shadowMapTex.writeTo(m.x, m.y, m.w, m.h, data);
-
-		const mapEls = Math.floor(m.w / 2);
-		writeToTexture32(this.gl, this.mapTexture, m.x / 2, m.y, mapEls, m.h, new Uint8Array(data.buffer));
+		this.shadowMapTex.syncToVramTexture(this.gl, this.mapTexture, m.x, m.y, m.w, m.h);
 	}
 
 	/**
@@ -497,7 +488,8 @@ export class VDP {
 	 * @param data {Uint16Array} color entries, encoded as 0xRGBA
 	 */
 	writePaletteMemory(x, y, w, h, data) {
-		writeToTexture16(this.gl, this.paletteTexture, x, y, w, h, data);
+		this.shadowPaletteTex.writeTo(x, y, w, h, data);
+		this.shadowPaletteTex.syncToVramTexture(this.gl, this.paletteTexture, x, y, w, h);
 	}
 
 	/**
@@ -508,18 +500,13 @@ export class VDP {
 	 */
 	writeSprite(sprite, data) {
 		const s = this._getSprite(sprite);
-		if (s.hiColor) {
-			if (s.x % 4 !== 0) throw new Error('Hi-color sprites need to be aligned to 4 pixels');
 
-			const els = Math.ceil(s.w / 4);
-			writeToTexture32(this.gl, this.spriteTexture, s.x / 4, s.y, els, s.h, data);
+		if (!s.hiColor && s.x % 2 !== 0) throw new Error('Lo-color sprites need to be aligned to 2 pixels');
+		const x = s.hiColor ? s.x : (s.x / 2);
+		const w = s.hiColor ? s.w : Math.ceil(s.w / 2);
 
-		} else {
-			if (s.x % 8 !== 0) throw new Error('Lo-color sprites need to be aligned to 8 pixels');
-
-			const els = Math.ceil(s.w / 8);
-			writeToTexture32(this.gl, this.spriteTexture, s.x / 8, s.y, els, s.h, data);
-		}
+		this.shadowSpriteTex.writeTo(x, s.y, w, s.h, data);
+		this.shadowSpriteTex.syncToVramTexture(this.gl, this.paletteTexture, x, s.y, w, s.h);
 	}
 
 	// --------------------- PRIVATE ---------------------
@@ -571,8 +558,25 @@ export class VDP {
 		const gl = this.gl;
 		// Do before drawing stuff since it flushes the buffer
 		const obj0Limit = this._computeOBJ0Limit();
+		const bdColor = this.shadowPaletteTex.buffer[0];
 
 		this._computeStats(obj0Limit);
+
+		gl.clearColor(
+			(bdColor >>> 12 & 0xf) / 15,
+			(bdColor >>> 8 & 0xf) / 15,
+			(bdColor >>> 4 & 0xf) / 15, 0);
+
+		if (USE_PRIORITIES) {
+			gl.clearDepth(1.0);                 // Clear everything
+			// PERF: This is a lot slower if there's a discard in the fragment shader (and we need one?) because the GPU can't test & write to the depth buffer until after the fragment shader has been executed. So there's no point in using it I guess.
+			gl.enable(gl.DEPTH_TEST);           // Enable depth testing
+			gl.depthFunc(gl.LESS);            // Near things obscure far things
+			gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+		} else {
+			gl.clear(gl.COLOR_BUFFER_BIT);
+		}
 
 		NO_TRANSPARENCY.apply(this);
 		mat3.identity(this.modelViewMatrix);
@@ -671,24 +675,6 @@ export class VDP {
 	 * @protected
 	 */
 	_startFrame() {
-		const gl = this.gl;
-
-		this._obj0Usage = this._obj1Usage = 0;
-		gl.clearColor(
-			(this._backdropColor & 0xf0) / 240,
-			(this._backdropColor >>> 8 & 0xf0) / 240,
-			(this._backdropColor >>> 16 & 0xf0) / 240, 0);
-
-		if (USE_PRIORITIES) {
-			gl.clearDepth(1.0);                 // Clear everything
-			// PERF: This is a lot slower if there's a discard in the fragment shader (and we need one?) because the GPU can't test & write to the depth buffer until after the fragment shader has been executed. So there's no point in using it I guess.
-			gl.enable(gl.DEPTH_TEST);           // Enable depth testing
-			gl.depthFunc(gl.LESS);            // Near things obscure far things
-			gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
-		} else {
-			gl.clear(gl.COLOR_BUFFER_BIT);
-		}
 	}
 
 	/**
