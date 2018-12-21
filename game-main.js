@@ -6,6 +6,44 @@ import {loadVdp, runProgram} from "./vdp/runloop";
 import {SCREEN_WIDTH} from "./vdp/shaders";
 import {mat3} from "./gl-matrix";
 
+const TextLayer = {
+	/**
+	 * @param vdp {VDP}
+	 */
+	setup: function(vdp) {
+		this.vdp = vdp;
+		this.tileset = vdp.sprite('text');
+		this.map = vdp.readMap('text', true);
+		this.mapWidth = vdp.map('text').w;
+	},
+	clear: function() {
+		this.map.fill(0);
+		this.vdp.writeMap('text', this.map);
+	},
+	getCharTile: function(c) {
+		if (c >= '0'.charCodeAt(0) && c <= '9'.charCodeAt(0)) return 1 + c - '0'.charCodeAt(0);
+		if (c >= 'a'.charCodeAt(0) && c <= 'z'.charCodeAt(0)) return 17 + c - 'a'.charCodeAt(0);
+		if (c >= 'A'.charCodeAt(0) && c <= 'Z'.charCodeAt(0)) return 17 + c - 'A'.charCodeAt(0);
+		if (c === ':'.charCodeAt(0)) return 11;
+		if (c === '-'.charCodeAt(0)) return 14;
+		if (c === ' '.charCodeAt(0)) return 0;
+		if (c === '©'.charCodeAt(0)) return 16;
+		if (c === '®'.charCodeAt(0)) return 46;
+		// ? for all other chars
+		return 15;
+	},
+	drawText: function (x, y, text) {
+		// TODO Florian -- Make a 2D map buffer (it would contain the map data and an accessor)
+		for (let i = 0; i < text.length; i++) {
+			this.map[this.mapWidth * y + x + i] = this.getCharTile(text.charCodeAt(i));
+		}
+
+		// TODO Florian -- Write only the required part
+		// TODO Florian -- Maybe optimize the reading of maps
+		this.vdp.writeMap('text', this.map);
+	}
+};
+
 /** @param vdp {VDP} */
 function *main(vdp) {
 	let scroll = 0;
@@ -35,6 +73,10 @@ function *main(vdp) {
 	let frameNo = 0;
 	vdp.configBDColor('#008');
 
+	TextLayer.setup(vdp);
+	TextLayer.clear();
+	TextLayer.drawText(3, 3, 'Hello world');
+
 	// function printCol(c) {
 	// 	console.log(`TEMP `, (c & 0xff),
 	// 		(c >>> 8 & 0xff),
@@ -43,9 +85,9 @@ function *main(vdp) {
 	// }
 	// printCol(vdp._getColor(0x11121314));
 
-	 const trans = mat3.create();
-	 mat3.scale(trans, trans, [2, 2]);
-	 vdp.configOBJTransform({ obj1Transform: trans });
+	// const trans = mat3.create();
+	// mat3.scale(trans, trans, [2, 2]);
+	// vdp.configOBJTransform({ obj1Transform: trans });
 
 	while (true) {
 		// Note: reading from VRAM is very slow
@@ -67,23 +109,23 @@ function *main(vdp) {
 
 		const gl = vdp.gl;
 		// vdp.configFade('#fff', scroll);
-		vdp.configBGTransparency({ op: 'add', blendSrc: '#0ff', blendDst: '#000' });
+		vdp.configBGTransparency({ op: 'add', blendDst: '#fff', blendSrc: '#fff' });
 		// vdp.configOBJTransparency({ op: 'sub', blendSrc: '#fff', blendDst: '#fff' });
 		// vdp.configOBJTransparency({ op: 'add', blendDst: '#fff', blendSrc: '#000', mask: true });
 		vdp.configOBJTransparency({ op: 'add', blendDst: '#888', blendSrc: '#fff', mask: false});
-		vdp.drawBG('level1', { scrollX: scroll, winW: SCREEN_WIDTH * 0.25, prio: 0 });
-		vdp.drawBG('level1', { scrollX: scroll, winX: SCREEN_WIDTH * 0.25, prio: 0, transparent: true });
+		vdp.drawBG('level1', { scrollX: scroll, winW: SCREEN_WIDTH * 0.5, prio: 0 });
+		vdp.drawBG('level1', { scrollX: scroll, winX: SCREEN_WIDTH * 0.5, prio: 2, transparent: true });
+		vdp.drawBG('text');
 
 		vdp.drawObj('gradient', 0, 180, { height: 8, prio: 1, transparent: true });
 		vdp.drawObj('gradient', 0, 172, { height: 8, palette: 'Level1', prio: 1, transparent: true });
 
 		// Take the (0, 0, 16, 16) part of the big mario sprite
-		const marioSprite = vdp.sprite('mario').offsetted(0, 0, 16, 16);
+		// const marioSprite = vdp.sprite('mario').offsetted(0, 0, 16, 16);
 		// And draw it 32x32 (2x zoom)
-		vdp.drawObj(marioSprite, scroll + 16, 0, {width: -256, height: 256, prio: 1, transparent: true });
+		// vdp.drawObj(marioSprite, scroll + 16, 0, {width: -256, height: 256, prio: 0, transparent: false });
 
 		scroll += 1;
-
 
 		// const spr = vdp.sprite('mario').offsetted(0, 0, 64, 64);
 		// const opts = { palette: vdp.palette(spr.designPalette) };

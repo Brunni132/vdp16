@@ -15,6 +15,7 @@ const OBJ_CELL_SIZE = 32;
 
 const OBJ_BUFFER_STRIDE = 6;
 
+// TODO Florian -- Refactor to use zero-based indexes (and document) for all helper functions, like MapBuffer
 class ObjBuffer {
 	/**
 	 * @param name {string} for debugging

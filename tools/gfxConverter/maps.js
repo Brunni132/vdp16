@@ -71,24 +71,66 @@ class Tileset {
 	 * @param tilesWide {number}
 	 * @param tilesTall {number}
 	 * @param palettes {Palette[]}
+	 * @param [firstTileEmpty=false] {boolean}
 	 */
-	constructor(name, tileWidth, tileHeight, tilesWide, tilesTall, palettes) {
+	constructor(name, tileWidth, tileHeight, tilesWide, tilesTall, palettes, firstTileEmpty=false) {
 		assert(palettes.length === 1, 'Does support only one palette for now');
 		assert((tilesWide * tilesTall) >= 1, 'At least one tile required in tileset');
+		/** @type {string} */
 		this.name = name;
+		/** @type {number} */
 		this.tileWidth = tileWidth;
+		/** @type {number} */
 		this.tileHeight = tileHeight;
+		/** @type {number} */
 		this.tilesWide = tilesWide;
+		/** @type {number} */
 		this.tilesTall = tilesTall;
+		/** @type {Palette[]} */
 		this.palettes = palettes;
+		/** @type {Tile[]} */
+		this.tiles = [];
 
 		// First tile is always transparent
-		/** @type {Tile[]} */
-		this.tiles = [Tile.filledWithZero(tileWidth, tileHeight)];
+		if (firstTileEmpty) this.tiles.push(Tile.filledWithZero(tileWidth, tileHeight));
 	}
 
+	/**
+	 * Makes a blank tileset.
+	 * @param name {string}
+	 * @param tileWidth {number}
+	 * @param tileHeight {number}
+	 * @param tilesWide {number}
+	 * @param tilesTall {number}
+	 * @param palettes {Palette[]}
+	 * @returns {Tileset}
+	 */
 	static blank(name, tileWidth, tileHeight, tilesWide, tilesTall, palettes) {
 		return new Tileset(name, tileWidth, tileHeight, tilesWide, tilesTall, palettes);
+	}
+
+	/**
+	 * Constructs a tileset from an image
+	 * @param name {string}
+	 * @param texture {Texture}
+	 * @param tileWidth {number}
+	 * @param tileHeight {number}
+	 * @param palettes {Palette[]}
+	 * @returns {Tileset}
+	 */
+	static fromImage(name, texture, tileWidth, tileHeight, palettes) {
+		assert(texture.width % tileWidth === 0 || texture.height % tileHeight === 0, `Undividable tileset ${texture.width}x${texture.height} by ${tileWidth}x${tileHeight}`);
+
+		const tilesWide = texture.width / tileWidth;
+		const tilesTall = texture.height / tileHeight;
+		const result = new Tileset(name, tileWidth, tileHeight, tilesWide, tilesTall, palettes);
+
+		for (let y = 0; y < tilesTall; y++) {
+			for (let x = 0; x < tilesWide; x++) {
+				result.addTile(Tile.fromImage32(texture.subtexture(x * tileWidth, y * tileHeight, tileWidth, tileHeight), palettes[0]));
+			}
+		}
+		return result;
 	}
 
 	/***
@@ -174,6 +216,7 @@ class Map {
 	 * @param tileset {Tileset}
 	 */
 	constructor(name, width, height, tileset) {
+		// TODO Florian -- Can create map without tileset (null)
 		this.name = name;
 		this.width = width;
 		this.height = height;
@@ -183,12 +226,24 @@ class Map {
 	}
 
 	/**
+	 * Creates a blank map space in ROM.
+	 * @param name {string}
+	 * @param cellsWide {number}
+	 * @param cellsTall {number}
+	 * @param tileset {Tileset}
+	 * @returns {Map} new instance
+	 */
+	static blank(name, cellsWide, cellsTall, tileset) {
+		return new Map(name, cellsWide, cellsTall, tileset);
+	}
+
+	/**
 	 * Generates a tilemap based on an image that may contain the same tiles multiple times. It adds tiles to the tileset
 	 * and palettes referenced by it.
 	 * @param name {string}
 	 * @param image {Texture} original image (full color)
 	 * @param tileset {Tileset} adds to it
-	 * @returns {Map}
+	 * @returns {Map} new instance
 	 */
 	static fromImage(name, image, tileset) {
 		const mapWidth = Math.ceil(image.width / tileset.tileWidth);

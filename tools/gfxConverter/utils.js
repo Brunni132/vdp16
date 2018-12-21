@@ -6,6 +6,17 @@ String.prototype.formatAsError = function() {
 	return this.formatAs('1', '31');
 };
 
+/**
+ * (3, 4) => 4; (4, 4) => 4 ; (5, 4) => 8; (8, 4) => 8; (9, 4) => 12; etc.
+ * @param number {number}
+ * @param divider {number}
+ */
+function alignToUpperDivider(number, divider) {
+	const mod = number % divider;
+	if (mod === 0) return number;
+	return number + (divider - number % divider);
+}
+
 // min and max included
 function randomIntFromInterval(min,max) {
 	return Math.floor(Math.random()*(max-min+1)+min);
@@ -34,5 +45,6 @@ module.exports = {
 	BG_MAGENTA: '45',
 	BG_CYAN: '46',
 	BG_WHITE: '47',
+	alignToUpperDivider,
 	randomIntFromInterval
 };

@@ -3,7 +3,7 @@ import {
 	getScalingFactorOfMatrix,
 	loadTexture,
 	loadTexture4444,
-	parseColor,
+	parseColor, readFromTexture32,
 	readFromTextureToExisting,
 	readFromTextureToExisting16,
 	writeToTexture16,
@@ -21,11 +21,17 @@ import {
 	SCREEN_WIDTH,
 	SEMITRANSPARENT_CANVAS,
 	setTextureSizes,
-	TRUECOLOR_MODE,
 	USE_PRIORITIES
 } from "./shaders";
 import {drawOpaquePoly, initOpaquePolyShaders} from "./generalpolys";
 import {VdpMap, VdpPalette, VdpSprite} from "./memory";
+import {
+	makeCopyOfTexture,
+	makeShadowFromTexture16,
+	makeShadowFromTexture8,
+	readFromShadowTexture,
+	readFromShadowTexture16
+} from "./shadow";
 
 const BG_LIMIT = 4;
 const TBG_LIMIT = 1;
@@ -159,41 +165,54 @@ export class VDP {
 		this._obj0LayerTransform = new LayerTransform();
 		/** @type {LayerTransform} transformation matrix for OBJ1 (transparent) */
 		this._obj1LayerTransform = new LayerTransform();
-		/** @type {{peakOBJ0: number, peakOBJ1: number, peakBG: number, worstOBJLimit: number}} */
+		/** @type {{peakOBJ0: number, peakOBJ1: number, peakBG: number, OBJ0Limit: number}} */
 		this.stats = {
 			peakOBJ0: 0,
 			peakOBJ1: 0,
 			peakBG: 0,
-			worstOBJLimit: OBJ0_CELL_LIMIT
+			OBJ0Limit: OBJ0_CELL_LIMIT
 		};
+		/** @type {ShadowTexture} original data (ROM) for maps */
+		this.romMapTex = null;
+		/** @type {ShadowTexture} original data (ROM) for palettes */
+		this.romPaletteTex = null;
+		/** @type {ShadowTexture} original data (ROM) for sprites */
+		this.romSpriteTex = null;
+		/** @type {ShadowTexture} copy of the VRAM data for fast read access from the program */
+		this.shadowMapTex = null;
+		/** @type {ShadowTexture} copy of the VRAM data for fast read access from the program */
+		this.shadowPaletteTex = null;
+		/** @type {ShadowTexture} copy of the VRAM data for fast read access from the program */
+		this.shadowSpriteTex = null;
 
 		this._initContext(canvas);
 		this._initMatrices();
 
 		const gl = this.gl;
-		const loadTextureType = TRUECOLOR_MODE ? loadTexture : loadTexture4444;
 		// TODO Florian -- Use promises for loadTexture, make them all at the same time and wait for them all. Same for fetch
 		window.fetch('build/game.json').then((res) => res.json()).then((json) => {
 			this.gameData = json;
 
 			loadTexture(gl, 'build/sprites.png', (tex, spriteImage) => {
 				this.spriteTexture = tex;
+				this.romSpriteTex = makeShadowFromTexture8(gl, tex, spriteImage);
+				this.shadowSpriteTex = this.romSpriteTex.clone();
 
-				loadTextureType(gl, 'build/palettes.png', (tex, palImage) => {
+				loadTexture4444(gl, 'build/palettes.png', (tex, palImage) => {
 					if (palImage.width !== 256 && palImage.width !== 16 || palImage.height !== PALETTE_TEX_H)
 						throw new Error('Mismatch in texture size');
 					this.paletteTexture = tex;
+					this.romPaletteTex = makeShadowFromTexture16(gl, tex, palImage);
+					this.shadowPaletteTex = this.romPaletteTex.clone();
 
 					loadTexture(gl, 'build/maps.png', (tex, mapImage) => {
 						this.mapTexture = tex;
+						this.romMapTex = makeShadowFromTexture16(gl, tex, spriteImage);
+						this.shadowMapTex = this.romMapTex.clone();
 
 						setTextureSizes(palImage.width, palImage.height, mapImage.width, mapImage.height, spriteImage.width, spriteImage.height);
 
 						this.otherTexture = createDataTextureFloat(gl, OTHER_TEX_W, OTHER_TEX_W);
-						// Store a default identity matrix for linescroll buffer 0
-						// Only using 8 components, assuming that the last is always 1 (which is OK for affine transformations)
-						const mat = mat3.create();
-						writeToTextureFloat(gl, this.otherTexture, 0, 0, 2, 1, mat);
 
 						initMapShaders(this);
 						initObjShaders(this);
@@ -291,10 +310,10 @@ export class VDP {
 		const til = this._getSprite(opts.hasOwnProperty('tileset') ? opts.tilest : map.designTileset);
 		const scrollX = opts.hasOwnProperty('scrollX') ? opts.scrollX : 0;
 		const scrollY = opts.hasOwnProperty('scrollY') ? opts.scrollY : 0;
-		const winX = opts.hasOwnProperty('winX') ? opts.winX : 0;
-		const winY = opts.hasOwnProperty('winY') ? opts.winY : 0;
-		const winW = opts.hasOwnProperty('winW') ? opts.winW : SCREEN_WIDTH;
-		const winH = opts.hasOwnProperty('winH') ? opts.winH : SCREEN_HEIGHT;
+		let winX = opts.hasOwnProperty('winX') ? opts.winX : 0;
+		let winY = opts.hasOwnProperty('winY') ? opts.winY : 0;
+		let winW = opts.hasOwnProperty('winW') ? opts.winW : (SCREEN_WIDTH - winX);
+		let winH = opts.hasOwnProperty('winH') ? opts.winH : (SCREEN_HEIGHT - winY);
 		const linescrollBuffer = opts.hasOwnProperty('linescrollBuffer') ? opts.linescrollBuffer : -1;
 		const wrap = opts.hasOwnProperty('wrap') ? opts.wrap : true;
 		const prio = opts.prio || 0;
@@ -304,6 +323,12 @@ export class VDP {
 			console.log(`Too many BGs (${this._bgBuffer.usedLayers} opaque, ${this._tbgBuffer.usedLayers} transparent), ignoring drawBG`);
 			return;
 		}
+
+		// To avoid drawing too big quads and them counting toward the BG pixel budget
+		winX = Math.min(SCREEN_WIDTH, Math.max(0, winX));
+		winY = Math.min(SCREEN_HEIGHT, Math.max(0, winY));
+		winW = Math.min(SCREEN_WIDTH - winX, Math.max(0, winW));
+		winH = Math.min(SCREEN_HEIGHT - winY, Math.max(0, winH));
 
 		enqueueMap(buffer, map.x, map.y, til.x, til.y, map.w, map.h, til.w, til.tw, til.th, winX, winY, winW, winH, scrollX, scrollY, pal.y, til.hiColor, linescrollBuffer, wrap ? 1 : 0, prio);
 	}
@@ -333,7 +358,7 @@ export class VDP {
 
 	/**
 	 * Get and reset the VDP stats.
-	 * @returns {{peakOBJ0: number, peakOBJ1: number, peakBG: number, worstOBJLimit: number}}
+	 * @returns {{peakOBJ0: number, peakOBJ1: number, peakBG: number, OBJ0Limit: number}}
 	 */
 	getStats() {
 		const result = this.stats;
@@ -341,7 +366,7 @@ export class VDP {
 			peakOBJ0: 0,
 			peakOBJ1: 0,
 			peakBG: 0,
-			worstOBJLimit: OBJ0_CELL_LIMIT
+			OBJ0Limit: OBJ0_CELL_LIMIT
 		};
 		return result;
 	}
@@ -375,13 +400,8 @@ export class VDP {
 	 */
 	readMap(map, blank = false) {
 		const m = this._getMap(map);
-		if (m.x % 2 !== 0) throw new Error('Requires 2-tile aligned horizontal indices for maps tiles');
-
-		const mapEls = Math.ceil(m.w / 2);
-		const result = new Uint16Array(mapEls * 2 * m.h);
-		if (!blank) {
-			readFromTextureToExisting(this.gl, this.mapTexture, m.x / 2, m.y, mapEls, m.h, new Uint8Array(result.buffer));
-		}
+		const result = new Uint16Array(m.w * m.h);
+		if (!blank) this.shadowMapTex.readToBuffer(m.x, m.y, m.w, m.h, result);
 		return result;
 	}
 
@@ -407,9 +427,7 @@ export class VDP {
 	 */
 	readPaletteMemory(x, y, w, h, blank = false) {
 		const result = new Uint16Array(w * h);
-		if (!blank) {
-			readFromTextureToExisting16(this.gl, this.paletteTexture, x, y, w, h, result);
-		}
+		if (!blank) this.shadowPaletteTex.readToBuffer(x, y, w, h, result);
 		return result;
 	}
 
@@ -424,19 +442,16 @@ export class VDP {
 	readSprite(sprite, blank = false) {
 		const s = this._getSprite(sprite);
 		if (s.hiColor) {
-			if (s.x % 4 !== 0) throw new Error('Hi-color sprites need to be aligned to 4 pixels');
-
-			const els = Math.ceil(s.w / 4);
-			const result = new Uint8Array(els * 4);
-			readFromTextureToExisting(this.gl, this.spriteTexture, s.x / 4, s.y, els, s.h, result);
+			const result = new Uint8Array(s.w, s.h);
+			if (!blank) this.shadowSpriteTex.readToBuffer(s.x, s.y, s.w, s.h, result);
 			return result;
 
 		} else {
-			if (s.x % 8 !== 0) throw new Error('Lo-color sprites need to be aligned to 8 pixels');
+			if (s.x % 2 !== 0) throw new Error('Lo-color sprites need to be aligned to 2 pixels');
 
-			const els = Math.ceil(s.w / 8);
-			const result = new Uint8Array(els * 4);
-			readFromTextureToExisting(this.gl, this.spriteTexture, s.x / 8, s.y, els, s.h, result);
+			const w = Math.ceil(s.w / 2);
+			const result = new Uint8Array(w * s.h);
+			if (!blank) this.shadowSpriteTex.readToBuffer(s.x / 2, s.y, w, s.h, result);
 			return result;
 		}
 	}
@@ -458,9 +473,9 @@ export class VDP {
 	 */
 	writeMap(map, data) {
 		const m = this._getMap(map);
-		if (m.x % 2 !== 0) throw new Error('Requires 2-tile aligned horizontal indices for maps tiles');
+		this.shadowMapTex.writeTo(m.x, m.y, m.w, m.h, data);
 
-		const mapEls = Math.ceil(m.w / 2);
+		const mapEls = Math.floor(m.w / 2);
 		writeToTexture32(this.gl, this.mapTexture, m.x / 2, m.y, mapEls, m.h, new Uint8Array(data.buffer));
 	}
 
@@ -513,7 +528,9 @@ export class VDP {
 	 * @private
 	 */
 	_computeOBJ0Limit() {
-		const layers = this._bgBuffer.usedLayers + this._tbgBuffer.usedLayers;
+		// Count the number of BGs covering the full screen
+		const pixels = this._bgBuffer.getTotalPixels() + this._tbgBuffer.getTotalPixels();
+		const layers = Math.ceil(pixels / (SCREEN_WIDTH * SCREEN_HEIGHT));
 		let limit = OBJ0_CELL_LIMIT;
 		if (layers >= 3) limit -= 128;
 		if (layers >= 4) limit -= 128;
@@ -529,7 +546,7 @@ export class VDP {
 		this.stats.peakBG = Math.max(this.stats.peakBG, this._bgBuffer.usedLayers + this._tbgBuffer.usedLayers);
 		this.stats.peakOBJ0 = Math.max(this.stats.peakOBJ0, this._totalUsedOBJ0());
 		this.stats.peakOBJ1 = Math.max(this.stats.peakOBJ1, this._totalUsedOBJ1());
-		this.stats.worstOBJLimit = Math.min(this.stats.worstOBJLimit, obj0Limit);
+		this.stats.OBJ0Limit = Math.min(this.stats.OBJ0Limit, obj0Limit);
 	}
 
 	/**
@@ -547,6 +564,9 @@ export class VDP {
 		mat3.identity(this.modelViewMatrix);
 	}
 
+	/**
+	 * @protected
+	 */
 	_endFrame() {
 		const gl = this.gl;
 		// Do before drawing stuff since it flushes the buffer
@@ -555,6 +575,7 @@ export class VDP {
 		this._computeStats(obj0Limit);
 
 		NO_TRANSPARENCY.apply(this);
+		mat3.identity(this.modelViewMatrix);
 		drawPendingMap(this, this._bgBuffer);
 
 		if (this._obj1AsMask) {
@@ -563,7 +584,7 @@ export class VDP {
 			this._drawObjLayer(this._obj1Buffer, this._objTransparency, this._obj1LayerTransform, OBJ1_CELL_LIMIT);
 		}
 
-		this._drawObjLayer(this._obj0Buffer, this._objTransparency, this._obj0LayerTransform, obj0Limit);
+		this._drawObjLayer(this._obj0Buffer, NO_TRANSPARENCY, this._obj0LayerTransform, obj0Limit);
 
 		this._bgTransparency.apply(this);
 		gl.depthMask(false);
@@ -647,40 +668,8 @@ export class VDP {
 	}
 
 	/**
-	 *
-	 * @param effect {string}
-	 * @param [dstColor] {number} 12-bit color
-	 * @param [srcColor] {number} 12-bit color
+	 * @protected
 	 */
-	_setBlendMethod(effect, dstColor = null, srcColor = null) {
-		const gl = this.gl;
-
-		envColor[0] = envColor[1] = envColor[2] = envColor[3] = 1;
-		if (effect === 'blend') {
-			gl.enable(gl.BLEND);
-			gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-		} else if (effect === 'add') {
-			gl.enable(gl.BLEND);
-			gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-		} else if (effect === 'color') {
-			// Background blend factor
-			gl.blendColor(
-				(dstColor & 0xf0) / 240,
-				(dstColor >>> 8 & 0xf0) / 240,
-				(dstColor >>> 16 & 0xf0) / 240,
-				(dstColor >>> 24 & 0xf0) / 240);
-			// Source blend factor defined in shader
-			envColor[0] = (srcColor & 0xf0) / 240;
-			envColor[1] = (srcColor >>> 8 & 0xf0) / 240;
-			envColor[2] = (srcColor >>> 16 & 0xf0) / 240;
-			envColor[3] = (srcColor >>> 24 & 0xf0) / 240;
-			gl.blendFunc(gl.SRC_ALPHA, gl.CONSTANT_COLOR);
-			gl.enable(gl.BLEND);
-		} else {
-			gl.disable(gl.BLEND);
-		}
-	}
-
 	_startFrame() {
 		const gl = this.gl;
 
@@ -704,6 +693,7 @@ export class VDP {
 
 	/**
 	 * @returns {number}
+	 * @private
 	 */
 	_totalUsedOBJ0() {
 		const tempMat = mat3.create();
@@ -713,6 +703,7 @@ export class VDP {
 
 	/**
 	 * @returns {number}
+	 * @private
 	 */
 	_totalUsedOBJ1() {
 		const tempMat = mat3.create();

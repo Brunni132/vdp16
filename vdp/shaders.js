@@ -7,10 +7,6 @@ export let SEMITRANSPARENT_CANVAS = false;
 
 export const OTHER_TEX_W = 2048, OTHER_TEX_H = 16;
 
-// Use false for limited machine
-export const TRUECOLOR_MODE = false;
-// Only used in TRUECOLOR_MODE to simulate a limited 12-bit display
-export const LIMITED_COLOR_MODE = false;
 // Used for limited machine
 export const USE_PRIORITIES = true;
 // 4 on limited machine
@@ -85,20 +81,17 @@ export function declareReadTexel() {
 }
 
 export function declareReadPalette() {
-	if (LIMITED_COLOR_MODE && TRUECOLOR_MODE) {
-		return `vec4 readPalette(float x, float y) {
-					vec4 data = texture2D(uSamplerPalettes, vec2(x, y));
-					// Checked: same render as pre-posterization
-					return floor(data * 16.0) / 15.0;
-				}`;
-	} else {
-		return `vec4 readPalette(float x, float y) {
-					return texture2D(uSamplerPalettes, vec2(x, y));
-				}`;
-	}
+	// Can be reused, works and is checked to be 100% equivalent to having a RGBA4444 texture. But beware that makeOutputColor takes in account the envColor but doesn't posterize it, so you may want to move that
+	// return `vec4 readPalette(float x, float y) {
+	// 			vec4 data = texture2D(uSamplerPalettes, vec2(x, y));
+	// 			// Checked: same render as pre-posterization
+	// 			return floor(data * 16.0) / 15.0;
+	// 		}`;
+	return `vec4 readPalette(float x, float y) {
+				return texture2D(uSamplerPalettes, vec2(x, y));
+			}`;
 }
 
-// TODO Florian -- currently incompatible with posterization
 export function makeOutputColor(colorExpr) {
 	if (DISCARD_ALPHA) {
 		return `vec4((${colorExpr}).rgb * uEnvColor.rgb, 1)`;

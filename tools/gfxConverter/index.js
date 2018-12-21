@@ -90,6 +90,7 @@ class Sprite {
 	 * @param {Palette} palette
 	 */
 	constructor(name, width, height, palette) {
+		// TODO Florian -- A sprite should just be a tileset with one entry. Get rid of all that…
 		this.name = name;
 		this.width = width;
 		this.height = height;
@@ -132,14 +133,18 @@ class MasterPackBaker {
 
 	/**
 	 * @param {Texture} destTexture
+	 * @param {number} horizAlignment how many texels to align to (for instance, you should align 4-bit words to 8 texels since
+	 * they will be packed as 32-bit RGBA words in the final texture).
 	 */
-	constructor(destTexture) {
+	constructor(destTexture, horizAlignment) {
 		this.currentLineX = 0;
 		this.currentLineY = 0;
 		this.currentLineHeight = 0;
 		this.width = destTexture.width;
 		this.height = destTexture.height;
 		this.destTexture = destTexture;
+		/** @type {number} */
+		this.alignment = horizAlignment;
 	}
 
 	/**
@@ -163,6 +168,10 @@ class MasterPackBaker {
 
 		this.currentLineX += width;
 		this.currentLineHeight = Math.max(this.currentLineHeight, height);
+
+		if (this.alignment > 0) {
+			this.currentLineX = utils.alignToUpperDivider(this.currentLineX, this.alignment);
+		}
 	}
 
 	/**
@@ -288,7 +297,7 @@ class MasterPack {
 		}
 
 		// Bake sprites
-		const spriteBaker = new MasterPackBaker(this.spriteTex);
+		const spriteBaker = new MasterPackBaker(this.spriteTex, HI_COLOR_MODE ? 4 : 8);
 		for (let i = 0; i < this.sprites.length; i++) {
 			const s = this.sprites[i];
 			spriteBaker.bake(s.width, s.height, s.name, (destTexture, x, y) => {
@@ -307,7 +316,7 @@ class MasterPack {
 		}
 
 		// Bake maps
-		const mapBaker = new MasterPackBaker(this.mapTex);
+		const mapBaker = new MasterPackBaker(this.mapTex, 2);
 		for (let i = 0; i < this.maps.length; i++) {
 			const m = this.maps[i];
 			mapBaker.bake(m.width, m.height, m.name, (destTexture, x, y) => {
@@ -367,10 +376,8 @@ const conv = new MasterPack(true);
 const palettes = [
 	conv.createPalette('Default'),
 	conv.createPalette('Mario'),
-	conv.createPalette('unused1'),
-	conv.createPalette('unused2'),
-	conv.createPalette('unused3'),
 	conv.createPalette('Level1'),
+	conv.createPalette('Text'),
 ];
 
 conv.addSprite(Sprite.fromImage('gradient',
@@ -382,11 +389,19 @@ conv.addSprite(Sprite.fromImage('gradient',
 conv.addSprite(Sprite.fromImage('mario',
 	Texture.fromPng32('gfx/mario-luigi-2.png').subtexture(80, 32, 224, 16), palettes[1]));
 
-const tileset = Tileset.blank('level1-til', 8, 8, 32, 32, [palettes[5]]);
+const tileset = Tileset.blank('level1-til', 8, 8, 32, 32, [palettes[2]]);
+// TODO Florian -- Map conversion should first create an "optimized" tileset in 32-bit, then make a real tileset out of it, then map the tiles to the map with extended palette info
 const map = Map.fromImage('level1',
 	Texture.fromPng32('gfx/mario-1-1.png'), tileset);
 conv.addTileset(tileset);
 conv.addMap(map);
+
+// TODO Florian -- Way to addTileset passing a sprite and a tile size
+// TODO Florian -- Doesn't work because the tileset always adds a transparent tile… this should be an option of the map?
+// TODO Florian -- Refactor to remove Sprite and use Tileset only
+const textTileset = Tileset.fromImage('text', Texture.fromPng32('gfx/font.png'), 8, 8, [palettes[3]]);
+conv.addTileset(textTileset);
+conv.addMap(Map.blank('text', 40, 32, textTileset));
 
 //if (USE_BIG_PALETTES) {
 //	while (palettes[0].colorData.length < 127)
@@ -433,6 +448,7 @@ conv.addMap(map);
 //	conv.sprites.texture.setPixel(4, 0, 15);
 //}
 
-conv.pack(false);
+// TODO Florian -- Option to create that from command line
+conv.pack(true);
 // ---------- End program ------------
 

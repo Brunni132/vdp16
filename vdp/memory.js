@@ -64,6 +64,14 @@ export class VdpSprite {
 		this.designPalette = designPalette;
 	}
 
+	/**
+	 *
+	 * @param x {number}
+	 * @param y {number}
+	 * @param w {number}
+	 * @param h {number}
+	 * @returns {VdpSprite} this
+	 */
 	offsetted(x, y, w, h) {
 		this.x += x;
 		this.y += y;
@@ -71,7 +79,44 @@ export class VdpSprite {
 		this.h = h;
 		return this;
 	}
+
+	/**
+	 * Modifies this instance of VdpSprite (not the original) to target a given tile in a tileset.
+	 * @throws {Error} if this sprite is not a tileset.
+	 * @param no {number} tile number to target.
+	 * @returns {VdpSprite} this
+	 */
+	tile(no) {
+		const columnsPerRow = Math.floor(this.w / this.tw);
+		if (this.w / this.tw !== columnsPerRow) {
+			throw new Error(`Not a tileset (w=${this.w}, h=${this.h}, tw=${this.tw})`)
+		}
+
+		const col = no % columnsPerRow;
+		const row = no / columnsPerRow;
+		return this.offsetted(col * this.tw, row * this.th, this.tw, this.th);
+	}
 }
+
+/**
+ * Fills the memory with a given value.
+ * @param buffer {Uint8Array|Uint16Array|Uint32Array|Uint8ClampedArray|Float32Array}
+ * @param value {number}
+ * @param numEntries {number}
+ */
+export function memset(buffer, value, numEntries) {
+	buffer.fill(value, 0, numEntries);
+}
+
+/**
+ *
+ * @param dst {Uint8Array|Uint16Array|Uint32Array|Uint8ClampedArray|Float32Array}
+ * @param src {Uint8Array|Uint16Array|Uint32Array|Uint8ClampedArray|Float32Array}
+ */
+export function memcpy(dst, src) {
+	dst.set(src);
+}
+
 
 // export class VdpMapBuffer {
 // 	/**
