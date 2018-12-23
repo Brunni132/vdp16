@@ -143,6 +143,18 @@ export function makeShadowFromTexture16(gl, texture, image) {
  * @returns {ShadowTexture}
  * @private
  */
+export function makeShadowFromTexture32(gl, texture, image) {
+	const typed = new Uint32Array(readFromTexture32(gl, texture, 0, 0, image.width, image.height).buffer);
+	return new ShadowTexture(typed, image.width, image.height, false, 1);
+}
+
+/**
+ * @param gl {WebGLRenderingContext}
+ * @param texture {WebGLTexture}
+ * @param image {HTMLImageElement}
+ * @returns {ShadowTexture}
+ * @private
+ */
 export function makeShadowFromTexture4444(gl, texture, image) {
 	const typed = readFromTexture16(gl, texture, 0, 0, image.width, image.height);
 	return new ShadowTexture(typed, image.width, image.height, true, 1);

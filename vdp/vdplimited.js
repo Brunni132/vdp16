@@ -15,7 +15,7 @@ import {
 import {drawOpaquePoly, initOpaquePolyShaders} from "./generalpolys";
 import {VdpMap, VdpPalette, VdpSprite} from "./memory";
 import {
-	makeShadowFromTexture16, makeShadowFromTexture32,
+	makeShadowFromTexture16,
 	makeShadowFromTexture4444,
 	makeShadowFromTexture8,
 	ShadowTexture
@@ -191,11 +191,11 @@ export class VDP {
 				this.romSpriteTex = makeShadowFromTexture8(gl, tex, spriteImage);
 				this.shadowSpriteTex = this.romSpriteTex.clone();
 
-				loadTexture(gl, 'build/palettes.png', (tex, palImage) => {
+				loadTexture4444(gl, 'build/palettes.png', (tex, palImage) => {
 					if (palImage.width !== 256 && palImage.width !== 16 || palImage.height !== PALETTE_TEX_H)
 						throw new Error('Mismatch in texture size');
 					this.paletteTexture = tex;
-					this.romPaletteTex = makeShadowFromTexture32(gl, tex, palImage);
+					this.romPaletteTex = makeShadowFromTexture4444(gl, tex, palImage);
 					this.shadowPaletteTex = this.romPaletteTex.clone();
 
 					loadTexture(gl, 'build/maps.png', (tex, mapImage) => {
@@ -407,7 +407,7 @@ export class VDP {
 	 * @param palette {string|VdpPalette} name of the palette (or palette itself). You may also query an arbitrary portion
 	 * of the palette memory using new VdpPalette(…) or offset an existing map, using vdp.map('myMap').offsetted(…).
 	 * @param source [number=vdp.SOURCE_CURRENT] look at readMap for more info.
-	 * @return {Uint32Array} contains color entries, encoded as 0xRGBA
+	 * @return {Uint16Array} contains color entries, encoded as 0xRGBA
 	 */
 	readPalette(palette, source = this.SOURCE_CURRENT) {
 		const pal = this._getPalette(palette);
@@ -420,10 +420,10 @@ export class VDP {
 	 * @param w {number}
 	 * @param h {number}
 	 * @param source [number=vdp.SOURCE_CURRENT] look at readMap for more info.
-	 * @returns {Uint32Array} contains color entries, encoded as 0xRGBA
+	 * @returns {Uint16Array} contains color entries, encoded as 0xRGBA
 	 */
 	readPaletteMemory(x, y, w, h, source = this.SOURCE_CURRENT) {
-		const result = new Uint32Array(w * h);
+		const result = new Uint16Array(w * h);
 		if (source === this.SOURCE_CURRENT) this.shadowPaletteTex.readToBuffer(x, y, w, h, result);
 		if (source === this.SOURCE_ROM) this.romPaletteTex.readToBuffer(x, y, w, h, result);
 		return result;

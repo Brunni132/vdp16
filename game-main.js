@@ -3,8 +3,7 @@
  * @returns {IterableIterator<number>}
  */
 import {loadVdp, runProgram} from "./vdp/runloop";
-import {SCREEN_WIDTH} from "./vdp/shaders";
-import {color16} from "./vdp/color16";
+import {color32} from "./vdp/color32";
 
 const TextLayer = {
 	/**
@@ -74,14 +73,14 @@ function *main(vdp) {
 	TextLayer.clear();
 
 	const pal = vdp.readPalette('Mario');
-	pal.forEach((c, i) => pal[i] = color16.blend(pal[i], 0xf00f, 0.5));
+	pal.forEach((c, i) => pal[i] = color32.blend(pal[i], 0xff0000ff, 0.5));
 	vdp.writePalette('Mario', pal);
 
 	//const pal2 = vdp.readPalette('Mario');
 	//pal2.forEach((col, i) => {
-	//	const c = color16.extract(pal2[i]);
+	//	const c = color32.extract(pal2[i]);
 	//	c.r = 15;
-	//	pal2[i] = color16.make(c);
+	//	pal2[i] = color32.make(c);
 	//});
 	//vdp.writePalette('Mario', pal2);
 
@@ -114,16 +113,16 @@ function *main(vdp) {
 		if (scroll >= 0 && scroll < 200 && scroll % 2 === 0 || scroll >= 500 && scroll < 600) {
 			const rom = vdp.readPaletteMemory(0, 0, 256, 5, vdp.SOURCE_ROM);
 			const current = vdp.readPaletteMemory(0, 0, 256, 5, vdp.SOURCE_CURRENT);
-			rom[0] = 0xbfff;
+			//rom[0] = 0xbfff;
 			current.forEach((col, i) => {
-				const finalCol = color16.extract(rom[i]);
-				let {r, g, b} = color16.extract(current[i]);
+				const finalCol = color32.extract(rom[i]);
+				let {r, g, b} = color32.extract(current[i]);
 
 				if (finalCol.b > b) b += 1;
 				else if (finalCol.g > g) g += 1;
 				else if (finalCol.r > r) r += 1;
 
-				current[i] = color16.make(r, g, b);
+				current[i] = color32.make(r, g, b);
 			});
 			vdp.writePaletteMemory(0, 0, 256, 5, current);
 		}
@@ -131,11 +130,11 @@ function *main(vdp) {
 		if (scroll >= 200 && scroll <= 400 && scroll % 4 === 0) {
 			const pals = vdp.readPaletteMemory(0, 0, 256, 5, vdp.SOURCE_CURRENT);
 			pals.forEach((col, i) => {
-				let { r, g, b } = color16.extract(col);
+				let { r, g, b } = color32.extract(col);
 				if (r > 0) r -= 1;
 				else if (g > 0) g -= 1;
 				else if (b > 0) b -= 1;
-				pals[i] = color16.make(r, g, b);
+				pals[i] = color32.make(r, g, b);
 			});
 			vdp.writePaletteMemory(0, 0, 256, 5, pals);
 		}
