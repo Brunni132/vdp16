@@ -18,7 +18,6 @@ export const MAX_SPRITES = 1 << 16;
 
 export const PALETTE_HICOLOR_FLAG = 1 << 15;
 
-// TODO Florian -- refactor, per sprite/map
 export const envColor = [1, 1, 1, 1];
 
 export function setParams(screenWidth, screenHeight, compositedFramebuffer = false) {

@@ -63,17 +63,15 @@ class TransparencyConfig {
 			gl.enable(gl.BLEND);
 			gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 		} else if (effect === 'color') {
+			const dst = color32.extract(blendDst);
+			const src = color32.extract(blendSrc);
 			// Background blend factor
-			gl.blendColor(
-				(blendDst & 0xf0) / 240,
-				(blendDst >>> 8 & 0xf0) / 240,
-				(blendDst >>> 16 & 0xf0) / 240,
-				(blendDst >>> 24 & 0xf0) / 240);
+			gl.blendColor(dst.r / 255, dst.g / 255, dst.b / 255, dst.a / 255);
 			// Source blend factor defined in shader
-			envColor[0] = (blendSrc & 0xf0) / 240;
-			envColor[1] = (blendSrc >>> 8 & 0xf0) / 240;
-			envColor[2] = (blendSrc >>> 16 & 0xf0) / 240;
-			envColor[3] = (blendSrc >>> 24 & 0xf0) / 240;
+			envColor[0] = src.r / 255;
+			envColor[1] = src.g / 255;
+			envColor[2] = src.b / 255;
+			envColor[3] = src.a / 255;
 			gl.blendFunc(gl.SRC_ALPHA, gl.CONSTANT_COLOR);
 			gl.enable(gl.BLEND);
 		} else {
@@ -172,6 +170,7 @@ export class VDP {
 		this.shadowPaletteTex = null;
 		/** @type {ShadowTexture} copy of the VRAM data for fast read access from the program */
 		this.shadowSpriteTex = null;
+		this._frameStarted = true;
 
 		this.SOURCE_CURRENT = 0;
 		this.SOURCE_ROM = 1;
@@ -280,6 +279,59 @@ export class VDP {
 		this._objTransparency.blendSrc = color32.parse(opts.blendSrc);
 		this._objTransparency.blendDst = color32.parse(opts.blendDst);
 		this._obj1AsMask = !!opts.mask;
+	}
+
+	/**
+	 * Renders the machine in the current state. Only available for the extended version of the GPU.
+	 */
+	doRender() {
+		const gl = this.gl;
+		// Do before drawing stuff since it flushes the buffer
+		const obj0Limit = this._computeOBJ0Limit();
+
+		this._computeStats(obj0Limit);
+
+		// Only the first time per frame (allow multiple render per frames)
+		if (this._frameStarted) {
+			const clearColor = color32.extract(this.shadowPaletteTex.buffer[0]);
+			gl.clearColor(clearColor.r / 255, clearColor.g / 255, clearColor.b / 255, 0);
+
+			if (USE_PRIORITIES) {
+				gl.clearDepth(1.0);                 // Clear everything
+				// PERF: This is a lot slower if there's a discard in the fragment shader (and we need one?) because the GPU can't test & write to the depth buffer until after the fragment shader has been executed. So there's no point in using it I guess.
+				gl.enable(gl.DEPTH_TEST);           // Enable depth testing
+				gl.depthFunc(gl.LESS);            // Near things obscure far things
+				gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+			} else {
+				gl.clear(gl.COLOR_BUFFER_BIT);
+			}
+
+			this._frameStarted = false;
+		}
+
+		NO_TRANSPARENCY.apply(this);
+		mat3.identity(this.modelViewMatrix);
+		drawPendingMap(this, this._bgBuffer);
+
+		if (this._obj1AsMask) {
+			// Draw BG, transparent OBJ in reverse order, then normal OBJ
+			this._obj1Buffer.sort();
+			this._drawObjLayer(this._obj1Buffer, this._objTransparency, this._obj1LayerTransform, OBJ1_CELL_LIMIT);
+		}
+
+		this._drawObjLayer(this._obj0Buffer, NO_TRANSPARENCY, this._obj0LayerTransform, obj0Limit);
+
+		this._bgTransparency.apply(this);
+		gl.depthMask(false);
+		drawPendingMap(this, this._tbgBuffer);
+		gl.depthMask(true);
+
+		if (!this._obj1AsMask) {
+			// Draw in reverse order
+			this._obj1Buffer.sort();
+			this._drawObjLayer(this._obj1Buffer, this._objTransparency, this._obj1LayerTransform, OBJ1_CELL_LIMIT);
+		}
 	}
 
 	/**
@@ -555,61 +607,16 @@ export class VDP {
 	 * @protected
 	 */
 	_endFrame() {
-		const gl = this.gl;
-		// Do before drawing stuff since it flushes the buffer
-		const obj0Limit = this._computeOBJ0Limit();
-		const bdColor = this.shadowPaletteTex.buffer[0];
-
-		this._computeStats(obj0Limit);
-
-		gl.clearColor(
-			(bdColor >>> 12 & 0xf) / 15,
-			(bdColor >>> 8 & 0xf) / 15,
-			(bdColor >>> 4 & 0xf) / 15, 0);
-
-		if (USE_PRIORITIES) {
-			gl.clearDepth(1.0);                 // Clear everything
-			// PERF: This is a lot slower if there's a discard in the fragment shader (and we need one?) because the GPU can't test & write to the depth buffer until after the fragment shader has been executed. So there's no point in using it I guess.
-			gl.enable(gl.DEPTH_TEST);           // Enable depth testing
-			gl.depthFunc(gl.LESS);            // Near things obscure far things
-			gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
-		} else {
-			gl.clear(gl.COLOR_BUFFER_BIT);
-		}
-
-		NO_TRANSPARENCY.apply(this);
-		mat3.identity(this.modelViewMatrix);
-		drawPendingMap(this, this._bgBuffer);
-
-		if (this._obj1AsMask) {
-			// Draw BG, transparent OBJ in reverse order, then normal OBJ
-			this._obj1Buffer.sort();
-			this._drawObjLayer(this._obj1Buffer, this._objTransparency, this._obj1LayerTransform, OBJ1_CELL_LIMIT);
-		}
-
-		this._drawObjLayer(this._obj0Buffer, NO_TRANSPARENCY, this._obj0LayerTransform, obj0Limit);
-
-		this._bgTransparency.apply(this);
-		gl.depthMask(false);
-		drawPendingMap(this, this._tbgBuffer);
-		gl.depthMask(true);
-
-		if (!this._obj1AsMask) {
-			// Draw in reverse order
-			this._obj1Buffer.sort();
-			this._drawObjLayer(this._obj1Buffer, this._objTransparency, this._obj1LayerTransform, OBJ1_CELL_LIMIT);
-		}
+		this.doRender();
 
 		// Draw fade
 		if (this._fadeColor >>> 24 >= 0x10) {
+			const gl = this.gl;
+			const {r, g, b, a} = color32.extract(this._fadeColor);
+
 			STANDARD_TRANSPARENCY.apply(this);
 			gl.disable(gl.DEPTH_TEST);
-			drawOpaquePoly(this, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT,
-				(this._fadeColor & 0xf0) / 240,
-				(this._fadeColor >>> 8 & 0xf0) / 240,
-				(this._fadeColor >>> 16 & 0xf0) / 240,
-				(this._fadeColor >>> 24 & 0xf0) / 240);
+			drawOpaquePoly(this, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, r / 255, g / 255, b / 255, a / 255);
 		}
 	}
 
@@ -675,6 +682,7 @@ export class VDP {
 	 * @protected
 	 */
 	_startFrame() {
+		this._frameStarted = true;
 	}
 
 	/**

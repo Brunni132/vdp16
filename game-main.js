@@ -99,45 +99,46 @@ function *main(vdp) {
 	// mat3.scale(trans, trans, [2, 2]);
 	// vdp.configOBJTransform({ obj1Transform: trans });
 
-	const pals = vdp.readPaletteMemory(0, 0, 256, 5, vdp.SOURCE_CURRENT);
-	pals.forEach((col, i) => pals[i] = 0);
-	vdp.writePaletteMemory(0, 0, 256, 5, pals);
-
+	//const pals = vdp.readPaletteMemory(0, 0, 256, 5, vdp.SOURCE_CURRENT);
+	//pals.forEach((col, i) => pals[i] = 0);
+	//vdp.writePaletteMemory(0, 0, 256, 5, pals);
 
 	while (true) {
+		vdp.configFade('#fff', scroll - 1000 + scroll);
+
 		//if (scroll === 620) {
 		//	const originalPal = vdp.readPalette('Mario', vdp.SOURCE_ROM);
 		//	vdp.writePalette('Mario', originalPal);
 		//}
 
-		if (scroll >= 0 && scroll < 200 && scroll % 2 === 0 || scroll >= 500 && scroll < 600) {
-			const rom = vdp.readPaletteMemory(0, 0, 256, 5, vdp.SOURCE_ROM);
-			const current = vdp.readPaletteMemory(0, 0, 256, 5, vdp.SOURCE_CURRENT);
-			rom[0] = color32.parse('#59a');
-			current.forEach((col, i) => {
-				const finalCol = color32.extract(rom[i]);
-				let {r, g, b} = color32.extract(current[i]);
-
-				if (finalCol.b > b) b += 1;
-				else if (finalCol.g > g) g += 1;
-				else if (finalCol.r > r) r += 1;
-
-				current[i] = color32.make(r, g, b);
-			});
-			vdp.writePaletteMemory(0, 0, 256, 5, current);
-		}
-
-		if (scroll >= 200 && scroll <= 400 && scroll % 4 === 0) {
-			const pals = vdp.readPaletteMemory(0, 0, 256, 5, vdp.SOURCE_CURRENT);
-			pals.forEach((col, i) => {
-				let { r, g, b } = color32.extract(col);
-				if (r > 0) r -= 1;
-				else if (g > 0) g -= 1;
-				else if (b > 0) b -= 1;
-				pals[i] = color32.make(r, g, b);
-			});
-			vdp.writePaletteMemory(0, 0, 256, 5, pals);
-		}
+		//if (scroll >= 0 && scroll < 200 && scroll % 2 === 0 /*|| scroll >= 500 && scroll < 600*/) {
+		//	const rom = vdp.readPaletteMemory(0, 0, 256, 5, vdp.SOURCE_ROM);
+		//	const current = vdp.readPaletteMemory(0, 0, 256, 5, vdp.SOURCE_CURRENT);
+		//	rom[0] = color32.parse('#59a');
+		//	current.forEach((col, i) => {
+		//		const finalCol = color32.extract(rom[i]);
+		//		let {r, g, b} = color32.extract(current[i]);
+		//
+		//		if (finalCol.b > b) b = Math.min(finalCol.b, b + 16);
+		//		else if (finalCol.g > g) g = Math.min(finalCol.g, g + 16);
+		//		else if (finalCol.r > r) r = Math.min(finalCol.r, r + 16);
+		//
+		//		current[i] = color32.make(r, g, b);
+		//	});
+		//	vdp.writePaletteMemory(0, 0, 256, 5, current);
+		//}
+		//
+		//if (scroll >= 200) {
+		//	const pals = vdp.readPaletteMemory(0, 0, 256, 5, vdp.SOURCE_CURRENT);
+		//	pals.forEach((col, i) => {
+		//		let { r, g, b } = color32.extract(col);
+		//		if (r > 0) r = Math.max(0, r - 4);
+		//		else if (g > 0) g = Math.max(0, g - 4);
+		//		else if (b > 0) b = Math.max(0, b - 4);
+		//		pals[i] = color32.make(r, g, b);
+		//	});
+		//	vdp.writePaletteMemory(0, 0, 256, 5, pals);
+		//}
 
 		// Note: reading from VRAM is very slow
 		// const palData = vdp.readPalette('Mario');
@@ -171,11 +172,14 @@ function *main(vdp) {
 
 		vdp.drawObj('gradient', 0, 180, { height: 8, prio: 1, transparent: true });
 		vdp.drawObj('gradient', 0, 172, { height: 8, palette: 'Level1', prio: 1, transparent: true });
+		vdp.doRender();
 
 		// Take the (0, 0, 16, 16) part of the big mario sprite
-		 const marioSprite = vdp.sprite('mario').offsetted(0, 0, 16, 16);
+		const marioSprite = vdp.sprite('mario').offsetted(0, 0, 16, 16);
 		// And draw it 32x32 (2x zoom)
-		 vdp.drawObj(marioSprite, scroll / 2, 0, {width: -256, height: 256, prio: 0, transparent: false });
+		vdp.configOBJTransparency({ op: 'add', blendDst: '#f00', blendSrc: '#fff' });
+		vdp.drawObj(marioSprite, scroll, 0, {width: -256, height: 256, prio: 1, transparent: true });
+		vdp.doRender();
 
 		scroll += 1;
 

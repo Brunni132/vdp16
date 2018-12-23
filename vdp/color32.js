@@ -6,10 +6,23 @@ export class color32 {
 	 */
 	static extract(c) {
 		return {
-			r: c >>> 24,
-			g: c >>> 16 & 0xff,
-			b: c >>> 8 & 0xff,
-			a: c & 0xff,
+			a: c >>> 24,
+			b: c >>> 16 & 0xff,
+			g: c >>> 8 & 0xff,
+			r: c & 0xff,
+		};
+	}
+
+	/**
+	 * @param c color (32 bits)
+	 * @returns {{r: number, g: number, b: number, a: number}} result, 4 bit per component (0..15)
+	 */
+	static extract16(c) {
+		return {
+			a: c >>> 28,
+			b: c >>> 20 & 0xf,
+			g: c >>> 12 & 0xf,
+			r: c >>> 4 & 0xf,
 		};
 	}
 
@@ -53,19 +66,17 @@ export class color32 {
 			switch (col.length) {
 			case 4:
 				col = parseInt(col.substring(1), 16);
-				// col = (col & 0xf) << 8 | (col & 0xf0) | (col >>> 8 & 0xff);
 				return color32.extendColor16(col << 4 | 0xf);
 			case 5:
 				col = parseInt(col.substring(1), 16);
-				// col = (col & 0xf) << 12 | (col >> 4 & 0xf) << 8 | (col >> 8 & 0xf) << 4 | (col >> 12 & 0xf);
 				return color32.extendColor16(col);
 			case 7:
 				col = parseInt(col.substring(1), 16);
 				// Pass a RGBA with alpha=ff
-				return reverseColor32(col << 8 | 0xff);
+				return color32.reverseColor32(col << 8 | 0xff);
 			case 9:
 				col = parseInt(col.substring(1), 16);
-				return reverseColor32(col);
+				return color32.reverseColor32(col);
 			default:
 				throw new Error(`Invalid color string ${col}`);
 			}
