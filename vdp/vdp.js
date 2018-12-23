@@ -1,4 +1,4 @@
-import {createDataTextureFloat, getScalingFactorOfMatrix, loadTexture, loadTexture4444, parseColor} from "./utils";
+import {createDataTextureFloat, getScalingFactorOfMatrix, loadTexture, loadTexture4444} from "./utils";
 import {mat3, mat4} from "../gl-matrix";
 import {drawPendingObj, enqueueObj, initObjShaders, makeObjBuffer, ObjBuffer} from "./sprites";
 import {drawPendingMap, enqueueMap, initMapShaders, makeMapBuffer} from "./maps";
@@ -224,7 +224,7 @@ export class VDP {
 	 * @param color {number|string} backdrop color
 	 */
 	configBDColor(color) {
-		this.shadowPaletteTex.buffer[0] = color16.parseColor(color);
+		this.shadowPaletteTex.buffer[0] = color16.parse(color);
 	}
 
 	/**
@@ -239,8 +239,8 @@ export class VDP {
 			throw new Error(`Invalid operation ${opts.op}`);
 		}
 		this._bgTransparency.operation = opts.op;
-		this._bgTransparency.blendSrc = color32.parseColor(opts.blendSrc);
-		this._bgTransparency.blendDst = color32.parseColor(opts.blendDst);
+		this._bgTransparency.blendSrc = color32.parse(opts.blendSrc);
+		this._bgTransparency.blendDst = color32.parse(opts.blendDst);
 	}
 
 	/**
@@ -251,7 +251,7 @@ export class VDP {
 	 */
 	configFade(color, factor) {
 		factor = Math.min(255, Math.max(0, factor));
-		this._fadeColor = (color32.parseColor(color) & 0xffffff) | (factor << 24);
+		this._fadeColor = (color32.parse(color) & 0xffffff) | (factor << 24);
 	}
 
 	/**
@@ -277,8 +277,8 @@ export class VDP {
 			throw new Error(`Invalid operation ${opts.op}`);
 		}
 		this._objTransparency.operation = opts.op;
-		this._objTransparency.blendSrc = color32.parseColor(opts.blendSrc);
-		this._objTransparency.blendDst = color32.parseColor(opts.blendDst);
+		this._objTransparency.blendSrc = color32.parse(opts.blendSrc);
+		this._objTransparency.blendDst = color32.parse(opts.blendDst);
 		this._obj1AsMask = !!opts.mask;
 	}
 

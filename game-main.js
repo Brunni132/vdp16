@@ -72,9 +72,9 @@ function *main(vdp) {
 	TextLayer.setup(vdp);
 	TextLayer.clear();
 
-	const pal = vdp.readPalette('Mario');
-	pal.forEach((c, i) => pal[i] = color32.blend(pal[i], 0xff0000ff, 0.5));
-	vdp.writePalette('Mario', pal);
+	// const pal = vdp.readPalette('Mario');
+	// pal.forEach((c, i) => pal[i] = color32.blend(pal[i], 0xff0000ff, 0.5));
+	// vdp.writePalette('Mario', pal);
 
 	//const pal2 = vdp.readPalette('Mario');
 	//pal2.forEach((col, i) => {
@@ -113,7 +113,7 @@ function *main(vdp) {
 		if (scroll >= 0 && scroll < 200 && scroll % 2 === 0 || scroll >= 500 && scroll < 600) {
 			const rom = vdp.readPaletteMemory(0, 0, 256, 5, vdp.SOURCE_ROM);
 			const current = vdp.readPaletteMemory(0, 0, 256, 5, vdp.SOURCE_CURRENT);
-			//rom[0] = 0xbfff;
+			rom[0] = color32.parse('#59a');
 			current.forEach((col, i) => {
 				const finalCol = color32.extract(rom[i]);
 				let {r, g, b} = color32.extract(current[i]);
