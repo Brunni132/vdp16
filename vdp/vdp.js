@@ -1,4 +1,10 @@
-import {createDataTextureFloat, getScalingFactorOfMatrix, loadTexture, loadTexture4444} from "./utils";
+import {
+	createDataTextureFloat,
+	getScalingFactorOfMatrix,
+	loadTexture,
+	loadTexture4444,
+	writeToTextureFloat
+} from "./utils";
 import {mat3, mat4} from "../gl-matrix";
 import {drawPendingObj, enqueueObj, initObjShaders, makeObjBuffer, ObjBuffer} from "./sprites";
 import {drawPendingMap, enqueueMap, initMapShaders, makeMapBuffer} from "./maps";
@@ -21,7 +27,6 @@ import {
 	ShadowTexture
 } from "./shadowtexture";
 import {color32} from "./color32";
-import {color16} from "./color16";
 
 const BG_LIMIT = 4;
 const TBG_LIMIT = 1;
@@ -223,7 +228,7 @@ export class VDP {
 	 * @param color {number|string} backdrop color
 	 */
 	configBDColor(color) {
-		this.shadowPaletteTex.buffer[0] = color16.parse(color);
+		this.shadowPaletteTex.buffer[0] = color32.parse(color);
 	}
 
 	/**
@@ -344,7 +349,7 @@ export class VDP {
 	 * @param opts.winY {number} top coordinate on the screen to start drawing from (default to 0)
 	 * @param opts.winW {number} width after which to stop drawing (defaults to SCREEN_WIDTH)
 	 * @param opts.winH {number} height after which to stop drawing (defaults to SCREEN_HEIGHT)
-	 * @param opts.linescrollBuffer {number} number of the linescroll buffer to use
+	 * @param opts.linescrollBuffer {Float32Array} number of the linescroll buffer to use
 	 * @param opts.wrap {boolean} whether to wrap the map at the bounds (defaults to true)
 	 * @param opts.tileset {string|VdpSprite} custom tileset to use.
 	 * @param opts.transparent {boolean}
@@ -361,7 +366,6 @@ export class VDP {
 		let winY = opts.hasOwnProperty('winY') ? opts.winY : 0;
 		let winW = opts.hasOwnProperty('winW') ? opts.winW : (SCREEN_WIDTH - winX);
 		let winH = opts.hasOwnProperty('winH') ? opts.winH : (SCREEN_HEIGHT - winY);
-		const linescrollBuffer = opts.hasOwnProperty('linescrollBuffer') ? opts.linescrollBuffer : -1;
 		const wrap = opts.hasOwnProperty('wrap') ? opts.wrap : true;
 		const prio = opts.prio || 0;
 		const buffer = opts.transparent ? this._tbgBuffer : this._bgBuffer;
@@ -376,6 +380,12 @@ export class VDP {
 		winY = Math.min(SCREEN_HEIGHT, Math.max(0, winY));
 		winW = Math.min(SCREEN_WIDTH - winX, Math.max(0, winW));
 		winH = Math.min(SCREEN_HEIGHT - winY, Math.max(0, winH));
+
+		let linescrollBuffer = -1;
+		if (opts.linescrollBuffer) {
+			writeToTextureFloat(this.gl, this.otherTexture, 0, 0, opts.linescrollBuffer.length / 4, 1, opts.linescrollBuffer);
+			linescrollBuffer = 256;
+		}
 
 		enqueueMap(buffer, map.x, map.y, til.x, til.y, map.w, map.h, til.w, til.tw, til.th, winX, winY, winW, winH, scrollX, scrollY, pal.y, til.hiColor, linescrollBuffer, wrap ? 1 : 0, prio);
 	}

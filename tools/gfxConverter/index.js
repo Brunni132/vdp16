@@ -377,7 +377,7 @@ const palettes = [
 	conv.createPalette('Default'),
 	conv.createPalette('Mario'),
 	conv.createPalette('Level1'),
-	conv.createPalette('Text'),
+	conv.createPalette('text'),
 ];
 
 conv.addSprite(Sprite.fromImage('gradient',
