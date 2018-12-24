@@ -324,7 +324,7 @@ export function enqueueObj(objBuffer, xStart, yStart, xEnd, yEnd, uStart, vStart
 	if (hiColor) palNo |= PALETTE_HICOLOR_FLAG;
 
 	if (objBuffer.usedVertices >= objBuffer.maxVertices) {
-		console.log(`${objBuffer.name} overuse (max ${objBuffer.maxVertices / BG_BUFFER_STRIDE}), ignoring drawOBJ`);
+		console.log(`${objBuffer.name} overuse (max ${objBuffer.maxVertices / OBJ_BUFFER_STRIDE}), ignoring drawOBJ`);
 		return;
 	}
 

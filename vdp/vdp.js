@@ -568,12 +568,13 @@ export class VDP {
 	 */
 	_computeOBJ0Limit() {
 		// Count the number of BGs covering the full screen
-		const pixels = this._bgBuffer.getTotalPixels() + this._tbgBuffer.getTotalPixels();
-		const layers = Math.ceil(pixels / (SCREEN_WIDTH * SCREEN_HEIGHT));
-		let limit = OBJ0_CELL_LIMIT;
-		if (layers >= 3) limit -= 128;
-		if (layers >= 4) limit -= 128;
-		return limit;
+		// const pixels = this._bgBuffer.getTotalPixels() + this._tbgBuffer.getTotalPixels();
+		// const layers = Math.ceil(pixels / (SCREEN_WIDTH * SCREEN_HEIGHT));
+		// let limit = OBJ0_CELL_LIMIT;
+		// if (layers >= 3) limit -= 128;
+		// if (layers >= 4) limit -= 128;
+		// return limit;
+		return OBJ0_CELL_LIMIT;
 	}
 
 	/**

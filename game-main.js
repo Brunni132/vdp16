@@ -177,19 +177,19 @@ function *main(vdp) {
 		// Take the (0, 0, 16, 16) part of the big mario sprite
 		const marioSprite = vdp.sprite('mario').offsetted(0, 0, 16, 16);
 		// And draw it 32x32 (2x zoom)
-		vdp.configOBJTransparency({ op: 'add', blendDst: '#f00', blendSrc: '#fff' });
-		vdp.drawObj(marioSprite, scroll, 0, {width: -256, height: 256, prio: 1, transparent: true });
+		vdp.configOBJTransparency({ op: 'add', blendDst: '#f00', blendSrc: '#888' });
+		vdp.drawObj(marioSprite, scroll, 0, {width: -256, height: 256, prio: 2, transparent: true });
 		vdp.doRender();
 
 		scroll += 1;
 
-		// const spr = vdp.sprite('mario').offsetted(0, 0, 64, 64);
-		// const opts = { palette: vdp.palette(spr.designPalette) };
-		// for (let j = 0; j < 10; j++) {
-		// 	for (let i = 0; i < 100; i++) {
-		// 		vdp.drawObj(spr, i, j, opts);
-		// 	}
-		// }
+		const spr = vdp.sprite('mario').offsetted(0, 0, 32, 32);
+		const opts = { palette: vdp.palette(spr.designPalette) };
+		for (let j = 0; j < 480; j++) {
+			for (let i = 0; i < 1; i++) {
+				vdp.drawObj(spr, i, j, opts);
+			}
+		}
 
 		yield 0;
 	}
