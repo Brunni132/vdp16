@@ -349,7 +349,7 @@ export class VDP {
 	 * @param opts.winY {number} top coordinate on the screen to start drawing from (default to 0)
 	 * @param opts.winW {number} width after which to stop drawing (defaults to SCREEN_WIDTH)
 	 * @param opts.winH {number} height after which to stop drawing (defaults to SCREEN_HEIGHT)
-	 * @param opts.linescrollBuffer {Float32Array} number of the linescroll buffer to use
+	 * @param opts.linescrollBuffer {mat3[]} number of the linescroll buffer to use
 	 * @param opts.wrap {boolean} whether to wrap the map at the bounds (defaults to true)
 	 * @param opts.tileset {string|VdpSprite} custom tileset to use.
 	 * @param opts.transparent {boolean}
@@ -383,7 +383,13 @@ export class VDP {
 
 		let linescrollBuffer = -1;
 		if (opts.linescrollBuffer) {
-			writeToTextureFloat(this.gl, this.otherTexture, 0, 0, opts.linescrollBuffer.length / 4, 1, opts.linescrollBuffer);
+			// 8 floats per item (hack for the last one since mat3 is actually 9 items)
+			const buffer = new Float32Array(opts.linescrollBuffer.length * 8);
+			let i;
+			for (i = 0; i < opts.linescrollBuffer.length - 1; i++) buffer.set(opts.linescrollBuffer[i], i * 8);
+			buffer.set(opts.linescrollBuffer[i].subarray(0, 8), i * 8);
+			console.log(`TEMP `, buffer.subarray(0, 8), buffer.subarray(8, 16));
+			writeToTextureFloat(this.gl, this.otherTexture, 0, 0, buffer.length / 4, 1, buffer);
 			linescrollBuffer = 256;
 		}
 
@@ -534,7 +540,7 @@ export class VDP {
 
 	/**
 	 * @param palette {string|VdpPalette}
-	 * @param data {Uint16Array} color entries, encoded as 0xRGBA
+	 * @param data {Uint32Array} color entries, encoded as 0xRGBA
 	 */
 	writePalette(palette, data) {
 		const pal = this._getPalette(palette);
@@ -547,7 +553,7 @@ export class VDP {
 	 * @param y {number}
 	 * @param w {number}
 	 * @param h {number}
-	 * @param data {Uint16Array} color entries, encoded as 0xRGBA
+	 * @param data {Uint32Array} color entries, encoded as 0xRGBA
 	 */
 	writePaletteMemory(x, y, w, h, data) {
 		this.shadowPaletteTex.writeTo(x, y, w, h, data);

@@ -136,7 +136,7 @@ export function initMapShaders(vdp) {
 				} else {
 					vTransformationMatrix = mat3(
 						1, 0, 0,
-						0, 1, 0,
+						-0.2, 1, 0,
 						0, 0, 1);
 				}
 			}
@@ -169,9 +169,9 @@ export function initMapShaders(vdp) {
 				vec4 first = texture2D(uSamplerOthers, vec2(float(horizOffset) / ${OTHER_TEX_W}.0, vOfs));
 				vec4 second = texture2D(uSamplerOthers, vec2(float(horizOffset + 1) / ${OTHER_TEX_W}.0, vOfs));
 				return mat3(
-					first.xy, first.z,
-					vec2(first.a, second.r), first.g,
-					second.ba, 1.0);
+					first.rg, second.b,
+					vec2(first.a, second.r), second.a,
+					0.0, 0.0, 1.0);
 			}
 			
 			int readMap(int x, int y) {
@@ -201,13 +201,13 @@ export function initMapShaders(vdp) {
 				if (vOtherInfo.x >= 256.0) {
 					float y = float(${SCREEN_HEIGHT}) - gl_FragCoord.y;
 					// 2 colors (8 float values) per matrix
-					transformationMatrix = readLinescrollBuffer(int(vOtherInfo.x) - 256, int(y * 2.0));
+					transformationMatrix = readLinescrollBuffer(int(vOtherInfo.x) - 256, int(y) * 2);
 				}
 				else {
 					transformationMatrix = vTransformationMatrix;
 				}
 							
-				vec2 texCoord = (transformationMatrix * vec3(vTextureCoord.x, vTextureCoord.y, 1)).xy;
+				vec2 texCoord = (vec3(vTextureCoord.x, vTextureCoord.y, 1) * transformationMatrix).xy;
 				int mapX = intDiv(texCoord.x, vTileSize.x), mapY = intDiv(texCoord.y, vTileSize.y);
 				
 				// Out of bounds?

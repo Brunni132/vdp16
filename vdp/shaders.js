@@ -86,6 +86,15 @@ export function declareReadPalette() {
 	// 			// Checked: same render as pre-posterization
 	// 			return floor(data * 16.0) / 15.0;
 	// 		}`;
+
+	// Can be used to make more intense colors
+	//return `vec4 readPalette(float x, float y) {
+	//			vec3 color = texture2D(uSamplerPalettes, vec2(x, y)).rgb;
+	//			//vec3 gray = vec3(dot(vec3(0.2126,0.7152,0.0722), color));
+	//			vec3 gray = vec3(dot(vec3(0.3,0.5,0.2), color));
+	//			return vec4(mix(color, gray, -0.5), 1);
+	//		}`;
+
 	return `vec4 readPalette(float x, float y) {
 				return texture2D(uSamplerPalettes, vec2(x, y));
 			}`;

@@ -4,6 +4,7 @@
  */
 import {loadVdp, runProgram} from "./vdp/runloop";
 import {color32} from "./vdp/color32";
+import {mat3} from "./gl-matrix";
 
 const TextLayer = {
 	/**
@@ -53,11 +54,24 @@ function *main(vdp) {
 	pal[1] = color32.parse('#ff0');
 	vdp.writePalette('text', pal);
 
+	let loop = 0;
 	while (true) {
-		vdp.drawBG('level1');
+		// TODO Florian -- A good framework for that…
+		const buffer = [];
+		for (let i = 0; i < 256; i++) {
+			const mat = mat3.create();
+			mat3.translate(mat, mat, [Math.sin((i + loop) / 20) * 10, 0]);
+			buffer.push(mat);
+		}
+
+		vdp.drawBG('level1', { linescrollBuffer: null, scrollX: 0 });
 		TextLayer.drawLayer();
 
+		const chars = Math.min(loop, 255).toString(16);
+		vdp.configOBJTransparency({ op: 'add', blendDst: '#888', blendSrc: `#${chars}${chars}${chars}`});
+		vdp.drawObj('gradient', 0, 180, { prio: 2, width: 256, height: 16, transparent: true});
 
+		loop += 1;
 		yield 0;
 	}
 }

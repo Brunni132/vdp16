@@ -6,7 +6,7 @@ const Texture = require('./texture');
 const utils = require('./utils');
 
 const HI_COLOR_MODE = true;				// Generate 8-bit tiles and 256-color palettes
-const QUANTIZE_PALETTES = false;		// To spare colors in RGBA4444 mode
+const QUANTIZE_PALETTES = true;		// To spare colors in RGBA4444 mode
 
 class Palette {
 

@@ -10,8 +10,8 @@ import {FramerateAdjuster, NOMINAL_FRAMERATE} from "./FramerateAdjuster";
  */
 export function loadVdp(canvas, params) {
 	params = params || {};
-	canvas.style.width = `${canvas.width * 2}px`;
-	canvas.style.height = `${canvas.height * 2}px`;
+	//canvas.style.width = `${canvas.width * 2}px`;
+	//canvas.style.height = `${canvas.height * 2}px`;
 	setParams(canvas.width, canvas.height, false);
 	return new Promise(function (resolve) {
 		const vdp = new VDP(canvas, () => {
