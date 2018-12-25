@@ -136,7 +136,7 @@ export function initMapShaders(vdp) {
 				} else {
 					vTransformationMatrix = mat3(
 						1, 0, 0,
-						-0.2, 1, 0,
+						0, 1, 0,
 						0, 0, 1);
 				}
 			}

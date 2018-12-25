@@ -45,7 +45,7 @@ export class color32 {
 	 * @param col {number}
 	 * @returns {number}
 	 */
-	static extendColor16(col) {
+	static extendColor12(col) {
 		return color32.reverseColor32((col & 0xf) | (col & 0xf) << 4 |
 			(col & 0xf0) << 4 | (col & 0xf0) << 8 |
 			(col & 0xf00) << 8 | (col & 0xf00) << 12 |
@@ -66,10 +66,10 @@ export class color32 {
 			switch (col.length) {
 			case 4:
 				col = parseInt(col.substring(1), 16);
-				return color32.extendColor16(col << 4 | 0xf);
+				return color32.extendColor12(col << 4 | 0xf);
 			case 5:
 				col = parseInt(col.substring(1), 16);
-				return color32.extendColor16(col);
+				return color32.extendColor12(col);
 			case 7:
 				col = parseInt(col.substring(1), 16);
 				// Pass a RGBA with alpha=ff
@@ -84,7 +84,7 @@ export class color32 {
 
 		if (col <= 0xffff) {
 			// 16-bit to 32
-			return color32.extendColor16(col);
+			return color32.extendColor12(col);
 		}
 		else if (col <= 0xffffff) {
 			// 24-bit to 32
@@ -106,7 +106,7 @@ export class color32 {
 	 * @param col {number} 32-bit color (0xAABBGGRR)
 	 * @returns {number} 16-bit color (0xRGBA)
 	 */
-	static toColor16(col) {
+	static toColor12(col) {
 		return (col & 0xf0) << 8 | (col >>> 8 & 0xf0) << 4 | (col >>> 16 & 0xf0) | col >>> 28;
 	}
 

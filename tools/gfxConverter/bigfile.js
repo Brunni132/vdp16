@@ -27,7 +27,14 @@
  */
 
 /**
+ * @typedef {Object} BigFile~GameInfo
+ * @property paletteBpp {number} 12 or 32 (the palette.png is either a 4-bit PNG without transparency or a 8-bit PNG with RGBA)
+ * @property resolution {number[]} initial resolution of the screen [x, y]
+ */
+
+/**
  * @typedef {Object} BigFile
+ * @property info {BigFile~GameInfo}
  * @property pals {Object.<string, BigFilePalette>}
  * @property sprites {Object.<string, BigFileSprite>}
  * @property maps {Object.<string, BigFileMap>}

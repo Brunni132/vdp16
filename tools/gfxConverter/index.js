@@ -7,6 +7,8 @@ const utils = require('./utils');
 
 const HI_COLOR_MODE = true;				// Generate 8-bit tiles and 256-color palettes
 const QUANTIZE_PALETTES = true;		// To spare colors in RGBA4444 mode
+const SCREEN_WIDTH = 256;
+const SCREEN_HEIGHT = 256;
 
 class Palette {
 
@@ -287,7 +289,9 @@ class MasterPack {
 	 */
 	pack(writeSample) {
 		/** @type {BigFile} */
-		const resultJson = { pals: {}, sprites: {}, maps: {}, data: {} };
+		const resultJson = { pals: {}, sprites: {}, maps: {}, data: {}, info: {
+			resolution: [SCREEN_WIDTH, SCREEN_HEIGHT], paletteBpp: QUANTIZE_PALETTES ? 12 : 32
+		}};
 
 		// Convert all palettes to the palette tex
 		for (let i = 0; i < this.palettes.length; i++) {

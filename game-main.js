@@ -64,7 +64,7 @@ function *main(vdp) {
 			buffer.push(mat);
 		}
 
-		vdp.drawBG('level1', { linescrollBuffer: null, scrollX: 0 });
+		vdp.drawBG('level1', { linescrollBuffer: buffer, scrollX: 0 });
 		TextLayer.drawLayer();
 
 		const chars = Math.min(loop, 255).toString(16);

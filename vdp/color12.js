@@ -1,6 +1,6 @@
 import {color32} from "./color32";
 
-export class color16 {
+export class color12 {
 	/**
 	 * @param c color (16 bits)
 	 * @returns {{r: number, g: number, b: number, a: number}}
@@ -17,7 +17,7 @@ export class color16 {
 	/**
 	 * Use make( { r: …, g: …, …} ) or make(r, g, b).
 	 * @param r {number|{r: number, g: number, b: number, a: number}} red component (0 to 15) or color as extracted with
-	 * color16.extract().
+	 * color12.extract().
 	 * @param [g] {number} green component (0 to 15)
 	 * @param [b] {number} blue component (0 to 15)
 	 * @param [a=15] {number} alpha component (not used, only required to make a valid color for your display adapter)
@@ -34,7 +34,7 @@ export class color16 {
 	 * @returns {number} the color in 16-bit 0xRGBA format.
 	 */
 	static parse(col) {
-		return color32.toColor16(color32.parse(col));
+		return color32.toColor12(color32.parse(col));
 	}
 
 	static add(c, d) {

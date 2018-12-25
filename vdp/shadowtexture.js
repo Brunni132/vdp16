@@ -114,49 +114,45 @@ export class ShadowTexture {
 
 /**
  * @param gl {WebGLRenderingContext}
- * @param texture {WebGLTexture}
- * @param image {HTMLImageElement}
+ * @param tex {LoadedTexture}
  * @returns {ShadowTexture}
  * @private
  */
-export function makeShadowFromTexture8(gl, texture, image) {
-	const typed = new Uint8Array(readFromTexture32(gl, texture, 0, 0, image.width, image.height).buffer);
-	return new ShadowTexture(typed, image.width, image.height, false, 4);
+export function makeShadowFromTexture8(gl, tex) {
+	const typed = new Uint8Array(readFromTexture32(gl, tex.texture, 0, 0, tex.width, tex.height).buffer);
+	return new ShadowTexture(typed, tex.width, tex.height, false, 4);
 }
 
 /**
  * @param gl {WebGLRenderingContext}
- * @param texture {WebGLTexture}
- * @param image {HTMLImageElement}
+ * @param tex {LoadedTexture}
  * @returns {ShadowTexture}
  * @private
  */
-export function makeShadowFromTexture16(gl, texture, image) {
-	const typed = new Uint16Array(readFromTexture32(gl, texture, 0, 0, image.width, image.height).buffer);
-	return new ShadowTexture(typed, image.width, image.height, false, 2);
+export function makeShadowFromTexture16(gl, tex) {
+	const typed = new Uint16Array(readFromTexture32(gl, tex.texture, 0, 0, tex.width, tex.height).buffer);
+	return new ShadowTexture(typed, tex.width, tex.height, false, 2);
 }
 
 /**
  * @param gl {WebGLRenderingContext}
- * @param texture {WebGLTexture}
- * @param image {HTMLImageElement}
+ * @param tex {LoadedTexture}
  * @returns {ShadowTexture}
  * @private
  */
-export function makeShadowFromTexture32(gl, texture, image) {
-	const typed = new Uint32Array(readFromTexture32(gl, texture, 0, 0, image.width, image.height).buffer);
-	return new ShadowTexture(typed, image.width, image.height, false, 1);
+export function makeShadowFromTexture32(gl, tex) {
+	const typed = new Uint32Array(readFromTexture32(gl, tex.texture, 0, 0, tex.width, tex.height).buffer);
+	return new ShadowTexture(typed, tex.width, tex.height, false, 1);
 }
 
 /**
  * @param gl {WebGLRenderingContext}
- * @param texture {WebGLTexture}
- * @param image {HTMLImageElement}
+ * @param tex {LoadedTexture}
  * @returns {ShadowTexture}
  * @private
  */
-export function makeShadowFromTexture4444(gl, texture, image) {
-	const typed = readFromTexture16(gl, texture, 0, 0, image.width, image.height);
-	return new ShadowTexture(typed, image.width, image.height, true, 1);
+export function makeShadowFromTexture4444(gl, tex) {
+	const typed = readFromTexture16(gl, tex.texture, 0, 0, tex.width, tex.height);
+	return new ShadowTexture(typed, tex.width, tex.height, true, 1);
 }
 

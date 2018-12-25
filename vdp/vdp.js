@@ -163,18 +163,6 @@ export class VDP {
 			peakBG: 0,
 			OBJ0Limit: OBJ0_CELL_LIMIT
 		};
-		/** @type {ShadowTexture} original data (ROM) for maps */
-		this.romMapTex = null;
-		/** @type {ShadowTexture} original data (ROM) for palettes */
-		this.romPaletteTex = null;
-		/** @type {ShadowTexture} original data (ROM) for sprites */
-		this.romSpriteTex = null;
-		/** @type {ShadowTexture} copy of the VRAM data for fast read access from the program */
-		this.shadowMapTex = null;
-		/** @type {ShadowTexture} copy of the VRAM data for fast read access from the program */
-		this.shadowPaletteTex = null;
-		/** @type {ShadowTexture} copy of the VRAM data for fast read access from the program */
-		this.shadowSpriteTex = null;
 		this._frameStarted = true;
 
 		this.SOURCE_CURRENT = 0;
@@ -189,25 +177,31 @@ export class VDP {
 		window.fetch('build/game.json').then((res) => res.json()).then((json) => {
 			this.gameData = json;
 
-			loadTexture(gl, 'build/sprites.png', (tex, spriteImage) => {
-				this.spriteTexture = tex;
+			loadTexture(gl, 'build/sprites.png').then(sprites => {
+				this.spriteTexture = sprites.texture;
 
-				this.romSpriteTex = makeShadowFromTexture8(gl, tex, spriteImage);
+				/** @type {ShadowTexture} original data (ROM) for sprites */
+				this.romSpriteTex = makeShadowFromTexture8(gl, sprites);
+				/** @type {ShadowTexture} copy of the VRAM data for fast read access from the program */
 				this.shadowSpriteTex = this.romSpriteTex.clone();
 
-				loadTexture(gl, 'build/palettes.png', (tex, palImage) => {
-					if (palImage.width !== 256 && palImage.width !== 16 || palImage.height !== PALETTE_TEX_H)
-						throw new Error('Mismatch in texture size');
-					this.paletteTexture = tex;
-					this.romPaletteTex = makeShadowFromTexture32(gl, tex, palImage);
+				loadTexture(gl, 'build/palettes.png').then(palettes => {
+					if (palettes.width !== 256 && palettes.width !== 16 || palettes.height > 256)
+						throw new Error('Mismatch in texture size (max {16,256}x256');
+					this.paletteTexture = palettes.texture;
+					/** @type {ShadowTexture} original data (ROM) for palettes */
+					this.romPaletteTex = makeShadowFromTexture32(gl, palettes);
+					/** @type {ShadowTexture} copy of the VRAM data for fast read access from the program */
 					this.shadowPaletteTex = this.romPaletteTex.clone();
 
-					loadTexture(gl, 'build/maps.png', (tex, mapImage) => {
-						this.mapTexture = tex;
-						this.romMapTex = makeShadowFromTexture16(gl, tex, spriteImage);
+					loadTexture(gl, 'build/maps.png').then(maps => {
+						this.mapTexture = maps.texture;
+						/** @type {ShadowTexture} original data (ROM) for maps */
+						this.romMapTex = makeShadowFromTexture16(gl, maps);
+						/** @type {ShadowTexture} copy of the VRAM data for fast read access from the program */
 						this.shadowMapTex = this.romMapTex.clone();
 
-						setTextureSizes(palImage.width, palImage.height, mapImage.width, mapImage.height, spriteImage.width, spriteImage.height);
+						setTextureSizes(palettes.width, palettes.height, maps.width, maps.height, sprites.width, sprites.height);
 
 						this.otherTexture = createDataTextureFloat(gl, OTHER_TEX_W, OTHER_TEX_W);
 						// Startup color
@@ -288,6 +282,7 @@ export class VDP {
 
 	/**
 	 * Renders the machine in the current state. Only available for the extended version of the GPU.
+	 * @private
 	 */
 	doRender() {
 		const gl = this.gl;
