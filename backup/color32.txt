@@ -1,0 +1,12 @@
+	/**
+	 * @param c color (32 bits)
+	 * @returns {{r: number, g: number, b: number, a: number}} result, 4 bit per component (0..15)
+	 */
+	static extract16(c) {
+		return {
+			a: c >>> 28,
+			b: c >>> 20 & 0xf,
+			g: c >>> 12 & 0xf,
+			r: c >>> 4 & 0xf,
+		};
+	}
