@@ -40,10 +40,17 @@ class Tile {
 		return result;
 	}
 
-	equalsTile(otherTile) {
+	/**
+	 * @param otherTile {Tile} tile to compare to
+	 * @param [tolerance=0] {number} number of different pixels allowed
+	 * @returns {boolean}
+	 */
+	equalsTile(otherTile, tolerance=0) {
 		if (this.width !== otherTile.width || this.height !== otherTile.height) return false;
 		for (let i = 0; i < this.pixelData.length; i++) {
-			if (this.pixelData[i] !== otherTile.pixelData[i]) return false;
+			if (this.pixelData[i] !== otherTile.pixelData[i]) {
+				if (tolerance-- === 0) return false;
+			}
 		}
 		return true;
 	}
@@ -168,13 +175,14 @@ class Tileset {
 	/**
 	 * @param texture {Texture}
 	 * @param paletteNo {number} palette to use
+	 * @param [tolerance=0] {number} tolerates a certain number of different pixels
 	 * @returns {number} tile number in tileset
 	 */
-	findOrAddTile(texture, paletteNo) {
+	findOrAddTile(texture, paletteNo, tolerance=0) {
 		const resultConverted = Tile.fromImage32(texture, this.palettes[paletteNo]);
 
 		for (let k = 0; k < this.tiles.length; k++) {
-			if (resultConverted.equalsTile(this.tiles[k])) {
+			if (resultConverted.equalsTile(this.tiles[k], tolerance)) {
 				return k;
 			}
 		}
@@ -243,9 +251,10 @@ class Map {
 	 * @param name {string}
 	 * @param image {Texture} original image (full color)
 	 * @param tileset {Tileset} adds to it
+	 * @param [tolerance=0] {number} tolerates a certain number of different pixels in tiles
 	 * @returns {Map} new instance
 	 */
-	static fromImage(name, image, tileset) {
+	static fromImage(name, image, tileset, tolerance=0) {
 		const mapWidth = Math.ceil(image.width / tileset.tileWidth);
 		const mapHeight = Math.ceil(image.height / tileset.tileHeight);
 		const map = new Map(name, mapWidth, mapHeight, tileset);
@@ -254,7 +263,7 @@ class Map {
 		for (let j = 0; j < mapHeight; j++) {
 			for (let i = 0; i < mapWidth; i++) {
 				const tile = image.subtexture(i * tileset.tileWidth, j * tileset.tileHeight, tileset.tileWidth, tileset.tileHeight);
-				map.setTile(i, j, tileset.findOrAddTile(tile, 0));
+				map.setTile(i, j, tileset.findOrAddTile(tile, 0, tolerance));
 			}
 		}
 		return map;

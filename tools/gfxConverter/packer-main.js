@@ -382,6 +382,7 @@ const palettes = [
 	conv.createPalette('Mario'),
 	conv.createPalette('Level1'),
 	conv.createPalette('text'),
+	conv.createPalette('road')
 ];
 
 conv.addSprite(Sprite.fromImage('gradient',
@@ -405,7 +406,16 @@ conv.addMap(map);
 // TODO Florian -- Refactor to remove Sprite and use Tileset only
 const textTileset = Tileset.fromImage('text', Texture.fromPng32('gfx/font.png'), 8, 8, [palettes[3]]);
 conv.addTileset(textTileset);
-conv.addMap(Map.blank('text', 40, 32, textTileset));
+conv.addMap(Map.blank('text', SCREEN_WIDTH / 8, SCREEN_HEIGHT / 8, textTileset));
+
+// TODO Florian -- Way to auto-generate a tileset
+// TODO Florian -- Always name everything? Do not pass a tileset to a map but a tileset name so we can reuse it
+const roadTileset = Tileset.blank('road', 8, 8, 128, 8, [palettes[4]]);
+const roadMap = Map.fromImage('road', Texture.fromPng32('gfx/road.png'), roadTileset, 45);
+conv.addTileset(roadTileset);
+conv.addMap(roadMap);
+
+
 
 //if (USE_BIG_PALETTES) {
 //	while (palettes[0].colorData.length < 127)

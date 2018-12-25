@@ -2,7 +2,6 @@ import {
 	createDataTextureFloat,
 	getScalingFactorOfMatrix,
 	loadTexture,
-	loadTexture4444,
 	writeToTextureFloat
 } from "./utils";
 import {mat3, mat4} from "../gl-matrix";
@@ -11,7 +10,6 @@ import {drawPendingMap, enqueueMap, initMapShaders, makeMapBuffer} from "./maps"
 import {
 	envColor,
 	OTHER_TEX_W,
-	PALETTE_TEX_H,
 	SCREEN_HEIGHT,
 	SCREEN_WIDTH,
 	SEMITRANSPARENT_CANVAS,
@@ -22,7 +20,6 @@ import {drawOpaquePoly, initOpaquePolyShaders} from "./generalpolys";
 import {VdpMap, VdpPalette, VdpSprite} from "./memory";
 import {
 	makeShadowFromTexture16, makeShadowFromTexture32,
-	makeShadowFromTexture4444,
 	makeShadowFromTexture8,
 	ShadowTexture
 } from "./shadowtexture";
@@ -68,8 +65,8 @@ class TransparencyConfig {
 			gl.enable(gl.BLEND);
 			gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 		} else if (effect === 'color') {
-			const dst = color32.extract(blendDst);
-			const src = color32.extract(blendSrc);
+			const dst = color32.extract(blendDst, vdp._use4Bit);
+			const src = color32.extract(blendSrc, vdp._use4Bit);
 			// Background blend factor
 			gl.blendColor(dst.r / 255, dst.g / 255, dst.b / 255, dst.a / 255);
 			// Source blend factor defined in shader
@@ -164,6 +161,7 @@ export class VDP {
 			OBJ0Limit: OBJ0_CELL_LIMIT
 		};
 		this._frameStarted = true;
+		this._use4Bit = true;
 
 		this.SOURCE_CURRENT = 0;
 		this.SOURCE_ROM = 1;
@@ -293,7 +291,7 @@ export class VDP {
 
 		// Only the first time per frame (allow multiple render per frames)
 		if (this._frameStarted) {
-			const clearColor = color32.extract(this.shadowPaletteTex.buffer[0]);
+			const clearColor = color32.extract(this.shadowPaletteTex.buffer[0], this._use4Bit);
 			gl.clearColor(clearColor.r / 255, clearColor.g / 255, clearColor.b / 255, 0);
 
 			if (USE_PRIORITIES) {
@@ -383,7 +381,6 @@ export class VDP {
 			let i;
 			for (i = 0; i < opts.linescrollBuffer.length - 1; i++) buffer.set(opts.linescrollBuffer[i], i * 8);
 			buffer.set(opts.linescrollBuffer[i].subarray(0, 8), i * 8);
-			console.log(`TEMP `, buffer.subarray(0, 8), buffer.subarray(8, 16));
 			writeToTextureFloat(this.gl, this.otherTexture, 0, 0, buffer.length / 4, 1, buffer);
 			linescrollBuffer = 256;
 		}
@@ -624,7 +621,7 @@ export class VDP {
 		// Draw fade
 		if (this._fadeColor >>> 24 >= 0x10) {
 			const gl = this.gl;
-			const {r, g, b, a} = color32.extract(this._fadeColor);
+			const {r, g, b, a} = color32.extract(this._fadeColor, this._use4Bit);
 
 			STANDARD_TRANSPARENCY.apply(this);
 			gl.disable(gl.DEPTH_TEST);

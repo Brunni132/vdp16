@@ -2,27 +2,19 @@
 export class color32 {
 	/**
 	 * @param c color (32 bits)
+	 * @param [posterize] {boolean=false} if true, returns a limited color (4 bits per component)
 	 * @returns {{r: number, g: number, b: number, a: number}}
 	 */
-	static extract(c) {
+	static extract(c, posterize) {
+		if (posterize) {
+			c = (c >>> 4 & 0x0f0f0f0f);
+			c |= c << 4;
+		}
 		return {
 			a: c >>> 24,
 			b: c >>> 16 & 0xff,
 			g: c >>> 8 & 0xff,
 			r: c & 0xff,
-		};
-	}
-
-	/**
-	 * @param c color (32 bits)
-	 * @returns {{r: number, g: number, b: number, a: number}} result, 4 bit per component (0..15)
-	 */
-	static extract16(c) {
-		return {
-			a: c >>> 28,
-			b: c >>> 20 & 0xf,
-			g: c >>> 12 & 0xf,
-			r: c >>> 4 & 0xf,
 		};
 	}
 

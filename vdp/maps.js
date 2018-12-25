@@ -114,8 +114,8 @@ export function initMapShaders(vdp) {
 				vec4 first = texture2D(uSamplerOthers, vec2(float(horizOffset) / ${OTHER_TEX_W}.0, vOfs));
 				vec4 second = texture2D(uSamplerOthers, vec2(float(horizOffset + 1) / ${OTHER_TEX_W}.0, vOfs));
 				return mat3(
-					first.xy, first.z,
-					vec2(first.a, second.r), first.g,
+					first.xy, 0,
+					vec2(first.a, second.r), 0,
 					second.ba, 1.0);
 			}
 		
@@ -169,9 +169,9 @@ export function initMapShaders(vdp) {
 				vec4 first = texture2D(uSamplerOthers, vec2(float(horizOffset) / ${OTHER_TEX_W}.0, vOfs));
 				vec4 second = texture2D(uSamplerOthers, vec2(float(horizOffset + 1) / ${OTHER_TEX_W}.0, vOfs));
 				return mat3(
-					first.rg, second.b,
-					vec2(first.a, second.r), second.a,
-					0.0, 0.0, 1.0);
+					first.r, first.g, 0,
+					first.a, second.r, 0,
+					second.b, second.a, 1);
 			}
 			
 			int readMap(int x, int y) {
@@ -206,8 +206,8 @@ export function initMapShaders(vdp) {
 				else {
 					transformationMatrix = vTransformationMatrix;
 				}
-							
-				vec2 texCoord = (vec3(vTextureCoord.x, vTextureCoord.y, 1) * transformationMatrix).xy;
+
+				vec2 texCoord = (transformationMatrix * vec3(vTextureCoord.x, vTextureCoord.y, 1)).xy;
 				int mapX = intDiv(texCoord.x, vTileSize.x), mapY = intDiv(texCoord.y, vTileSize.y);
 				
 				// Out of bounds?
