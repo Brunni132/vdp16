@@ -1,9 +1,9 @@
-import {mat4, vec3} from "../gl-matrix";
+import { mat3, mat4, vec3 } from 'gl-matrix-ts';
 
 const assert = require('assert');
 
 /**
- * @param mat {mat3}
+ * @param mat {mat3type}
  * @returns {vec3}
  */
 export function getScalingFactorOfMatrix(mat) {

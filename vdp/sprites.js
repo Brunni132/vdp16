@@ -8,7 +8,7 @@ import {
 	PALETTE_TEX_H,
 	PALETTE_TEX_W
 } from "./shaders";
-import {mat3} from "../gl-matrix";
+import { mat3 } from 'gl-matrix-ts';
 
 // How big (tall/wide) a sprite can be before it's broken down in smaller units of OBJ_CELL_SIZE^2
 const OBJ_CELL_SIZE = 32;

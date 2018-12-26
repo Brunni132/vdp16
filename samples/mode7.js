@@ -1,5 +1,5 @@
 import {loadVdp, runProgram} from "./vdp/runloop";
-import {mat3, mat4, vec3} from "./gl-matrix";
+import { mat3, mat4, vec3 } from 'gl-matrix-ts';
 import {SCREEN_HEIGHT, SCREEN_WIDTH} from "./vdp/shaders";
 
 // Just an attempt, doesn't quite work. Use reference instead: https://www.coranac.com/tonc/text/mode7.htm

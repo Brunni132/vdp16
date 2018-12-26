@@ -1,5 +1,5 @@
 import {loadVdp, runProgram} from "./vdp/runloop";
-import {mat3} from "./gl-matrix";
+import { mat3 } from 'gl-matrix-ts';
 import {SCREEN_HEIGHT, SCREEN_WIDTH} from "./vdp/shaders";
 
 /** @param vdp {VDP} */

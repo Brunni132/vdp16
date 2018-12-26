@@ -1,6 +1,6 @@
 import {loadVdp, runProgram} from "./vdp/runloop";
 import {color32} from "./vdp/color32";
-import {mat3} from "./gl-matrix";
+import { mat3 } from 'gl-matrix-ts';
 
 const TextLayer = {
 	/**
