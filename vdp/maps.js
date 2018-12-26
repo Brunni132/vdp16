@@ -159,9 +159,9 @@ export function initMapShaders(vdp) {
 			uniform sampler2D uSamplerMaps, uSamplerSprites, uSamplerPalettes, uSamplerOthers;
 						
 			// y > 0! x can be negative or positive
-			int intDiv(float x, float y) {
-				if (x >= 0.0) return int(x / y);
-				return int((x - y) / y);
+			int intDiv(int x, int y) {
+				if (x >= 0) return x / y;
+				return (x - y) / y;
 			}
 
 			mat3 readLinescrollBuffer(int bufferNo, int horizOffset) {
@@ -199,7 +199,7 @@ export function initMapShaders(vdp) {
 				mat3 transformationMatrix;
 				// Per-line info
 				if (vOtherInfo.x >= 256.0) {
-					float y = float(${SCREEN_HEIGHT}) - gl_FragCoord.y;
+					float y = vTextureCoord.y;
 					// 2 colors (8 float values) per matrix
 					transformationMatrix = readLinescrollBuffer(int(vOtherInfo.x) - 256, int(y) * 2);
 				}
@@ -207,8 +207,8 @@ export function initMapShaders(vdp) {
 					transformationMatrix = vTransformationMatrix;
 				}
 
-				vec2 texCoord = (transformationMatrix * vec3(vTextureCoord.x, vTextureCoord.y, 1)).xy;
-				int mapX = intDiv(texCoord.x, vTileSize.x), mapY = intDiv(texCoord.y, vTileSize.y);
+				ivec2 texCoord = ivec2((transformationMatrix * vec3(vTextureCoord.x, vTextureCoord.y, 1)).xy);
+				int mapX = intDiv(texCoord.x, int(vTileSize.x)), mapY = intDiv(texCoord.y, int(vTileSize.y));
 				
 				// Out of bounds?
 				if (vOtherInfo.y < 1.0 && (mapX < 0 || mapY < 0 || mapX >= int(vMapSize.x) || mapY >= int(vMapSize.y))) {
@@ -225,8 +225,8 @@ export function initMapShaders(vdp) {
 				mapTileNo -= palOfs * ${1 << 12};
 
 				// Position of tile no in sprite texture, now we need to add the offset
-				vec2 tilesetPos = positionInTexture(mapTileNo)
-					+ vec2(mod(texCoord.x, vTileSize.x), mod(texCoord.y, vTileSize.y));
+				vec2 offsetInTile = vec2(texCoord.x - mapX * int(vTileSize.x), texCoord.y - mapY * int(vTileSize.y));
+				vec2 tilesetPos = positionInTexture(mapTileNo) + offsetInTile;
 				float texel;
 
 				if (vPaletteNo >= ${PALETTE_HICOLOR_FLAG}.0) {
@@ -241,7 +241,10 @@ export function initMapShaders(vdp) {
 				// Color zero
 				if (texel < ${1.0 / PALETTE_TEX_W}) discard;
 				vec4 color = readPalette(texel, paletteOffset / ${PALETTE_TEX_H}.0);
-				gl_FragColor = ${makeOutputColor('color')};
+				color = ${makeOutputColor('color')};
+				//color.b = float(offsetInTile.y) / 8.0;
+				//color.r = float(mapY) / 1.0;
+				gl_FragColor = color;
 			}
 		`;
 
