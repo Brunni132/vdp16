@@ -1,7 +1,3 @@
-/**
- * @param vdp {VDP}
- * @returns {IterableIterator<number>}
- */
 import {loadVdp, runProgram} from "./vdp/runloop";
 import {color32} from "./vdp/color32";
 import {mat3} from "./gl-matrix";

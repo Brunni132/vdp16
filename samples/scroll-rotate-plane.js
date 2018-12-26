@@ -1,7 +1,3 @@
-/**
- * @param vdp {VDP}
- * @returns {IterableIterator<number>}
- */
 import {loadVdp, runProgram} from "./vdp/runloop";
 import {mat3} from "./gl-matrix";
 import {SCREEN_HEIGHT, SCREEN_WIDTH} from "./vdp/shaders";
@@ -12,6 +8,7 @@ function *main(vdp) {
 	while (true) {
 		const buffer = [];
 		for (let i = 0; i < 256; i++) {
+			// TODO Florian -- Optimize (and remake API for that using .set(lineNo, mat))
 			const mat = mat3.create();
 			mat3.translate(mat, mat, [loop, 0]);
 			mat3.translate(mat, mat, [SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2]);
