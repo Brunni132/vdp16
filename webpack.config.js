@@ -4,9 +4,16 @@ module.exports = {
 	entry: './game-main.js',
 	devtool: 'inline-source-map',
 	module: {
+		rules: [
+			{
+				test: /\.tsx?$/,
+				use: 'ts-loader',
+				exclude: /node_modules/
+			}
+		]
 	},
 	resolve: {
-		extensions: [ '.js' ]
+		extensions: [ '.tsx', '.ts', '.js' ]
 	},
 	output: {
 		path: path.resolve(__dirname, 'build'),
