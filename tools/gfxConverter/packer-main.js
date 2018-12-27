@@ -35,8 +35,8 @@ conv.addTileset(textTileset);
 conv.addMap(Map.blank('text', SCREEN_WIDTH / 8, SCREEN_HEIGHT / 8, textTileset));
 
 // TODO Florian -- Way to auto-generate a tileset
-const roadTileset = Tileset.blank('road', 8, 8, 128, 8, [palettes[4]]);
-const roadMap = Map.fromImage('road', Texture.fromPng32('gfx/road.png'), roadTileset, 45);
+const roadTileset = Tileset.blank('road', 16, 16, 64, 16, [palettes[4]]);
+const roadMap = Map.fromImage('road', Texture.fromPng32('gfx/road.png'), roadTileset, 200);
 conv.addTileset(roadTileset);
 conv.addMap(roadMap);
 

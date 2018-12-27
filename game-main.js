@@ -7,46 +7,64 @@ function *main(vdp) {
 	let loop = 0;
 
 	while (true) {
-		const viewerPos = [512, 512 - loop * 0.01];
-		const viewerAngle = 0;
+		const viewerPos = [512, 372];
+		const viewerAngle = loop * 0.01;
 
 		const buffer = [];
-		for (let i = 0; i < SCREEN_HEIGHT; i++) {
-			const scale = 100 / (i + 50);
+		for (let line = 0; line < SCREEN_HEIGHT + 64; line++) {
+			const scale = 100 / (line + 50);
 			const mat = mat3.create();
 			mat3.translate(mat, mat, viewerPos);
 			mat3.rotate(mat, mat, viewerAngle);
 			mat3.scale(mat, mat, [scale, scale]);
-			mat3.translate(mat, mat, [-128, -256]);
-
-			//mat3.rotate(mat, mat, 0.001 * loop);
-			//mat3.translate(mat, mat, [0, -i]);
-			//mat3.scale(mat, mat, [scale, 1]);
-			//mat3.translate(mat, mat, [-128, i * scale]);
-			//mat3.translate(mat, mat, [0, loop * 0.1]);
-			//mat3.rotate(mat, mat, 0.01 * loop);
+			//mat3.scale(mat, mat, [0.5, 0.5]);
+			mat3.translate(mat, mat, [-128, -256 + line]);
 			buffer.push(mat);
 		}
-		//vdp.drawBG('level1', { scrollX: 0, linescrollBuffer: buffer });
 
 		function computeSpritePos(spritePos) {
-			const mat = mat3.create();
-			mat3.translate(mat, mat, viewerPos);
-			mat3.rotate(mat, mat, viewerAngle);
-			mat3.translate(mat, mat, [-128, -256]);
+			//const mat = mat3.create();
+			//const line = 255;
+			//const scale = 100 / line;
+			//mat3.translate(mat, mat, viewerPos);
+			//mat3.rotate(mat, mat, viewerAngle);
+			//mat3.scale(mat, mat, [scale, scale]);
+			//mat3.translate(mat, mat, [-128, -256 + line]);
+			//
+			//const untransformed = vec3.fromValues(spritePos[0], spritePos[1], 1);
+			//const result = vec3.create();
+			//mat3.invert(mat, mat);
+			//vec3.transformMat3(result, untransformed, mat);
+			//const line2 = (untransformed[1] - viewerPos[1]) / result[1];
+			//console.log(`TEMP `, result, line2);
 
-			mat3.invert(mat, mat);
-			const result = vec3.fromValues(spritePos[0], spritePos[1], 1);
-			vec3.transformMat3(result, result, mat);
-			console.log(`TEMP `, result);
+			const mat = mat3.create();
+			const untransformed = vec3.fromValues(spritePos[0], spritePos[1], 1);
+			const result = vec3.create();
+			let line, scale;
+			for (line = buffer.length - 1; line >= 0; line--) {
+				scale = 100 / (line + 50);
+				mat3.invert(mat, buffer[line]);
+				vec3.transformMat3(result, untransformed, mat);
+				if (Math.abs(result[1] ) < scale * 2) {
+					break;
+				}
+			}
+			if (line <= 0) return;
+
+			// scale = 100 / (line + 50) => line = 100 / scale - 50, with scale needs to be calculated (depends on the distance)
+
+			// The current (result[0], result[1]) are the positions of the (center, bottom) anchor of the sprite
+			const obj = vdp.sprite('mario').offsetted(0, 0, 16, 16);
+			scale = 1 / scale;
+			vdp.drawObj(obj, result[0] - scale * obj.w / 2, line - scale * obj.h, { width: obj.w * scale, height: obj.h * scale, prio: 2 });
 		}
 
-		// (x, z)
-		computeSpritePos([512, 512]);
-
 		//vdp.configFade('#000', 192);
-		vdp.drawBG('road', {linescrollBuffer: buffer, winY: 0, wrap: false});
+		vdp.drawBG('road', {linescrollBuffer: buffer, winY: 0, wrap: true});
 
+		// (x, z)
+		computeSpritePos([512, 351]);
 
 		//const buffer2 = [];
 		//for (let i = 0; i < SCREEN_HEIGHT; i++) {

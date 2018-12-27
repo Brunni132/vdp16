@@ -36,11 +36,11 @@ const TextLayer = {
 		const buffer = [];
 		for (let i = 0; i < 256; i++) {
 			const mat = mat3.create();
-			// Like this, it will scale and then move, meaning that the screen is double-sized and one tile (8 pixels) is scrolled left (16 pixels with double size).
-			// If we reversed those 2 lines, only half a tile would be scrolled, because we'd scroll 8 pixels and then scale, but 8 pixels is only half a 16x16 double-sized tile.
+			// Like this, it will scale and then move, meaning that the screen is double-sized and one tile (8 pixels) is scrolled left (16 pixels with double size). The 'translate x' parameter of the matrix is 8.
+			// If we reversed those 2 lines, only half a tile would be scrolled, because we'd scroll 8 pixels and then scale, but 8 pixels is only half a 16x16 double-sized tile. The 'translate x' parameter of the matrix would be 4.
 			mat3.translate(mat, mat, [8, 0]);
 			mat3.scale(mat, mat, [0.5, 0.5]);
-			// This scrolls an additional tile left, then scales the whole render x1.5, giving a x3 render centered around the 3rd tile
+			// This scrolls an additional tile left (16/2=8), then scales the whole render x1.5, giving a x3 render centered around the 3rd tile
 			mat3.translate(mat, mat, [16, 0]);
 			mat3.scale(mat, mat, [0.75, 0.75]);
 

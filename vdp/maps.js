@@ -197,17 +197,18 @@ export function initMapShaders(vdp) {
 		
 			void main(void) {
 				mat3 transformationMatrix;
+				float y = vTextureCoord.y;
 				// Per-line info
 				if (vOtherInfo.x >= 256.0) {
-					float y = vTextureCoord.y;
 					// 2 colors (8 float values) per matrix
 					transformationMatrix = readLinescrollBuffer(int(vOtherInfo.x) - 256, int(y) * 2);
+					y = 0.0;
 				}
 				else {
 					transformationMatrix = vTransformationMatrix;
 				}
 
-				ivec2 texCoord = ivec2((transformationMatrix * vec3(vTextureCoord.x, vTextureCoord.y, 1)).xy);
+				ivec2 texCoord = ivec2((transformationMatrix * vec3(vTextureCoord.x, y, 1)).xy);
 				int mapX = intDiv(texCoord.x, int(vTileSize.x)), mapY = intDiv(texCoord.y, int(vTileSize.y));
 				
 				// Out of bounds?

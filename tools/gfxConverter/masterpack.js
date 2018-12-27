@@ -87,13 +87,12 @@ class MasterPack {
 			this.mapTex = Texture.blank('maps', 2048, 1024, 16);
 			/** @type {Texture} */
 			this.spriteTex = Texture.blank('sprites', HI_COLOR_MODE ? 4096 : 8192, 1024, HI_COLOR_MODE ? 8 : 4);
-			/** @type {Texture} */
-			this.paletteTex = Texture.blank('palettes', HI_COLOR_MODE ? 256 : 16, 256, 32);
 		} else {
 			this.mapTex = Texture.blank('maps', 512, 512, 16);
 			this.spriteTex = Texture.blank('sprites', HI_COLOR_MODE ? 1024 : 2048, 512, HI_COLOR_MODE ? 8 : 4);
-			this.paletteTex = Texture.blank('palettes', HI_COLOR_MODE ? 256 : 16, 256, 32);
 		}
+		/** @type {Texture} */
+		this.paletteTex = Texture.blank('palettes', HI_COLOR_MODE ? 256 : 16, HI_COLOR_MODE ? 16 : 256, 32);
 
 		/** @type {Palette[]} */
 		this.palettes = [];
