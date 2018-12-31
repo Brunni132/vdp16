@@ -1,7 +1,7 @@
 const BigFile = require('./bigfile');
 const fs = require('fs');
 const Texture = require("./texture");
-const { QUANTIZE_PALETTES, HI_COLOR_MODE, Palette } = require("./palette");
+const { g_config, Palette } = require("./palette");
 const utils = require('./utils');
 
 class MasterPackBaker {
@@ -77,22 +77,28 @@ class MasterPack {
 	/**
 	 * Lo-color mode: 8192x1024 sprites (4 MB), 256x16 RGBA4444 color RAM (8 kB), 2048x1024 maps (4 MB)
 	 * Hi-color mode: 4096x1024 sprites (4 MB), 256x256 RGBA8888 color RAM (256 kB), 2048x1024 maps (4 MB)
-	 * @param compact {boolean} use a smaller video memory (512 kB)
-	 * @param screenWidth {number}
-	 * @param screenHeight {number}
+	 * @param opts {Object}
+	 * @param [opts.compact=true] {boolean} use a smaller video memory (512 kB)
+	 * @param [opts.quantizeColors=true] {boolean} if true, colors are 12 bits; if false, they are 32 bits. Allows to
+	 * spare memory and colors.
+	 * @param [opts.hiColorMode=false] {boolean} if true, colors are 8 bits per pixel and palettes have 256 colors;
+	 * if false they are 4 bits per pixel and palettes have 16 colors.
 	 */
-	constructor(compact, screenWidth, screenHeight) {
-		if (!compact) {
+	constructor(opts) {
+		g_config.hiColorMode = opts.hasOwnProperty('hiColorMode') ? opts.hiColorMode : false;
+		g_config.quantizeColors = opts.hasOwnProperty('quantizeColors') ? opts.quantizeColors : true;
+
+		if (!opts.compact) {
 			/** @type {Texture} */
 			this.mapTex = Texture.blank('maps', 2048, 1024, 16);
 			/** @type {Texture} */
-			this.spriteTex = Texture.blank('sprites', HI_COLOR_MODE ? 4096 : 8192, 1024, HI_COLOR_MODE ? 8 : 4);
+			this.spriteTex = Texture.blank('sprites', g_config.hiColorMode ? 4096 : 8192, 1024, g_config.hiColorMode ? 8 : 4);
 		} else {
 			this.mapTex = Texture.blank('maps', 512, 512, 16);
-			this.spriteTex = Texture.blank('sprites', HI_COLOR_MODE ? 1024 : 2048, 512, HI_COLOR_MODE ? 8 : 4);
+			this.spriteTex = Texture.blank('sprites', g_config.hiColorMode ? 1024 : 2048, 512, g_config.hiColorMode ? 8 : 4);
 		}
 		/** @type {Texture} */
-		this.paletteTex = Texture.blank('palettes', HI_COLOR_MODE ? 256 : 16, HI_COLOR_MODE ? 16 : 256, 32);
+		this.paletteTex = Texture.blank('palettes', g_config.hiColorMode ? 256 : 16, g_config.hiColorMode ? 64 : 256, 32);
 
 		/** @type {Palette[]} */
 		this.palettes = [];
@@ -102,10 +108,6 @@ class MasterPack {
 		this.tilesets = [];
 		/** @type {Map[]} */
 		this.maps = [];
-		/** @type {number} */
-		this.screenWidth = screenWidth;
-		/** @type {number} */
-		this.screenHeight = screenHeight;
 	}
 
 	/**
@@ -168,7 +170,7 @@ class MasterPack {
 	pack(writeSample) {
 		/** @type {BigFile} */
 		const resultJson = { pals: {}, sprites: {}, maps: {}, data: {}, info: {
-				resolution: [this.screenWidth, this.screenHeight], paletteBpp: QUANTIZE_PALETTES ? 12 : 32
+				paletteBpp: g_config.quantizeColors ? 12 : 32
 			}};
 
 		// Convert all palettes to the palette tex
@@ -179,12 +181,12 @@ class MasterPack {
 		}
 
 		// Bake sprites
-		const spriteBaker = new MasterPackBaker(this.spriteTex, HI_COLOR_MODE ? 4 : 8);
+		const spriteBaker = new MasterPackBaker(this.spriteTex, g_config.hiColorMode ? 4 : 8);
 		for (let i = 0; i < this.sprites.length; i++) {
 			const s = this.sprites[i];
 			spriteBaker.bake(s.width, s.height, s.name, (destTexture, x, y) => {
 				s.copyToTexture(destTexture, x, y);
-				resultJson.sprites[s.name] = { x, y, w: s.width, h: s.height, hicol: HI_COLOR_MODE ? 1 : 0, pal: s.palette.name };
+				resultJson.sprites[s.name] = { x, y, w: s.width, h: s.height, hicol: g_config.hiColorMode ? 1 : 0, pal: s.palette.name };
 			});
 		}
 
@@ -193,7 +195,7 @@ class MasterPack {
 			const tileset = this.tilesets[i];
 			spriteBaker.bake(tileset.usedWidth, tileset.usedHeight, tileset.name, (destTexture, x, y) => {
 				tileset.copyToTexture(destTexture, x, y);
-				resultJson.sprites[tileset.name] = { x, y, w: tileset.usedWidth, h: tileset.usedHeight, tw: tileset.tileWidth, th: tileset.tileHeight, hicol: HI_COLOR_MODE ? 1 : 0, pal: tileset.palettes[0].name };
+				resultJson.sprites[tileset.name] = { x, y, w: tileset.usedWidth, h: tileset.usedHeight, tw: tileset.tileWidth, th: tileset.tileHeight, hicol: g_config.hiColorMode ? 1 : 0, pal: tileset.palettes[0].name };
 			});
 		}
 

@@ -108,6 +108,18 @@ class Texture {
 	}
 
 	/**
+	 * Alias for subtexture.
+	 * @param x {number}
+	 * @param y {number}
+	 * @param width {number}
+	 * @param height {number}
+	 * @returns {Texture}
+	 */
+	rect(x, y, width, height) {
+		return this.subtexture(x, y, width, height);
+	}
+
+	/**
 	 * @param x {number}
 	 * @param y {number}
 	 * @param width {number}

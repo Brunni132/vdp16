@@ -5,7 +5,6 @@ import {FramerateAdjuster, NOMINAL_FRAMERATE} from "./FramerateAdjuster";
 /**
  * @param canvas {HTMLCanvasElement}
  * @param [params] {Object}
- * @param [params.resolution] {number} default is 0. 0=256x256, 1=320x224
  * @returns {Promise}
  */
 export function loadVdp(canvas, params) {

@@ -3,7 +3,7 @@ import {loadVdp, runProgram} from "./vdp/runloop";
 // Just an attempt, doesn't quite work. Use reference instead: https://www.coranac.com/tonc/text/mode7.htm
 function *main(vdp) {
 	const mario = {
-		x: 100, y: 0, w: 16, h: 22	, vx: 0, vy: 0
+		x: 100, y: 0, w: 16, h: 14	, vx: 0, vy: 0
 	};
 
 	const level1Map = vdp.map('level1');
@@ -29,7 +29,6 @@ function *main(vdp) {
 		}
 
 		vdp.drawBG('level1');
-		vdp.drawObj('gradient', 0, 100, { prio: 1 });
 
 		const marioSprite = vdp.sprite('mario').offsetted(0, 0, 16, 24);
 		vdp.drawObj(marioSprite, mario.x, mario.y, { prio: 1 });

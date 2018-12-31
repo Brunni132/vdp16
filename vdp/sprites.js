@@ -157,7 +157,7 @@ export class ObjBuffer {
 				//this.setWidthOfObject(i, allowedCellsWide * OBJ_CELL_SIZE);
 				//return i - this.firstSprite + 1;
 
-				console.log(`TEMP Too many OBJ cells on ${this.name} (discarded ${endOfList - i}/${this.usedSprites} entries)`);
+				console.log('Too many OBJ cells on ${this.name} (discarded ${endOfList - i}/${this.usedSprites} entries)');
 				return i - this.firstSprite;
 			}
 			cells += current;

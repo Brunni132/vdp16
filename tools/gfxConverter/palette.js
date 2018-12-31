@@ -1,7 +1,9 @@
 const assert = require('assert');
+const utils = require('./utils');
 
-const HI_COLOR_MODE = true;				// Generate 8-bit tiles and 256-color palettes
-const QUANTIZE_PALETTES = true;		// To spare colors in RGBA4444 mode
+// TODO Florian -- move and make part of conv
+const g_config = {};
+const ALLOW_MORE_COLORS = true;
 
 class Palette {
 
@@ -13,8 +15,10 @@ class Palette {
 		assert(numColors < 256, `Can't create a palette of ${numColors} (${name})`);
 		/** @type {number[]} */
 		this.colorData = [0]; // First color is always transparent (RGBA 0000)
-		this.maxColors = numColors || (HI_COLOR_MODE ? 256 : 16);
+		this.maxColors = numColors || (g_config.hiColorMode ? 256 : 16);
 		this.name = name;
+		/** @type {Boolean} */
+		this.alreadyWarned = false;
 	}
 
 	/**
@@ -23,6 +27,21 @@ class Palette {
 	initOptimizedFromImage(texture) {
 		texture.forEachPixelLinear((color) => {
 			this.pixelNumberInsidePalette(color, true);
+		});
+	}
+
+	/**
+	 * @param colorArray {Array<number>} must already be in destinationFormat! (call toDestinationFormat first)
+	 */
+	addColors(colorArray) {
+		if (colorArray.length + this.colorData.length > this.maxColors) {
+			throw new Error(`Can't add ${colorArray.length} colors to palette ${this.name}, would extend ${this.maxColors}`);
+		}
+		colorArray.forEach(c => {
+			if (c >>> 24 === 0) {
+				throw new Error(`Can't add color ${c} to palette ${this.name}: alpha needs to be non-zero`);
+			}
+			this.colorData.push(c);
 		});
 	}
 
@@ -57,9 +76,29 @@ class Palette {
 		const found = this.colorData.findIndex(c => c === color || (noAlpha && (c >>> 24 === 0)));
 		if (found >= 0 || !allowCreate) return found;
 
-		assert(this.colorData.length < this.maxColors, `max ${this.maxColors} colors exceeded in ${this.name}`);
-		this.colorData.push(color);
-		return this.colorData.length - 1;
+		if (this.colorData.length < this.maxColors) {
+			this.colorData.push(color);
+			return this.colorData.length - 1;
+		}
+
+		if (ALLOW_MORE_COLORS && !this.alreadyWarned) {
+			console.log(`Max ${this.maxColors} colors exceeded in ${this.name}`.formatAs(utils.BRIGHT, utils.FG_RED));
+			this.alreadyWarned = true;
+		}
+		assert(ALLOW_MORE_COLORS, 'Exceeded color count in palette');
+
+		// Approximate color (index 0 is excluded as it's transparent)
+		let best = 1 << 24, bestIdx = 1;
+		const rs = color & 0xff, gs = color >> 8 & 0xff, bs = color >> 16 & 0xff;
+		for (let i = 1; i < this.colorData.length; i++) {
+			const r = this.colorData[i] & 0xff, g = this.colorData[i] >>  8 & 0xff, b = this.colorData[i] >> 16 & 0xff;
+			const diff = (r - rs) * (r - rs) + (g - gs) * (g - gs) + (b - bs) * (b - bs);
+			if (diff < best) {
+				best = diff;
+				bestIdx = i;
+			}
+		}
+		return bestIdx;
 	}
 
 	/**
@@ -67,14 +106,13 @@ class Palette {
 	 * @returns {number}
 	 */
 	toDesintationFormat(color) {
-		if (!QUANTIZE_PALETTES) return color;
+		if (!g_config.quantizeColors) return color;
 		const c = (color >>> 4 & 0x0f0f0f0f);
 		return c | c << 4;
 	}
 }
 
 module.exports = {
-	Palette,
-	QUANTIZE_PALETTES,
-	HI_COLOR_MODE
+	g_config,
+	Palette
 };

@@ -56,11 +56,10 @@ function *main(vdp) {
 		const buffer = [];
 		for (let i = 0; i < 256; i++) {
 			const mat = mat3.create();
-			mat3.translate(mat, mat, [Math.sin((i + loop) / 20) * 10, 0]);
+			mat3.translate(mat, mat, [Math.sin((i + loop) / 20) * 10, i]);
 			buffer.push(mat);
 		}
 
-		vdp.configFade('#000', 128);
 		vdp.drawBG('level1', { linescrollBuffer: buffer, scrollX: 0 });
 		TextLayer.drawLayer();
 
