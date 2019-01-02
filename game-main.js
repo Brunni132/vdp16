@@ -31,7 +31,17 @@ function *main(vdp) {
 			mario.y = Math.floor(mario.y - 1);
 		}
 
-		vdp.configFade('#000', 255 - loop * 10);
+		// vdp.configFade('#000', 255 - loop * 10);
+
+		// if (loop % 10 === 0) {
+		// 	const colors = vdp.readPalette('level1');
+		// 	const firstColor = colors[0];
+		// 	colors.forEach((c, ind) => {
+		// 		colors[ind] = colors[ind + 1];
+		// 	});
+		// 	colors[colors.length - 1] = firstColor;
+		// 	vdp.writePalette('level1', colors);
+		// }
 
 		vdp.drawBG('level1');
 		vdp.drawObj('gradient', 0, 100, { prio: 1 });
@@ -40,7 +50,7 @@ function *main(vdp) {
 		vdp.drawObj(marioSprite, mario.x, mario.y, { prio: 1 });
 		console.log(`TEMP `, mario);
 
-		loop += 0.1;
+		loop += 1;
 
 		yield 0;
 	}

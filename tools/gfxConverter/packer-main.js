@@ -130,7 +130,7 @@ function tileset(name, contents, tileWidth, tileHeight, cb) {
 const SCREEN_WIDTH = 256;
 const SCREEN_HEIGHT = 256;
 
-config({ compact: true, paletteBpp: 2, hiColorMode: false });
+config({ compact: true, paletteBpp: 4, hiColorMode: false });
 
 palette('Default', () => {
 	sprite('gradient', 'gfx/gradient.png');

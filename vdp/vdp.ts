@@ -171,7 +171,7 @@ export class VDP {
 				this.shadowSpriteTex = this.romSpriteTex.clone();
 
 				loadTexture(gl, 'build/palettes.png').then(palettes => {
-					if (!(palettes.width === 256 && palettes.height === 16) && !(palettes.width === 16 && palettes.height === 256))
+					if (!(palettes.width === 256 && palettes.height === 64) && !(palettes.width === 16 && palettes.height === 256))
 						throw new Error('Mismatch in texture size (max {16,256}x256');
 					this.paletteTexture = palettes.texture;
 					this.romPaletteTex = makeShadowFromTexture32(gl, palettes);

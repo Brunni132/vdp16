@@ -14,10 +14,11 @@ function *main(vdp) {
 			mat3.translate(mat, mat, [SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2]);
 			mat3.rotate(mat, mat, loop / 800);
 			mat3.translate(mat, mat, [-SCREEN_WIDTH / 2, -SCREEN_HEIGHT / 2]);
+			mat3.translate(mat, mat, [0, i]);
 			buffer.push(mat);
 		}
 
-		vdp.configFade('#000', 192);
+		// vdp.configFade('#000', 192);
 		vdp.drawBG('level1', { scrollX: 0, linescrollBuffer: buffer });
 		loop += 1;
 		yield 0;
