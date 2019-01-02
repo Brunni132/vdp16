@@ -79,14 +79,14 @@ class MasterPack {
 	 * Hi-color mode: 4096x1024 sprites (4 MB), 256x256 RGBA8888 color RAM (256 kB), 2048x1024 maps (4 MB)
 	 * @param opts {Object}
 	 * @param [opts.compact=true] {boolean} use a smaller video memory (512 kB)
-	 * @param [opts.quantizeColors=true] {boolean} if true, colors are 12 bits; if false, they are 32 bits. Allows to
-	 * spare memory and colors.
+	 * @param [opts.paletteBpp=4] {number} uses that number of bits per component; can be set to 2, 3, 4, 5 or 8.
+	 * Allows to spare memory and colors.
 	 * @param [opts.hiColorMode=false] {boolean} if true, colors are 8 bits per pixel and palettes have 256 colors;
 	 * if false they are 4 bits per pixel and palettes have 16 colors.
 	 */
 	constructor(opts) {
 		g_config.hiColorMode = opts.hasOwnProperty('hiColorMode') ? opts.hiColorMode : false;
-		g_config.quantizeColors = opts.hasOwnProperty('quantizeColors') ? opts.quantizeColors : true;
+		g_config.paletteBpp = opts.hasOwnProperty('paletteBpp') ? opts.paletteBpp : 4;
 
 		if (!opts.compact) {
 			/** @type {Texture} */
@@ -170,7 +170,7 @@ class MasterPack {
 	pack(writeSample) {
 		/** @type {BigFile} */
 		const resultJson = { pals: {}, sprites: {}, maps: {}, data: {}, info: {
-				paletteBpp: g_config.quantizeColors ? 12 : 32
+				paletteBpp: g_config.paletteBpp
 			}};
 
 		// Convert all palettes to the palette tex

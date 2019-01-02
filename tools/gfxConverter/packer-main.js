@@ -8,7 +8,7 @@ const { MasterPack } = require("./masterpack");
 const DEBUG = true;
 
 function checkConv() {
-	assert(conv, 'config({ compact: true, quantizeColors: true, hiColorMode: false }); should come first in your program');
+	assert(conv, 'config({ compact: true, hiColorMode: false }); should come first in your program');
 }
 
 // User accessible
@@ -24,12 +24,11 @@ function addColors(contents) {
 	assert(!!currentPalette, 'addColors must be inside palette');
 	if (typeof contents === 'string') contents = image(contents);
 	if (Array.isArray(contents)) {
-		currentPalette.addColors(contents.map(c => currentPalette.toDesintationFormat(c)));
+		currentPalette.addColors(contents);
 	}
 	else if (contents instanceof Texture) {
 		const colors = [];
 		contents.forEachPixel((pixel) => {
-			pixel = currentPalette.toDesintationFormat(pixel);
 			if (colors.indexOf(pixel) === -1) colors.push(pixel);
 		});
 		currentPalette.addColors(colors);
@@ -127,12 +126,11 @@ function tileset(name, contents, tileWidth, tileHeight, cb) {
 	currentTileset = null;
 }
 
-
 // Your program
 const SCREEN_WIDTH = 256;
 const SCREEN_HEIGHT = 256;
 
-config({ compact: true, quantizeColors: true, hiColorMode: false });
+config({ compact: true, paletteBpp: 2, hiColorMode: false });
 
 palette('Default', () => {
 	sprite('gradient', 'gfx/gradient.png');

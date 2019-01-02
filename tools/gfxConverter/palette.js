@@ -5,6 +5,28 @@ const utils = require('./utils');
 const g_config = {};
 const ALLOW_MORE_COLORS = true;
 
+// TODO Florian -- merge with color32 module
+function posterize(c, bitsPerComponent) {
+	if (bitsPerComponent === 2) {
+		let hiBits = (c >>> 6 & 0x01010101) | (c >>> 7 & 0x01010101);
+		hiBits |= hiBits << 1;
+		c = c >>> 6 & 0x03030303;
+		return hiBits | hiBits << 2 | c << 4 | c << 6;
+	} else if (bitsPerComponent === 3) {
+		const hiBits = c >>> 6 & 0x03030303;
+		c = (c >>> 5 & 0x07070707);
+		return c | c << 5 | c << 2 | hiBits;
+	} else if (bitsPerComponent === 4) {
+		c = (c >>> 4 & 0x0f0f0f0f);
+		return c | c << 4;
+	} else if (bitsPerComponent === 5) {
+		const hiBits = (c >>> 5 & 0x07070707);
+		c = (c >>> 3 & 0x1f1f1f1f);
+		return c | c << 3 | hiBits;
+	}
+	return c;
+}
+
 class Palette {
 
 	/**
@@ -41,7 +63,7 @@ class Palette {
 			if (c >>> 24 === 0) {
 				throw new Error(`Can't add color ${c} to palette ${this.name}: alpha needs to be non-zero`);
 			}
-			this.colorData.push(c);
+			this.colorData.push(this.toDesintationFormat(c));
 		});
 	}
 
@@ -106,9 +128,7 @@ class Palette {
 	 * @returns {number}
 	 */
 	toDesintationFormat(color) {
-		if (!g_config.quantizeColors) return color;
-		const c = (color >>> 4 & 0x0f0f0f0f);
-		return c | c << 4;
+		return posterize(color, g_config.paletteBpp);
 	}
 }
 

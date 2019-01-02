@@ -1,6 +1,9 @@
 import {loadVdp, runProgram} from "./vdp/runloop";
 
-// Just an attempt, doesn't quite work. Use reference instead: https://www.coranac.com/tonc/text/mode7.htm
+/**
+ * @param vdp {VDP}
+ * @returns {IterableIterator<number>}
+ */
 function *main(vdp) {
 	const mario = {
 		x: 100, y: 0, w: 16, h: 22	, vx: 0, vy: 0
@@ -27,6 +30,8 @@ function *main(vdp) {
 			mario.vy = 0;
 			mario.y = Math.floor(mario.y - 1);
 		}
+
+		vdp.configFade('#000', 255 - loop * 10);
 
 		vdp.drawBG('level1');
 		vdp.drawObj('gradient', 0, 100, { prio: 1 });

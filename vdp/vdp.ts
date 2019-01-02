@@ -61,8 +61,8 @@ class TransparencyConfig {
 			gl.enable(gl.BLEND);
 			gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 		} else if (effect === 'color') {
-			const dst = color32.extract(blendDst, vdp.use4Bit);
-			const src = color32.extract(blendSrc, vdp.use4Bit);
+			const dst = color32.extract(blendDst, vdp.paletteBpp);
+			const src = color32.extract(blendSrc, vdp.paletteBpp);
 			// Background blend factor
 			gl.blendColor(dst.r / 255, dst.g / 255, dst.b / 255, dst.a / 255);
 			// Source blend factor defined in shader
@@ -143,7 +143,8 @@ export class VDP {
         OBJ0Limit: OBJ0_CELL_LIMIT
     };
     private frameStarted = true;
-    public use4Bit = true;
+    // 2 = 64 colors (SMS), 3 = 512 colors (Mega Drive), 4 = 4096 (System 16), 5 = 32k (SNES), 8 = unmodified (PC)
+    public paletteBpp;
     // Original data (ROM) for sprites
     private romSpriteTex: ShadowTexture;
     // Copy of the VRAM data for fast read access from the program
@@ -161,6 +162,8 @@ export class VDP {
 		// TODO Florian -- run all requests at the same time and wait for them all.
 		window.fetch('build/game.json').then((res) => res.json()).then((json) => {
 			this.gameData = json;
+			this.paletteBpp = json.info.paletteBpp;
+			if ([2, 3, 4, 5, 8].indexOf(this.paletteBpp) === -1) throw new Error(`Unsupported paletteBpp ${this.paletteBpp}`);
 
 			loadTexture(gl, 'build/sprites.png').then(sprites => {
 				this.spriteTexture = sprites.texture;
@@ -271,7 +274,7 @@ export class VDP {
 
 		// Only the first time per frame (allow multiple render per frames)
 		if (this.frameStarted) {
-			const clearColor = color32.extract(this.shadowPaletteTex.buffer[0], this.use4Bit);
+			const clearColor = color32.extract(this.shadowPaletteTex.buffer[0], this.paletteBpp);
 			gl.clearColor(clearColor.r / 255, clearColor.g / 255, clearColor.b / 255, 0);
 
 			if (USE_PRIORITIES) {
@@ -578,7 +581,7 @@ export class VDP {
 		// Draw fade
 		if (this.fadeColor >>> 24 >= 0x10) {
 			const gl = this.gl;
-			const {r, g, b, a} = color32.extract(this.fadeColor, this.use4Bit);
+			const {r, g, b, a} = color32.extract(this.fadeColor, this.paletteBpp);
 
 			STANDARD_TRANSPARENCY.apply(this);
 			gl.disable(gl.DEPTH_TEST);

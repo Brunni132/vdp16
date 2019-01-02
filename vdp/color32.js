@@ -2,14 +2,11 @@
 export class color32 {
 	/**
 	 * @param c color (32 bits)
-	 * @param [posterize] {boolean=false} if true, returns a limited color (4 bits per component)
+	 * @param [bitsPerComponent=8] {number} can be 2, 3, 4, 5 to return a reduced color value (x bits per component)
 	 * @returns {{r: number, g: number, b: number, a: number}}
 	 */
-	static extract(c, posterize) {
-		if (posterize) {
-			c = (c >>> 4 & 0x0f0f0f0f);
-			c |= c << 4;
-		}
+	static extract(c, bitsPerComponent=8) {
+		c = color32.posterize(c, bitsPerComponent);
 		return {
 			a: c >>> 24,
 			b: c >>> 16 & 0xff,
@@ -86,6 +83,31 @@ export class color32 {
 	}
 
 	/**
+	 * @param c {number} color to affect
+	 * @param bitsPerComponent {number} can be 2, 3, 4, 5 to return a reduced color value (x bits per component)
+	 */
+	static posterize(c, bitsPerComponent) {
+		if (bitsPerComponent === 2) {
+			let hiBits = (c >>> 6 & 0x01010101) | (c >>> 7 & 0x01010101);
+			hiBits |= hiBits << 1;
+			c = c >>> 6 & 0x03030303;
+			return hiBits | hiBits << 2 | c << 4 | c << 6;
+		} else if (bitsPerComponent === 3) {
+			const hiBits = c >>> 6 & 0x03030303;
+			c = (c >>> 5 & 0x07070707);
+			return c | c << 5 | c << 2 | hiBits;
+		} else if (bitsPerComponent === 4) {
+			c = (c >>> 4 & 0x0f0f0f0f);
+			return c | c << 4;
+		} else if (bitsPerComponent === 5) {
+			const hiBits = (c >>> 5 & 0x07070707);
+			c = (c >>> 3 & 0x1f1f1f1f);
+			return c | c << 3 | hiBits;
+		}
+		return c;
+	}
+
+	/**
 	 * Reverses the byte order of a RGBA color.
 	 * @param col {number}
 	 * @returns {number}
@@ -93,15 +115,6 @@ export class color32 {
 	static reverseColor32(col) {
 		return (col & 0xff) << 24 | (col >>> 8 & 0xff) << 16 | (col >>> 16 & 0xff) << 8 | (col >>> 24 & 0xff);
 	}
-
-	/**
-	 * @param col {number} 32-bit color (0xAABBGGRR)
-	 * @returns {number} 16-bit color (0xRGBA)
-	 */
-	static toColor12(col) {
-		return (col & 0xf0) << 8 | (col >>> 8 & 0xf0) << 4 | (col >>> 16 & 0xf0) | col >>> 28;
-	}
-
 
 	static add(c, d) {
 		let a = (c >>> 24) + (d >>> 24);
