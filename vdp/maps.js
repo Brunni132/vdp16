@@ -49,31 +49,6 @@ class MapBuffer {
 	}
 
 	/**
-	 * @returns {{w: number, h: number}} the size of the BG at the index-th position.
-	 * @param index {number} 0-based BG index (0 = the first from firstVertice)
-	 */
-	getSizeOfBG(index) {
-		// (left,top) in row 0.xy, (right,bottom) in row 2.xy
-		const vert = 4 * (this.firstVertice + BG_BUFFER_STRIDE * index);
-		return {
-			w: Math.abs(this.xyzp[vert + 4 * 2] - this.xyzp[vert]),
-			h: Math.abs(this.xyzp[vert + 4 * 2 + 1] - this.xyzp[vert + 1])
-		};
-	}
-
-	/**
-	 * @returns {number} the total number of pixels that the buffered maps use
-	 */
-	getTotalPixels() {
-		let total = 0;
-		for (let i = 0; i < this.usedLayers; i++) {
-			const size = this.getSizeOfBG(i);
-			total += size.w * size.h;
-		}
-		return total;
-	}
-
-	/**
 	 * @returns {number}
 	 */
 	get usedLayers() {

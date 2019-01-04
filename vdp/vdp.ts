@@ -469,16 +469,6 @@ export class VDP {
 	}
 
 	// --------------------- PRIVATE ---------------------
-	private _computeOBJ0Limit(): number {
-		// Count the number of BGs covering the full screen
-		// const pixels = this._bgBuffer.getTotalPixels() + this._tbgBuffer.getTotalPixels();
-		// const layers = Math.ceil(pixels / (SCREEN_WIDTH * SCREEN_HEIGHT));
-		// let limit = OBJ0_CELL_LIMIT;
-		// if (layers >= 3) limit -= 128;
-		// if (layers >= 4) limit -= 128;
-		// return limit;
-		return OBJ0_CELL_LIMIT;
-	}
 
 	// Take one frame in account for the stats. Read with _readStats.
 	private _computeStats(obj0Limit: number) {
@@ -490,14 +480,11 @@ export class VDP {
 
     /**
      * Renders the machine in the current state. Only available for the extended version of the GPU.
-     * @private
      */
-    _doRender() {
+    private _doRender() {
         const gl = this.gl;
         // Do before drawing stuff since it flushes the buffer
-        const obj0Limit = this._computeOBJ0Limit();
-
-        if (DEBUG) this._computeStats(obj0Limit);
+        if (DEBUG) this._computeStats(OBJ0_CELL_LIMIT);
 
         // Only the first time per frame (allow multiple render per frames)
         if (this.frameStarted) {
@@ -521,7 +508,7 @@ export class VDP {
         // OBJ0 and BG (both opaque, OBJ0 first to appear above
         NO_TRANSPARENCY.apply(this);
         mat3.identity(this.modelViewMatrix);
-        this._drawObjLayer(this.obj0Buffer, NO_TRANSPARENCY, obj0Limit);
+        this._drawObjLayer(this.obj0Buffer, NO_TRANSPARENCY, OBJ0_CELL_LIMIT);
         drawPendingMap(this, this.bgBuffer);
 
         // TBG then OBJ1
@@ -541,7 +528,7 @@ export class VDP {
 	 * @param objLimit {number} max number of cells drawable
 	 * @private
 	 */
-	private _drawObjLayer(objBuffer: ObjBuffer, transparencyConfig: TransparencyConfig, objLimit = 0) {
+	private _drawObjLayer(objBuffer: ObjBuffer, transparencyConfig: TransparencyConfig, objLimit: number = 0) {
 		// Use config only for that poly list
         mat3.identity(this.modelViewMatrix);
 		transparencyConfig.apply(this);
