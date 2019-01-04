@@ -88,6 +88,40 @@ export class VdpSprite {
 }
 
 /**
+ * Used to represent data read from (or written to) memory.
+ *
+ * In the VDP16, memory is always addressed in 2D. It has the advantage of being easier to represent for users and be
+ * much more flexible. However, underlying memory is still exposed as a one-dimensional array in the end, containing
+ * [height] lines of [width] integers, each of which represents a pixel, a map element or a palette color. Therefore,
+ * accessing to the buffer element (x, y) is done as such: Buffer2D.buffer[x + y * width]. Since it's heavily used all
+ * around, we created this class to wrap up the data buffer and the width of each column.
+ *
+ * For reference, sprites use 8 bit data (Uint8Array), each element being one or two pixels depending on the hi-color
+ * mode. Map elements use 16 bit data (Uint16Array), each element being a map element. Palettes use 32 bit data
+ * (Uint32Array), each element representing a color in RGBA format (write 0xaabbggrr with r=8 red bits, g=green, b=blue
+ * and a=alpha, ignored unless you use the alpha-based blending modes).
+ */
+export class Buffer2D {
+    buffer: Uint8Array|Uint16Array|Uint32Array;
+    width: number;
+    height: number;
+
+    constructor(buffer: Uint8Array|Uint16Array|Uint32Array, width: number, height: number) {
+        this.buffer = buffer;
+        this.width = width;
+        this.height = height;
+    }
+
+    getElement(x: number, y: number): number {
+        return this.buffer[this.width * y + x];
+    }
+
+    setElement(x: number, y: number, value: number) {
+        this.buffer[this.width * y + x] = value;
+    }
+}
+
+/**
  * Fills the memory with a given value.
  */
 export function memset(buffer: Uint8Array|Uint16Array|Uint32Array|Uint8ClampedArray|Float32Array, value: number, numEntries: number) {

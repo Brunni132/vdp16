@@ -3,6 +3,7 @@ import { mat3, mat4 } from 'gl-matrix-ts';
 import { drawPendingObj, enqueueObj, initObjShaders, makeObjBuffer, ObjBuffer } from "./sprites";
 import { drawPendingMap, enqueueMap, initMapShaders, makeMapBuffer } from "./maps";
 import {
+    DISCARD_ALPHA,
     envColor,
     OTHER_TEX_W,
     SCREEN_HEIGHT,
@@ -12,7 +13,7 @@ import {
     USE_PRIORITIES
 } from "./shaders";
 import { drawOpaquePoly, initOpaquePolyShaders } from "./generalpolys";
-import { VdpMap, VdpPalette, VdpSprite } from "./memory";
+import { Buffer2D, VdpMap, VdpPalette, VdpSprite } from "./memory";
 import {
     makeShadowFromTexture16,
     makeShadowFromTexture32,
@@ -23,6 +24,7 @@ import { color32 } from "./color32";
 import { mat3type, mat4type } from 'gl-matrix-ts/dist/common';
 
 export const DEBUG = true;
+// Specs of the fantasy console, do not modify for now
 const BG_LIMIT = 4;
 const TBG_LIMIT = 1;
 const OBJ1_CELL_LIMIT = 64;
@@ -51,10 +53,10 @@ class TransparencyConfig {
 		envColor[0] = envColor[1] = envColor[2] = envColor[3] = 1;
 		gl.blendEquation(operation === 'sub' ? gl.FUNC_REVERSE_SUBTRACT : gl.FUNC_ADD);
 
-		if (effect === 'blend') {
+		if (effect === 'blend' && !DISCARD_ALPHA) {
 			gl.enable(gl.BLEND);
 			gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-		} else if (effect === 'premult') {
+		} else if (effect === 'premult' && !DISCARD_ALPHA) {
 			gl.enable(gl.BLEND);
 			gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 		} else if (effect === 'color') {
@@ -356,23 +358,24 @@ export class VDP {
 	 * the memory (you're going to write only and you need a buffer for that), vdp.SOURCE_CURRENT to read the current
 	 * contents of the memory (as was written the last time with writeMap) or vdp.SOURCE_ROM to get the original data
 	 * as downloaded from the cartridge.
-	 * @return
+	 * @return a Buffer2D containing the map data (buffer member is a Uint16Array), each element being the tile number
+     * in the tileset.
 	 */
-	readMap(map: string|VdpMap, source = VDPCopySource.current): Uint16Array {
+	readMap(map: string|VdpMap, source = VDPCopySource.current): Buffer2D {
 		const m = this._getMap(map);
 		const result = new Uint16Array(m.w * m.h);
 		if (source === VDPCopySource.current) this.shadowMapTex.readToBuffer(m.x, m.y, m.w, m.h, result);
 		if (source === VDPCopySource.rom) this.romMapTex.readToBuffer(m.x, m.y, m.w, m.h, result);
-		return result;
+		return new Buffer2D(result, m.w, m.h);
 	}
 
 	/**
 	 * @param palette name of the palette (or palette itself). You may also query an arbitrary portion
 	 * of the palette memory using new VdpPalette(…) or offset an existing map, using vdp.map('myMap').offsetted(…).
 	 * @param source look at readMap for more info.
-	 * @return contains color entries, encoded as 0xRGBA
+	 * @return a Buffer2D that contains color entries, encoded as 0xAABBGGRR
 	 */
-	readPalette(palette: string|VdpPalette, source = VDPCopySource.current): Uint32Array {
+	readPalette(palette: string|VdpPalette, source = VDPCopySource.current): Buffer2D {
 		const pal = this._getPalette(palette);
 		return this.readPaletteMemory(0, pal.y, pal.size, 1, source);
 	}
@@ -383,23 +386,23 @@ export class VDP {
 	 * @param w
 	 * @param h
 	 * @param source look at readMap for more info.
-	 * @returns contains color entries, encoded as 0xRGBA
+     * @return a Buffer2D that contains color entries, encoded as 0xAABBGGRR
 	 */
-	readPaletteMemory(x: number, y: number, w: number, h: number, source = VDPCopySource.current) {
+	readPaletteMemory(x: number, y: number, w: number, h: number, source = VDPCopySource.current): Buffer2D {
 		const result = new Uint32Array(w * h);
 		if (source === VDPCopySource.current) this.shadowPaletteTex.readToBuffer(x, y, w, h, result);
 		if (source === VDPCopySource.rom) this.romPaletteTex.readToBuffer(x, y, w, h, result);
-		return result;
+		return new Buffer2D(result, w, h);
 	}
 
 	/**
 	 * @param sprite name of the sprite (or sprite itself). You may also query an arbitrary portion of the
 	 * sprite memory using new VdpSprite(…) or offset an existing sprite, using vdp.sprite('mySprite').offsetted(…).
 	 * @param source look at readMap for more info.
-	 * @return the tileset data. For hi-color sprites, each entry represents one pixel. For lo-color sprites,
-	 * each entry corresponds to two packed pixels, of 4 bits each.
+	 * @return a Buffer2D containing the tileset data. For hi-color sprites, each entry represents one pixel.
+     * For lo-color sprites, each entry corresponds to two packed pixels, of 4 bits each.
 	 */
-	readSprite(sprite: string|VdpSprite, source = VDPCopySource.current) {
+	readSprite(sprite: string|VdpSprite, source = VDPCopySource.current): Buffer2D {
 		const s = this._getSprite(sprite);
 
 		if (!s.hiColor && s.x % 2 !== 0) throw new Error('Lo-color sprites need to be aligned to 2 pixels');
@@ -409,7 +412,7 @@ export class VDP {
 		const result = new Uint8Array(w * s.h);
 		if (source === VDPCopySource.current) this.shadowSpriteTex.readToBuffer(x, s.y, w, s.h, result);
 		if (source === VDPCopySource.rom) this.romSpriteTex.readToBuffer(x, s.y, w, s.h, result);
-		return result;
+		return new Buffer2D(result, w, s.h);
 	}
 
 	sprite(name: string): VdpSprite {
@@ -421,19 +424,19 @@ export class VDP {
 	/**
 	 * @param map {string|VdpMap} name of the map (or map itself). You may also write to an arbitrary portion of the map
 	 * memory using new VdpMap(…) or offset an existing map, using vdp.map('myMap').offsetted(…).
-	 * @param data {Uint16Array} map data to write
+	 * @param data {Buffer2D} map data to write (use readMap to create a buffer like that)
 	 */
-	writeMap(map: string|VdpMap, data: Uint16Array) {
+	writeMap(map: string|VdpMap, data: Buffer2D) {
 		const m = this._getMap(map);
-		this.shadowMapTex.writeTo(m.x, m.y, m.w, m.h, data);
+		this.shadowMapTex.writeTo(m.x, m.y, m.w, m.h, data.buffer);
 		this.shadowMapTex.syncToVramTexture(this.gl, this.mapTexture, m.x, m.y, m.w, m.h);
 	}
 
 	/**
 	 * @param palette
-	 * @param data color entries, encoded as 0xRGBA
+	 * @param data {Buffer2D} color entries, encoded as 0xAABBGGRR
 	 */
-	writePalette(palette: string|VdpPalette, data: Uint32Array) {
+	writePalette(palette: string|VdpPalette, data: Buffer2D) {
 		const pal = this._getPalette(palette);
 		this.writePaletteMemory(0, pal.y, pal.size, 1, data);
 	}
@@ -444,27 +447,27 @@ export class VDP {
 	 * @param y
 	 * @param w
 	 * @param h
-	 * @param data color entries, encoded as 0xRGBA
+     * @param data {Buffer2D} color entries, encoded as 0xAABBGGRR
 	 */
-	writePaletteMemory(x: number, y: number, w: number, h: number, data: Uint32Array) {
-		this.shadowPaletteTex.writeTo(x, y, w, h, data);
+	writePaletteMemory(x: number, y: number, w: number, h: number, data: Buffer2D) {
+		this.shadowPaletteTex.writeTo(x, y, w, h, data.buffer);
 		this.shadowPaletteTex.syncToVramTexture(this.gl, this.paletteTexture, x, y, w, h);
 	}
 
 	/**
 	 * @param sprite name of the sprite (or sprite itself). You may also write to an arbitrary portion
 	 * of the sprite memory using new VdpSprite(…) or offset an existing sprite, using vdp.sprite('mySprite').offsetted(…).
-	 * @param data the new data. For hi-color sprites, each entry represents one pixel. For lo-color sprites,
+	 * @param data {Buffer2D} the new data. For hi-color sprites, each entry represents one pixel. For lo-color sprites,
 	 * each entry corresponds to two packed pixels, of 4 bits each.
 	 */
-	writeSprite(sprite: string|VdpSprite, data: Uint8Array) {
+	writeSprite(sprite: string|VdpSprite, data: Buffer2D) {
 		const s = this._getSprite(sprite);
 
 		if (!s.hiColor && s.x % 2 !== 0) throw new Error('Lo-color sprites need to be aligned to 2 pixels');
 		const x = s.hiColor ? s.x : (s.x / 2);
 		const w = s.hiColor ? s.w : Math.ceil(s.w / 2);
 
-		this.shadowSpriteTex.writeTo(x, s.y, w, s.h, data);
+		this.shadowSpriteTex.writeTo(x, s.y, w, s.h, data.buffer);
 		this.shadowSpriteTex.syncToVramTexture(this.gl, this.paletteTexture, x, s.y, w, s.h);
 	}
 

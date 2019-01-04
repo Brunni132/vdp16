@@ -9,12 +9,11 @@ function *main(vdp) {
 		x: 100, y: 0, w: 16, h: 22	, vx: 0, vy: 0
 	};
 
-	const level1Map = vdp.map('level1');
-	const mapData = vdp.readMap(level1Map);
+	const mapData = vdp.readMap('level1');
 	let loop = 0;
 
 	function mapCell(x, y) {
-		return mapData[level1Map.w * Math.floor(y / 8) + Math.floor(x / 8)];
+		return mapData.getElement(Math.floor(x / 8), Math.floor(y / 8));
 	}
 
 	while (true) {
@@ -44,7 +43,8 @@ function *main(vdp) {
 		// }
 
 		vdp.drawBG('level1');
-		vdp.drawObj('gradient', 0, 100, { prio: 1 });
+		vdp.configOBJTransparency({ op: 'sub', blendSrc: '#fff', blendDst: '#fff' });
+		vdp.drawObj('gradient', 0, 190, { transparent: true, prio: 1, height: 32 });
 
 		const marioSprite = vdp.sprite('mario').offsetted(0, 0, 16, 24);
 		vdp.drawObj(marioSprite, mario.x, mario.y);

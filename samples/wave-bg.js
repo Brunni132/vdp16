@@ -1,6 +1,7 @@
 import {loadVdp, runProgram} from "./vdp/runloop";
 import {color32} from "./vdp/color32";
 import { mat3 } from 'gl-matrix-ts';
+import {VDPCopySource} from "./vdp/vdp";
 
 const TextLayer = {
 	/**
@@ -10,10 +11,10 @@ const TextLayer = {
 		this.vdp = vdp;
 		this.tileset = vdp.sprite('text');
 		this.mapWidth = vdp.map('text').w;
-		this.map = vdp.readMap('text', vdp.SOURCE_BLANK);
+		this.map = vdp.readMap('text', VDPCopySource.blank);
 	},
 	clear: function() {
-		this.map.fill(0);
+		this.map.buffer.fill(0);
 		this.vdp.writeMap('text', this.map);
 	},
 	getCharTile: function(c) {
@@ -30,7 +31,7 @@ const TextLayer = {
 	},
 	drawText: function (x, y, text) {
 		for (let i = 0; i < text.length; i++) {
-			this.map[this.mapWidth * y + x + i] = this.getCharTile(text.charCodeAt(i));
+			this.map.setElement(x + i, y, this.getCharTile(text.charCodeAt(i)));
 		}
 	},
 	drawLayer: function() {
