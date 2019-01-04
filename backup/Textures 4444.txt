@@ -1,20 +1,60 @@
-import {readFromTexture32} from "./utils";
+utils.js:
+/**
+ * @param gl {WebGLRenderingContext}
+ * @param url {string}
+ * @param done {function(WebGLTexture, HTMLImageElement)}
+ * @returns {WebGLTexture}
+ */
+export function loadTexture4444(gl, url, done) {
+	const texture = gl.createTexture();
+	gl.bindTexture(gl.TEXTURE_2D, texture);
 
+	const level = 0;
+	const internalFormat = gl.RGBA;
+	const width = 1;
+	const height = 1;
+	const border = 0;
+	const srcFormat = gl.RGBA;
+	const srcType = gl.UNSIGNED_SHORT_4_4_4_4;
+	const pixel = new Uint16Array([0xff00]);  // opaque blue
+	gl.texImage2D(gl.TEXTURE_2D, level, internalFormat,
+		width, height, border, srcFormat, srcType,
+		pixel);
+
+	const image = new Image();
+	image.onload = function() {
+		gl.bindTexture(gl.TEXTURE_2D, texture);
+		gl.texImage2D(gl.TEXTURE_2D, level, internalFormat, srcFormat, srcType, image);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+		if (done) done(texture, image);
+	};
+	image.src = url;
+
+	return texture;
+}
+
+shadowtexture.js:
 export class ShadowTexture {
 	/**
 	 *
 	 * @param buffer {Uint8Array|Uint16Array|Uint32Array} original texture to construct this shadow texture from (no copy made! use .slice() if required).
 	 * @param width {number} width of the original texture (in texels)
 	 * @param height {number} height of this texture (in texels)
+	 * @param texture4444 {boolean} pass true only if it's a UNSIGNED_SHORT_4_4_4_4 palette texture
 	 * @param pixelsPerTexel {number}
 	 */
-	constructor(buffer, width, height, pixelsPerTexel) {
+	constructor(buffer, width, height, texture4444, pixelsPerTexel) {
 		/** @type {Uint8Array|Uint16Array|Uint32Array} */
 		this.buffer = buffer;
 		/** @type {number} */
 		this.width = width;
 		/** @type {number} */
 		this.height = height;
+		/** @type {boolean} */
+		this.texture4444 = texture4444;
 		/** @type {number} */
 		this.pixelsPerTexel = pixelsPerTexel;
 	}
@@ -23,8 +63,21 @@ export class ShadowTexture {
 	 * @returns {ShadowTexture} deep copy
 	 */
 	clone() {
-		return new ShadowTexture(this.buffer.slice(0), this.width, this.height, this.pixelsPerTexel);
+		return new ShadowTexture(this.buffer.slice(0), this.width, this.height, this.texture4444, this.pixelsPerTexel);
 	}
+
+	/**
+	 * @param bufferType {Uint8Array|Uint16Array|Uint32Array} destination array
+	 * @returns {number} number of pixels per texel
+	 */
+	//pixelsPerTexel(bufferType) {
+	//	if (typeof bufferType === typeof Uint16Array) return this.texture4444 ? 1 : 2;
+	//	if (!this.texture4444) {
+	//		if (typeof bufferType === typeof Uint8Array) return 4;
+	//		if (typeof bufferType === typeof Uint32Array) return 1;
+	//	}
+	//	throw new Error(`Not allowed buffer type ${typeof bufferType}`);
+	//}
 
 	/**
 	 *
@@ -81,14 +134,18 @@ export class ShadowTexture {
 		x = Math.floor(x / this.pixelsPerTexel);
 
 		// TODO Florian -- super inefficient because WebGL 1 doesn't support gl.PACK_ROW_LENGTH, so we have to create a separate buffer
-		// The buffer needs to have a stride of w (the width of the sub-image) while we have a buffer with a stride of this.width.
-		const tightlyPackedBuffer = new Uint32Array(w * h);
-		const view = new Uint32Array(this.buffer.buffer);
-		const temp = new ShadowTexture(view, this.width, this.height, 1);
+		const tightlyPackedBuffer = this.texture4444 ? new Uint16Array(w * h) : new Uint32Array(w * h);
+		const view = this.texture4444 ? new Uint16Array(this.buffer.buffer) : new Uint32Array(this.buffer.buffer);
+		const temp = new ShadowTexture(view, this.width, this.height, false, 1);
 		temp.readToBuffer(x, y, w, h, tightlyPackedBuffer);
 
 		gl.bindTexture(gl.TEXTURE_2D, texture);
-		gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, w, h, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(tightlyPackedBuffer.buffer));
+		if (this.texture4444) {
+			gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, w, h, gl.RGBA, gl.UNSIGNED_SHORT_4_4_4_4, tightlyPackedBuffer);
+		}
+		else {
+			gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, w, h, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(tightlyPackedBuffer.buffer));
+		}
 	}
 }
 
@@ -98,29 +155,9 @@ export class ShadowTexture {
  * @returns {ShadowTexture}
  * @private
  */
-export function makeShadowFromTexture8(gl, tex) {
-	const typed = new Uint8Array(readFromTexture32(gl, tex.texture, 0, 0, tex.width, tex.height).buffer);
-	return new ShadowTexture(typed, tex.width, tex.height, 4);
+export function makeShadowFromTexture4444(gl, tex) {
+	const typed = readFromTexture16(gl, tex.texture, 0, 0, tex.width, tex.height);
+	return new ShadowTexture(typed, tex.width, tex.height, true, 1);
 }
 
-/**
- * @param gl {WebGLRenderingContext}
- * @param tex {LoadedTexture}
- * @returns {ShadowTexture}
- * @private
- */
-export function makeShadowFromTexture16(gl, tex) {
-	const typed = new Uint16Array(readFromTexture32(gl, tex.texture, 0, 0, tex.width, tex.height).buffer);
-	return new ShadowTexture(typed, tex.width, tex.height, 2);
-}
 
-/**
- * @param gl {WebGLRenderingContext}
- * @param tex {LoadedTexture}
- * @returns {ShadowTexture}
- * @private
- */
-export function makeShadowFromTexture32(gl, tex) {
-	const typed = new Uint32Array(readFromTexture32(gl, tex.texture, 0, 0, tex.width, tex.height).buffer);
-	return new ShadowTexture(typed, tex.width, tex.height, 1);
-}
