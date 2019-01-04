@@ -6,14 +6,13 @@ import {
 	makeOutputColor,
 	MAP_TEX_H,
 	MAP_TEX_W,
-	MAX_BGS,
 	OTHER_TEX_H,
 	OTHER_TEX_W,
 	PALETTE_HICOLOR_FLAG,
 	PALETTE_TEX_H,
-	PALETTE_TEX_W,
-	SCREEN_HEIGHT
+	PALETTE_TEX_W
 } from "./shaders";
+import {DEBUG} from "./vdp";
 
 const BG_BUFFER_STRIDE = 6;
 
@@ -400,7 +399,7 @@ export function enqueueMap(mapBuffer, uMap, vMap, uTileset, vTileset, mapWidth, 
 	if (hiColor) palNo |= PALETTE_HICOLOR_FLAG;
 
 	if (mapBuffer.usedVertices >= mapBuffer.maxVertices) {
-		console.log(`${mapBuffer.name} overuse (max ${mapBuffer.maxVertices / BG_BUFFER_STRIDE}), ignoring drawBG`);
+		if (DEBUG) console.log(`${mapBuffer.name} overuse (max ${mapBuffer.maxVertices / BG_BUFFER_STRIDE}), ignoring drawBG`);
 		return;
 	}
 	mapBuffer.usedVertices += BG_BUFFER_STRIDE;

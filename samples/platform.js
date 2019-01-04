@@ -32,7 +32,6 @@ function *main(vdp) {
 
 		const marioSprite = vdp.sprite('mario').offsetted(0, 0, 16, 24);
 		vdp.drawObj(marioSprite, mario.x, mario.y, { prio: 1 });
-		console.log(`TEMP `, mario);
 
 		loop += 0.1;
 

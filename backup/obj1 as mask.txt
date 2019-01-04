@@ -1,0 +1,72 @@
+VDP.ts:
+    /**
+     * Renders the machine in the current state. Only available for the extended version of the GPU.
+     * @private
+     */
+    _doRender() {
+        const gl = this.gl;
+        // Do before drawing stuff since it flushes the buffer
+        const obj0Limit = this._computeOBJ0Limit();
+
+        if (DEBUG) this._computeStats(obj0Limit);
+
+        // Only the first time per frame (allow multiple render per frames)
+        if (this.frameStarted) {
+            const clearColor = color32.extract(this.shadowPaletteTex.buffer[0], this.paletteBpp);
+            gl.clearColor(clearColor.r / 255, clearColor.g / 255, clearColor.b / 255, 0);
+
+            if (USE_PRIORITIES) {
+                gl.clearDepth(1.0);                 // Clear everything
+                // PERF: This is a lot slower if there's a discard in the fragment shader (and we need one?) because the GPU can't test & write to the depth buffer until after the fragment shader has been executed. So there's no point in using it I guess.
+                gl.enable(gl.DEPTH_TEST);           // Enable depth testing
+                gl.depthFunc(gl.LESS);            // Near things obscure far things
+                gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+            } else {
+                gl.clear(gl.COLOR_BUFFER_BIT);
+            }
+
+            this.frameStarted = false;
+        }
+
+        NO_TRANSPARENCY.apply(this);
+        mat3.identity(this.modelViewMatrix);
+        drawPendingMap(this, this.bgBuffer);
+
+        if (this.obj1AsMask) {
+            // Draw BG, transparent OBJ in reverse order, then normal OBJ
+            this.obj1Buffer.sort();
+            this._drawObjLayer(this.obj1Buffer, this.objTransparency, OBJ1_CELL_LIMIT);
+        }
+
+        this._drawObjLayer(this.obj0Buffer, NO_TRANSPARENCY, obj0Limit);
+
+        this.bgTransparency.apply(this);
+        gl.depthMask(false);
+        drawPendingMap(this, this.tbgBuffer);
+        gl.depthMask(true);
+
+        if (!this.obj1AsMask) {
+            // Draw in reverse order
+            this.obj1Buffer.sort();
+            this._drawObjLayer(this.obj1Buffer, this.objTransparency, OBJ1_CELL_LIMIT);
+        }
+    }
+
+    /**
+     * Configure effect for transparent sprites.
+     * @param opts
+     * @param opts.op 'add' or 'sub'
+     * @param opts.blendSrc source tint (quantity of color to take from the blending object)
+     * @param opts.blendDst destination tint (quantity of color to take from the backbuffer when mixing)
+     * @param opts.mask whether to use mask
+     */
+    configOBJTransparency(opts: {op: TransparencyConfigOperation, blendSrc: number|string, blendDst: number|string, mask?: boolean}) {
+        if (opts.op !== 'add' && opts.op !== 'sub') {
+            throw new Error(`Invalid operation ${opts.op}`);
+        }
+        this.objTransparency.operation = opts.op;
+        this.objTransparency.blendSrc = color32.parse(opts.blendSrc);
+        this.objTransparency.blendDst = color32.parse(opts.blendDst);
+        this.obj1AsMask = opts.mask;
+    }

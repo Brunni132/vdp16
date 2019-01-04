@@ -8,7 +8,7 @@ import {
 	PALETTE_TEX_H,
 	PALETTE_TEX_W
 } from "./shaders";
-import { mat3 } from 'gl-matrix-ts';
+import {DEBUG} from "./vdp";
 
 // How big (tall/wide) a sprite can be before it's broken down in smaller units of OBJ_CELL_SIZE^2
 const OBJ_CELL_SIZE = 32;
@@ -36,18 +36,17 @@ export class ObjBuffer {
 
 	/**
 	 *
-	 * @param scaling {vec3}
 	 * @param first {number}
 	 * @param count {number}
 	 * @returns	{number} number of cells used
 	 */
-	computeUsedObjects(scaling, first = -1, count = -1) {
+	computeUsedObjects(first = -1, count = -1) {
 		let result = 0;
 		if (first < 0) first = this.firstSprite;
 		if (count < 0) count = this.usedSprites;
 
 		for (let i = first; i < first + count; i++) {
-			result += this._computeObjectCells(this.getSizeOfObject(i), scaling);
+			result += this._computeObjectCells(this.getSizeOfObject(i));
 		}
 		return result;
 	}
@@ -127,27 +126,25 @@ export class ObjBuffer {
 	 * Computes the number of pixels that an object uses with the transform. Note that even offscreen pixels count toward
 	 * the limit!
 	 * @param size {{w: number, h: number}}
-	 * @param scaling {vec3}
 	 * @returns {number} number of cells (32x32)
 	 * @private
 	 */
-	_computeObjectCells(size, scaling) {
-		return Math.max(1, Math.ceil(size.w * scaling[0] / OBJ_CELL_SIZE) * Math.ceil(size.h * scaling[1] / OBJ_CELL_SIZE));
+	_computeObjectCells(size) {
+		return Math.max(1, Math.ceil(size.w / OBJ_CELL_SIZE) * Math.ceil(size.h / OBJ_CELL_SIZE));
 	}
 
 	/**
 	 * Modifies the OBJ list to fit within the number of cells. Use the return value to know how many sprites to draw.
-	 * @param scaling {vec3}
 	 * @param maxCells {number} maximum allowed number of cells
 	 * @returns {number} sprites fully drawable for this list
 	 * @protected
 	 */
-	_limitObjList(scaling, maxCells) {
+	_limitObjList(maxCells) {
 		let cells = 0;
 		const endOfList = this.firstSprite + this.usedSprites;
 		for (let i = this.firstSprite; i < endOfList; i++) {
 			const size = this.getSizeOfObject(i);
-			const current = this._computeObjectCells(size, scaling);
+			const current = this._computeObjectCells(size);
 
 			if (cells + current > maxCells) {
 
@@ -157,7 +154,7 @@ export class ObjBuffer {
 				//this.setWidthOfObject(i, allowedCellsWide * OBJ_CELL_SIZE);
 				//return i - this.firstSprite + 1;
 
-				console.log('Too many OBJ cells on ${this.name} (discarded ${endOfList - i}/${this.usedSprites} entries)');
+				if (DEBUG) console.log('Too many OBJ cells on ${this.name} (discarded ${endOfList - i}/${this.usedSprites} entries)');
 				return i - this.firstSprite;
 			}
 			cells += current;
@@ -324,7 +321,7 @@ export function enqueueObj(objBuffer, xStart, yStart, xEnd, yEnd, uStart, vStart
 	if (hiColor) palNo |= PALETTE_HICOLOR_FLAG;
 
 	if (objBuffer.usedVertices >= objBuffer.maxVertices) {
-		console.log(`${objBuffer.name} overuse (max ${objBuffer.maxVertices / OBJ_BUFFER_STRIDE}), ignoring drawOBJ`);
+		if (DEBUG) console.log(`${objBuffer.name} overuse (max ${objBuffer.maxVertices / OBJ_BUFFER_STRIDE}), ignoring drawOBJ`);
 		return;
 	}
 

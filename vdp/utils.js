@@ -1,4 +1,4 @@
-import { mat3, mat4, vec3 } from 'gl-matrix-ts';
+import {mat4, vec3} from 'gl-matrix-ts';
 
 const assert = require('assert');
 

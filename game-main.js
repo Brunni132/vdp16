@@ -47,8 +47,7 @@ function *main(vdp) {
 		vdp.drawObj('gradient', 0, 100, { prio: 1 });
 
 		const marioSprite = vdp.sprite('mario').offsetted(0, 0, 16, 24);
-		vdp.drawObj(marioSprite, mario.x, mario.y, { prio: 1 });
-		console.log(`TEMP `, mario);
+		vdp.drawObj(marioSprite, mario.x, mario.y);
 
 		loop += 1;
 

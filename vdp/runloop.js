@@ -1,5 +1,5 @@
 import {setParams} from "./shaders";
-import {VDP} from "./vdp";
+import {DEBUG, VDP} from "./vdp";
 import {FramerateAdjuster, NOMINAL_FRAMERATE} from "./FramerateAdjuster";
 
 /**
@@ -32,16 +32,18 @@ export function runProgram(vdp, coroutine) {
 	let renderedFrames = 0, skippedFrames = 0;
 
 	function step(timestamp) {
-		// Timestamp is in milliseconds
-		const timestampInt = Math.floor(timestamp / 1000);
+		if (DEBUG) {
+			// Timestamp is in milliseconds
+			const timestampInt = Math.floor(timestamp / 1000);
 
-		if (timestampInt !== lastInt && times.length > 0) {
-			console.log(`Upd=${(times.reduce((a, b) => a + b) / times.length).toFixed(3)}ms; r=${renderedFrames}, s=${skippedFrames}, u=${times.length}; ${framerateAdj.getFramerate().toFixed(2)}Hz`, vdp.getStats());
-			times.length = 0;
-			renderedFrames = skippedFrames = 0;
+			if (timestampInt !== lastInt && times.length > 0) {
+				console.log(`Upd=${(times.reduce((a, b) => a + b) / times.length).toFixed(3)}ms; r=${renderedFrames}, s=${skippedFrames}, u=${times.length}; ${framerateAdj.getFramerate().toFixed(2)}Hz`, vdp.getStats());
+				times.length = 0;
+				renderedFrames = skippedFrames = 0;
+			}
+
+			lastInt = timestampInt;
 		}
-
-		lastInt = timestampInt;
 
 		// The algorithm depends on the refresh rate of the screen. Use smooth if close, use simple otherwise as smooth will produce some speed variations.
 		const framerate = framerateAdj.getFramerate();
@@ -61,9 +63,10 @@ export function runProgram(vdp, coroutine) {
 			times.push(window.performance.now() - before);
 		}
 
-		if (toRender > 0) renderedFrames += 1;
-		if (toRender > 1) skippedFrames += toRender - 1;
-
+		if (DEBUG) {
+			if (toRender > 0) renderedFrames += 1;
+			if (toRender > 1) skippedFrames += toRender - 1;
+		}
 		window.requestAnimationFrame(step);
 	}
 

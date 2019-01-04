@@ -1,35 +1,32 @@
-import {
-	createDataTextureFloat,
-	getScalingFactorOfMatrix,
-	loadTexture,
-	writeToTextureFloat
-} from "./utils";
+import { createDataTextureFloat, loadTexture, writeToTextureFloat } from "./utils";
 import { mat3, mat4 } from 'gl-matrix-ts';
-import {drawPendingObj, enqueueObj, initObjShaders, makeObjBuffer, ObjBuffer} from "./sprites";
-import {drawPendingMap, enqueueMap, initMapShaders, makeMapBuffer} from "./maps";
+import { drawPendingObj, enqueueObj, initObjShaders, makeObjBuffer, ObjBuffer } from "./sprites";
+import { drawPendingMap, enqueueMap, initMapShaders, makeMapBuffer } from "./maps";
 import {
-	envColor,
-	OTHER_TEX_W,
-	SCREEN_HEIGHT,
-	SCREEN_WIDTH,
-	SEMITRANSPARENT_CANVAS,
-	setTextureSizes,
-	USE_PRIORITIES
+    envColor,
+    OTHER_TEX_W,
+    SCREEN_HEIGHT,
+    SCREEN_WIDTH,
+    SEMITRANSPARENT_CANVAS,
+    setTextureSizes,
+    USE_PRIORITIES
 } from "./shaders";
-import {drawOpaquePoly, initOpaquePolyShaders} from "./generalpolys";
-import {VdpMap, VdpPalette, VdpSprite} from "./memory";
+import { drawOpaquePoly, initOpaquePolyShaders } from "./generalpolys";
+import { VdpMap, VdpPalette, VdpSprite } from "./memory";
 import {
-	makeShadowFromTexture16, makeShadowFromTexture32,
-	makeShadowFromTexture8,
-	ShadowTexture
+    makeShadowFromTexture16,
+    makeShadowFromTexture32,
+    makeShadowFromTexture8,
+    ShadowTexture
 } from "./shadowtexture";
-import {color32} from "./color32";
+import { color32 } from "./color32";
 import { mat3type, mat4type } from 'gl-matrix-ts/dist/common';
 
+export const DEBUG = true;
 const BG_LIMIT = 4;
 const TBG_LIMIT = 1;
 const OBJ1_CELL_LIMIT = 64;
-const OBJ0_CELL_LIMIT = 480;
+const OBJ0_CELL_LIMIT = 256;
 
 type TransparencyConfigEffect = 'none' | 'color' | 'blend' | 'premult';
 type TransparencyConfigOperation = 'add' | 'sub';
@@ -127,15 +124,10 @@ export class VDP {
     private fadeColor = 0x00000000;
     private bgTransparency = new TransparencyConfig('color', 'add', 0x888888, 0x888888);
     private objTransparency = new TransparencyConfig('color', 'add', 0x888888, 0x888888);
-    private obj1AsMask = false;
     private bgBuffer = makeMapBuffer('Opaque BG [BG]', BG_LIMIT);
     private tbgBuffer = makeMapBuffer('Transparent BG [TBG]', TBG_LIMIT);
     private obj0Buffer = makeObjBuffer('Opaque sprites [OBJ0]', 480);
     private obj1Buffer = makeObjBuffer('Transparent sprites [OBJ1]', 32);
-    // Transformation matrix for OBJ0 (opaque)
-    private obj0LayerTransform = new LayerTransform();
-    // Transformation matrix for OBJ1 (transparent)
-    private obj1LayerTransform = new LayerTransform();
     private stats = {
         peakOBJ0: 0,
         peakOBJ1: 0,
@@ -234,85 +226,19 @@ export class VDP {
 	}
 
 	/**
-	 * @param [opts]
-	 * @param [opts.obj0Transform] affine transformation matrix for standard objects
-	 * @param [opts.obj1Transform] affine transformation matrix for transparent objects
-	 */
-	configOBJTransform(opts: {obj0Transform: mat3type, obj1Transform: mat3type}) {
-		if (opts.obj0Transform) this.obj0LayerTransform.setMatrix(opts.obj0Transform);
-		if (opts.obj1Transform) this.obj1LayerTransform.setMatrix(opts.obj1Transform);
-	}
-
-	/**
 	 * Configure effect for transparent sprites.
 	 * @param opts
 	 * @param opts.op 'add' or 'sub'
 	 * @param opts.blendSrc source tint (quantity of color to take from the blending object)
 	 * @param opts.blendDst destination tint (quantity of color to take from the backbuffer when mixing)
-	 * @param opts.mask whether to use mask
 	 */
-	configOBJTransparency(opts: {op: TransparencyConfigOperation, blendSrc: number|string, blendDst: number|string, mask?: boolean}) {
+	configOBJTransparency(opts: {op: TransparencyConfigOperation, blendSrc: number|string, blendDst: number|string}) {
 		if (opts.op !== 'add' && opts.op !== 'sub') {
 			throw new Error(`Invalid operation ${opts.op}`);
 		}
 		this.objTransparency.operation = opts.op;
 		this.objTransparency.blendSrc = color32.parse(opts.blendSrc);
 		this.objTransparency.blendDst = color32.parse(opts.blendDst);
-		this.obj1AsMask = opts.mask;
-	}
-
-	/**
-	 * Renders the machine in the current state. Only available for the extended version of the GPU.
-	 * @private
-	 */
-	doRender() {
-		const gl = this.gl;
-		// Do before drawing stuff since it flushes the buffer
-		const obj0Limit = this._computeOBJ0Limit();
-
-		this._computeStats(obj0Limit);
-
-		// Only the first time per frame (allow multiple render per frames)
-		if (this.frameStarted) {
-			const clearColor = color32.extract(this.shadowPaletteTex.buffer[0], this.paletteBpp);
-			gl.clearColor(clearColor.r / 255, clearColor.g / 255, clearColor.b / 255, 0);
-
-			if (USE_PRIORITIES) {
-				gl.clearDepth(1.0);                 // Clear everything
-				// PERF: This is a lot slower if there's a discard in the fragment shader (and we need one?) because the GPU can't test & write to the depth buffer until after the fragment shader has been executed. So there's no point in using it I guess.
-				gl.enable(gl.DEPTH_TEST);           // Enable depth testing
-				gl.depthFunc(gl.LESS);            // Near things obscure far things
-				gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
-			} else {
-				gl.clear(gl.COLOR_BUFFER_BIT);
-			}
-
-			this.frameStarted = false;
-		}
-
-		NO_TRANSPARENCY.apply(this);
-		mat3.identity(this.modelViewMatrix);
-		drawPendingMap(this, this.bgBuffer);
-
-		if (this.obj1AsMask) {
-			// Draw BG, transparent OBJ in reverse order, then normal OBJ
-			this.obj1Buffer.sort();
-			this._drawObjLayer(this.obj1Buffer, this.objTransparency, this.obj1LayerTransform, OBJ1_CELL_LIMIT);
-		}
-
-		this._drawObjLayer(this.obj0Buffer, NO_TRANSPARENCY, this.obj0LayerTransform, obj0Limit);
-
-		this.bgTransparency.apply(this);
-		gl.depthMask(false);
-		drawPendingMap(this, this.tbgBuffer);
-		gl.depthMask(true);
-
-		if (!this.obj1AsMask) {
-			// Draw in reverse order
-			this.obj1Buffer.sort();
-			this._drawObjLayer(this.obj1Buffer, this.objTransparency, this.obj1LayerTransform, OBJ1_CELL_LIMIT);
-		}
 	}
 
 	/**
@@ -348,7 +274,7 @@ export class VDP {
 		const buffer = opts.transparent ? this.tbgBuffer : this.bgBuffer;
 
 		if (this.bgBuffer.usedLayers + this.tbgBuffer.usedLayers >= BG_LIMIT) {
-			console.log(`Too many BGs (${this.bgBuffer.usedLayers} opaque, ${this.tbgBuffer.usedLayers} transparent), ignoring drawBG`);
+		    if (DEBUG) console.log(`Too many BGs (${this.bgBuffer.usedLayers} opaque, ${this.tbgBuffer.usedLayers} transparent), ignoring drawBG`);
 			return;
 		}
 
@@ -380,8 +306,10 @@ export class VDP {
 	 * @param opts.palette specific palette to use (otherwise just uses the design palette of the sprite)
 	 * @param opts.width width on the screen (stretches the sprite compared to sprite.w)
 	 * @param opts.height height on the screen (stretches the sprite compared to sprite.h)
-	 * @param opts.prio priority of the sprite
-	 * @param opts.transparent
+	 * @param opts.prio priority of the sprite. By default sprites have a priority of 0 (same as BGs). Note
+     * that a sprite having the same priority as a BG will appear IN FRONT of the BG. To hide it behind, increase the
+     * priority of the BG.
+	 * @param opts.transparent whether this is a OBJ1 type sprite (with color effects)
 	 */
 	drawObj(sprite, x, y, opts: {palette?: string|VdpPalette, width?: number, height?: number, prio?: number, transparent?: boolean} = {}) {
 		if (typeof sprite === 'string') sprite = this.sprite(sprite);
@@ -560,23 +488,69 @@ export class VDP {
 		this.stats.OBJ0Limit = Math.min(this.stats.OBJ0Limit, obj0Limit);
 	}
 
+    /**
+     * Renders the machine in the current state. Only available for the extended version of the GPU.
+     * @private
+     */
+    _doRender() {
+        const gl = this.gl;
+        // Do before drawing stuff since it flushes the buffer
+        const obj0Limit = this._computeOBJ0Limit();
+
+        if (DEBUG) this._computeStats(obj0Limit);
+
+        // Only the first time per frame (allow multiple render per frames)
+        if (this.frameStarted) {
+            const clearColor = color32.extract(this.shadowPaletteTex.buffer[0], this.paletteBpp);
+            gl.clearColor(clearColor.r / 255, clearColor.g / 255, clearColor.b / 255, 0);
+
+            if (USE_PRIORITIES) {
+                gl.clearDepth(1.0);                 // Clear everything
+                // PERF: This is a lot slower if there's a discard in the fragment shader (and we need one?) because the GPU can't test & write to the depth buffer until after the fragment shader has been executed. So there's no point in using it I guess.
+                gl.enable(gl.DEPTH_TEST);           // Enable depth testing
+                gl.depthFunc(gl.LESS);            // Near things obscure far things
+                gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+            } else {
+                gl.clear(gl.COLOR_BUFFER_BIT);
+            }
+
+            this.frameStarted = false;
+        }
+
+        // OBJ0 and BG (both opaque, OBJ0 first to appear above
+        NO_TRANSPARENCY.apply(this);
+        mat3.identity(this.modelViewMatrix);
+        this._drawObjLayer(this.obj0Buffer, NO_TRANSPARENCY, obj0Limit);
+        drawPendingMap(this, this.bgBuffer);
+
+        // TBG then OBJ1
+        this.bgTransparency.apply(this);
+        gl.depthMask(false);
+        drawPendingMap(this, this.tbgBuffer);
+        gl.depthMask(true);
+
+        // Draw in reverse order
+        this.obj1Buffer.sort();
+        this._drawObjLayer(this.obj1Buffer, this.objTransparency, OBJ1_CELL_LIMIT);
+    }
+
 	/**
 	 * @param objBuffer {ObjBuffer}
 	 * @param transparencyConfig {TransparencyConfig}
-	 * @param layerTransform {LayerTransform}
 	 * @param objLimit {number} max number of cells drawable
 	 * @private
 	 */
-	private _drawObjLayer(objBuffer: ObjBuffer, transparencyConfig: TransparencyConfig, layerTransform: LayerTransform, objLimit = 0) {
+	private _drawObjLayer(objBuffer: ObjBuffer, transparencyConfig: TransparencyConfig, objLimit = 0) {
 		// Use config only for that poly list
-		layerTransform.getInvertedMatrixIn(this.modelViewMatrix);
+        mat3.identity(this.modelViewMatrix);
 		transparencyConfig.apply(this);
 		drawPendingObj(this, objBuffer, objLimit);
 		mat3.identity(this.modelViewMatrix);
 	}
 
 	public _endFrame() {
-		this.doRender();
+		this._doRender();
 
 		// Draw fade
 		if (this.fadeColor >>> 24 >= 0x10) {
@@ -630,14 +604,10 @@ export class VDP {
 	}
 
 	private _totalUsedOBJ0(): number {
-		const tempMat = mat3.create();
-		this.obj0LayerTransform.getInvertedMatrixIn(tempMat);
-		return this.obj0Buffer.computeUsedObjects(getScalingFactorOfMatrix(tempMat));
+		return this.obj0Buffer.computeUsedObjects();
 	}
 
     private _totalUsedOBJ1(): number {
-		const tempMat = mat3.create();
-		this.obj1LayerTransform.getInvertedMatrixIn(tempMat);
-		return this.obj1Buffer.computeUsedObjects(getScalingFactorOfMatrix(tempMat));
+		return this.obj1Buffer.computeUsedObjects();
 	}
 }
