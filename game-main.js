@@ -32,19 +32,19 @@ function *main(vdp) {
 
 		// vdp.configFade('#000', 255 - loop * 10);
 
-		// if (loop % 10 === 0) {
-		// 	const colors = vdp.readPalette('level1');
-		// 	const firstColor = colors[0];
-		// 	colors.forEach((c, ind) => {
-		// 		colors[ind] = colors[ind + 1];
-		// 	});
-		// 	colors[colors.length - 1] = firstColor;
-		// 	vdp.writePalette('level1', colors);
-		// }
+		if (loop >= 100 && loop % 20 === 0) {
+			const colors = vdp.readPalette('level1');
+			const firstColor = colors[0];
+			colors.forEach((c, ind) => {
+				colors[ind] = colors[ind + 1];
+			});
+			colors[colors.length - 1] = firstColor;
+			vdp.writePalette('level1', colors);
+		}
 
 		vdp.drawBG('level1');
 		vdp.configOBJTransparency({ op: 'sub', blendSrc: '#fff', blendDst: '#fff' });
-		vdp.drawObj('gradient', 0, 190, { transparent: true, prio: 1, height: 32 });
+		vdp.drawObj('gradient', 0, 190, { transparent: true, prio: 2, height: 32 });
 
 		const marioSprite = vdp.sprite('mario').offsetted(0, 0, 16, 24);
 		vdp.drawObj(marioSprite, mario.x, mario.y);

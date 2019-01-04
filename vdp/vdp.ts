@@ -3,22 +3,22 @@ import { mat3, mat4 } from 'gl-matrix-ts';
 import { drawPendingObj, enqueueObj, initObjShaders, makeObjBuffer, ObjBuffer } from "./sprites";
 import { drawPendingMap, enqueueMap, initMapShaders, makeMapBuffer } from "./maps";
 import {
-    DISCARD_ALPHA,
-    envColor,
-    OTHER_TEX_W,
-    SCREEN_HEIGHT,
-    SCREEN_WIDTH,
-    SEMITRANSPARENT_CANVAS,
-    setTextureSizes,
-    USE_PRIORITIES
+	DISCARD_ALPHA,
+	envColor,
+	OTHER_TEX_W,
+	SCREEN_HEIGHT,
+	SCREEN_WIDTH,
+	SEMITRANSPARENT_CANVAS,
+	setTextureSizes,
+	USE_PRIORITIES
 } from "./shaders";
 import { drawOpaquePoly, initOpaquePolyShaders } from "./generalpolys";
 import { Buffer2D, VdpMap, VdpPalette, VdpSprite } from "./memory";
 import {
-    makeShadowFromTexture16,
-    makeShadowFromTexture32,
-    makeShadowFromTexture8,
-    ShadowTexture
+	makeShadowFromTexture16,
+	makeShadowFromTexture32,
+	makeShadowFromTexture8,
+	ShadowTexture
 } from "./shadowtexture";
 import { color32 } from "./color32";
 import { mat3type, mat4type } from 'gl-matrix-ts/dist/common';
@@ -34,10 +34,10 @@ type TransparencyConfigEffect = 'none' | 'color' | 'blend' | 'premult';
 type TransparencyConfigOperation = 'add' | 'sub';
 
 class TransparencyConfig {
-    effect: TransparencyConfigEffect;
-    operation: TransparencyConfigOperation;
-    blendSrc: number;
-    blendDst: number;
+	effect: TransparencyConfigEffect;
+	operation: TransparencyConfigOperation;
+	blendSrc: number;
+	blendDst: number;
 
 	constructor(effect: TransparencyConfigEffect, operation: TransparencyConfigOperation, blendSrc: number, blendDst: number) {
 		this.effect = effect;
@@ -77,76 +77,53 @@ class TransparencyConfig {
 	}
 }
 
-class LayerTransform {
-    mat: mat3type;
-
-	constructor() {
-		this.mat = mat3.create();
-	}
-
-	/**
-	 * @param outMat3 output inverted matrix for use with transformation.
-	 */
-	getInvertedMatrixIn(outMat3: mat3type) {
-		mat3.invert(outMat3, this.mat);
-	}
-
-	/**
-	 * Sets the non-inverted matrix.
-	 * @param mat new affine transform
-	 */
-	setMatrix(mat: mat3type) {
-		mat3.copy(this.mat, mat);
-	}
-}
-
 export enum VDPCopySource {
-    current,
-    rom,
-    blank,
+	current,
+	rom,
+	blank,
 }
 
 const NO_TRANSPARENCY = new TransparencyConfig('none', 'add', 0, 0);
 const STANDARD_TRANSPARENCY = new TransparencyConfig('blend', 'add', 0, 0);
 
 export class VDP {
-    gl: WebGLRenderingContext;
-    gameData: any;
-    mapProgram: any;
-    modelViewMatrix: mat3type;
-    projectionMatrix: mat4type;
-    spriteProgram: any;
-    opaquePolyProgram: any;
-    mapTexture: WebGLTexture;
-    paletteTexture: WebGLTexture;
-    spriteTexture: WebGLTexture;
-    otherTexture: WebGLTexture;
+	gl: WebGLRenderingContext;
+	gameData: any;
+	mapProgram: any;
+	modelViewMatrix: mat3type;
+	projectionMatrix: mat4type;
+	spriteProgram: any;
+	opaquePolyProgram: any;
+	mapTexture: WebGLTexture;
+	paletteTexture: WebGLTexture;
+	spriteTexture: WebGLTexture;
+	otherTexture: WebGLTexture;
 
-    // Fade color (factor is the upper 8 bits).
-    private fadeColor = 0x00000000;
-    private bgTransparency = new TransparencyConfig('color', 'add', 0x888888, 0x888888);
-    private objTransparency = new TransparencyConfig('color', 'add', 0x888888, 0x888888);
-    private bgBuffer = makeMapBuffer('Opaque BG [BG]', BG_LIMIT);
-    private tbgBuffer = makeMapBuffer('Transparent BG [TBG]', TBG_LIMIT);
-    private obj0Buffer = makeObjBuffer('Opaque sprites [OBJ0]', 480);
-    private obj1Buffer = makeObjBuffer('Transparent sprites [OBJ1]', 32);
-    private stats = {
-        peakOBJ0: 0,
-        peakOBJ1: 0,
-        peakBG: 0,
-        OBJ0Limit: OBJ0_CELL_LIMIT
-    };
-    private frameStarted = true;
-    // 2 = 64 colors (SMS), 3 = 512 colors (Mega Drive), 4 = 4096 (System 16), 5 = 32k (SNES), 8 = unmodified (PC)
-    public paletteBpp;
-    // Original data (ROM) for sprites
-    private romSpriteTex: ShadowTexture;
-    // Copy of the VRAM data for fast read access from the program
-    private shadowSpriteTex: ShadowTexture;
-    private romPaletteTex: ShadowTexture;
-    private shadowPaletteTex: ShadowTexture;
-    private romMapTex: ShadowTexture;
-    private shadowMapTex: ShadowTexture;
+	// Fade color (factor is the upper 8 bits).
+	private fadeColor = 0x00000000;
+	private bgTransparency = new TransparencyConfig('color', 'add', 0x888888, 0x888888);
+	private objTransparency = new TransparencyConfig('color', 'add', 0x888888, 0x888888);
+	private bgBuffer = makeMapBuffer('Opaque BG [BG]', BG_LIMIT);
+	private tbgBuffer = makeMapBuffer('Transparent BG [TBG]', TBG_LIMIT);
+	private obj0Buffer = makeObjBuffer('Opaque sprites [OBJ0]', 480);
+	private obj1Buffer = makeObjBuffer('Transparent sprites [OBJ1]', 32);
+	private stats = {
+		peakOBJ0: 0,
+		peakOBJ1: 0,
+		peakBG: 0,
+		OBJ0Limit: OBJ0_CELL_LIMIT
+	};
+	private frameStarted = true;
+	// 2 = 64 colors (SMS), 3 = 512 colors (Mega Drive), 4 = 4096 (System 16), 5 = 32k (SNES), 8 = unmodified (PC)
+	public paletteBpp;
+	// Original data (ROM) for sprites
+	private romSpriteTex: ShadowTexture;
+	// Copy of the VRAM data for fast read access from the program
+	private shadowSpriteTex: ShadowTexture;
+	private romPaletteTex: ShadowTexture;
+	private shadowPaletteTex: ShadowTexture;
+	private romMapTex: ShadowTexture;
+	private shadowMapTex: ShadowTexture;
 
 	constructor(canvas: HTMLCanvasElement, done: () => void) {
 		this._initContext(canvas);
@@ -194,6 +171,8 @@ export class VDP {
 
 	/**
 	 * Configures the backdrop (background color that is always present).
+	 * Note that the backdrop is exactly the first color of the first palette. You can therefore modify it by writing
+	 * to that palette color too. It can become handy when you are doing fades by modifying all colors.
 	 * @param color backdrop color
 	 */
 	configBDColor(color: number|string) {
@@ -257,7 +236,7 @@ export class VDP {
 	 * @param opts.wrap whether to wrap the map at the bounds (defaults to true)
 	 * @param opts.tileset custom tileset to use.
 	 * @param opts.transparent
-     * @param opts.prio z-order
+	 * @param opts.prio z-order
 	 */
 	drawBG(map, opts: {palette?: string|VdpPalette, scrollX?: number, scrollY?: number, winX?: number, winY?: number, winW?: number, winH?: number, linescrollBuffer?: mat3type[], wrap?: boolean, tileset?: string|VdpSprite, transparent?: boolean, prio?: number} = {}) {
 		if (typeof map === 'string') map = this.map(map);
@@ -276,7 +255,7 @@ export class VDP {
 		const buffer = opts.transparent ? this.tbgBuffer : this.bgBuffer;
 
 		if (this.bgBuffer.usedLayers + this.tbgBuffer.usedLayers >= BG_LIMIT) {
-		    if (DEBUG) console.log(`Too many BGs (${this.bgBuffer.usedLayers} opaque, ${this.tbgBuffer.usedLayers} transparent), ignoring drawBG`);
+			if (DEBUG) console.log(`Too many BGs (${this.bgBuffer.usedLayers} opaque, ${this.tbgBuffer.usedLayers} transparent), ignoring drawBG`);
 			return;
 		}
 
@@ -308,9 +287,9 @@ export class VDP {
 	 * @param opts.palette specific palette to use (otherwise just uses the design palette of the sprite)
 	 * @param opts.width width on the screen (stretches the sprite compared to sprite.w)
 	 * @param opts.height height on the screen (stretches the sprite compared to sprite.h)
-	 * @param opts.prio priority of the sprite. By default sprites have a priority of 0 (same as BGs). Note
-     * that a sprite having the same priority as a BG will appear IN FRONT of the BG. To hide it behind, increase the
-     * priority of the BG.
+	 * @param opts.prio priority of the sprite. By default sprites have a priority of 1 (whereas BGs use 0). Note
+	 * that a sprite having the same priority as a BG will appear BEHIND the BG. This allows you to hide objects behind
+	 * background planes.
 	 * @param opts.transparent whether this is a OBJ1 type sprite (with color effects)
 	 */
 	drawObj(sprite, x, y, opts: {palette?: string|VdpPalette, width?: number, height?: number, prio?: number, transparent?: boolean} = {}) {
@@ -319,7 +298,7 @@ export class VDP {
 		const pal = this._getPalette(opts.hasOwnProperty('palette') ? opts.palette : sprite.designPalette);
 		const w = opts.hasOwnProperty('width') ? opts.width : sprite.w;
 		const h = opts.hasOwnProperty('height') ? opts.height : sprite.h;
-		const prio = opts.prio || 0;
+		const prio = opts.prio || 1;
 		const buffer = opts.transparent ? this.obj1Buffer: this.obj0Buffer;
 
 		enqueueObj(buffer, x, y, x + w, y + h, sprite.x, sprite.y, sprite.x + sprite.w, sprite.y + sprite.h, pal.y, sprite.hiColor, prio);
@@ -359,7 +338,7 @@ export class VDP {
 	 * contents of the memory (as was written the last time with writeMap) or vdp.SOURCE_ROM to get the original data
 	 * as downloaded from the cartridge.
 	 * @return a Buffer2D containing the map data (buffer member is a Uint16Array), each element being the tile number
-     * in the tileset.
+	 * in the tileset.
 	 */
 	readMap(map: string|VdpMap, source = VDPCopySource.current): Buffer2D {
 		const m = this._getMap(map);
@@ -373,11 +352,11 @@ export class VDP {
 	 * @param palette name of the palette (or palette itself). You may also query an arbitrary portion
 	 * of the palette memory using new VdpPalette(…) or offset an existing map, using vdp.map('myMap').offsetted(…).
 	 * @param source look at readMap for more info.
-	 * @return a Buffer2D that contains color entries, encoded as 0xAABBGGRR
+	 * @return a buffer (table) containing the color entries, encoded as 0xAABBGGRR
 	 */
-	readPalette(palette: string|VdpPalette, source = VDPCopySource.current): Buffer2D {
+	readPalette(palette: string|VdpPalette, source = VDPCopySource.current): Uint32Array {
 		const pal = this._getPalette(palette);
-		return this.readPaletteMemory(0, pal.y, pal.size, 1, source);
+		return this.readPaletteMemory(0, pal.y, pal.size, 1, source).buffer as Uint32Array;
 	}
 
 	/**
@@ -386,7 +365,7 @@ export class VDP {
 	 * @param w
 	 * @param h
 	 * @param source look at readMap for more info.
-     * @return a Buffer2D that contains color entries, encoded as 0xAABBGGRR
+	 * @return a Buffer2D that contains color entries, encoded as 0xAABBGGRR
 	 */
 	readPaletteMemory(x: number, y: number, w: number, h: number, source = VDPCopySource.current): Buffer2D {
 		const result = new Uint32Array(w * h);
@@ -400,7 +379,7 @@ export class VDP {
 	 * sprite memory using new VdpSprite(…) or offset an existing sprite, using vdp.sprite('mySprite').offsetted(…).
 	 * @param source look at readMap for more info.
 	 * @return a Buffer2D containing the tileset data. For hi-color sprites, each entry represents one pixel.
-     * For lo-color sprites, each entry corresponds to two packed pixels, of 4 bits each.
+	 * For lo-color sprites, each entry corresponds to two packed pixels, of 4 bits each.
 	 */
 	readSprite(sprite: string|VdpSprite, source = VDPCopySource.current): Buffer2D {
 		const s = this._getSprite(sprite);
@@ -434,11 +413,11 @@ export class VDP {
 
 	/**
 	 * @param palette
-	 * @param data {Buffer2D} color entries, encoded as 0xAABBGGRR
+	 * @param data color entries, encoded as 0xAABBGGRR
 	 */
-	writePalette(palette: string|VdpPalette, data: Buffer2D) {
+	writePalette(palette: string|VdpPalette, data: Uint32Array) {
 		const pal = this._getPalette(palette);
-		this.writePaletteMemory(0, pal.y, pal.size, 1, data);
+		this.writePaletteMemory(0, pal.y, pal.size, 1, new Buffer2D(data, pal.size, 1));
 	}
 
 	/**
@@ -447,7 +426,7 @@ export class VDP {
 	 * @param y
 	 * @param w
 	 * @param h
-     * @param data {Buffer2D} color entries, encoded as 0xAABBGGRR
+	 * @param data {Buffer2D} color entries, encoded as 0xAABBGGRR
 	 */
 	writePaletteMemory(x: number, y: number, w: number, h: number, data: Buffer2D) {
 		this.shadowPaletteTex.writeTo(x, y, w, h, data.buffer);
@@ -481,60 +460,59 @@ export class VDP {
 		this.stats.OBJ0Limit = Math.min(this.stats.OBJ0Limit, obj0Limit);
 	}
 
-    /**
-     * Renders the machine in the current state. Only available for the extended version of the GPU.
-     */
-    private _doRender() {
-        const gl = this.gl;
-        // Do before drawing stuff since it flushes the buffer
-        if (DEBUG) this._computeStats(OBJ0_CELL_LIMIT);
+	/**
+	 * Renders the machine in the current state. Only available for the extended version of the GPU.
+	 */
+	private _doRender() {
+		const gl = this.gl;
+		// Do before drawing stuff since it flushes the buffer
+		if (DEBUG) this._computeStats(OBJ0_CELL_LIMIT);
 
-        // Only the first time per frame (allow multiple render per frames)
-        if (this.frameStarted) {
-            const clearColor = color32.extract(this.shadowPaletteTex.buffer[0], this.paletteBpp);
-            gl.clearColor(clearColor.r / 255, clearColor.g / 255, clearColor.b / 255, 0);
+		// Only the first time per frame (allow multiple render per frames)
+		if (this.frameStarted) {
+			const clearColor = color32.extract(this.shadowPaletteTex.buffer[0], this.paletteBpp);
+			gl.clearColor(clearColor.r / 255, clearColor.g / 255, clearColor.b / 255, 0);
 
-            if (USE_PRIORITIES) {
-                gl.clearDepth(1.0);                 // Clear everything
-                // PERF: This is a lot slower if there's a discard in the fragment shader (and we need one?) because the GPU can't test & write to the depth buffer until after the fragment shader has been executed. So there's no point in using it I guess.
-                gl.enable(gl.DEPTH_TEST);           // Enable depth testing
-                gl.depthFunc(gl.LESS);            // Near things obscure far things
-                gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+			if (USE_PRIORITIES) {
+				gl.clearDepth(1.0);				 // Clear everything
+				// PERF: This is a lot slower if there's a discard in the fragment shader (and we need one?) because the GPU can't test & write to the depth buffer until after the fragment shader has been executed. So there's no point in using it I guess.
+				gl.enable(gl.DEPTH_TEST);		   // Enable depth testing
+				gl.depthFunc(gl.LESS);			// Near things obscure far things
+				gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-            } else {
-                gl.clear(gl.COLOR_BUFFER_BIT);
-            }
+			} else {
+				gl.clear(gl.COLOR_BUFFER_BIT);
+			}
 
-            this.frameStarted = false;
-        }
+			this.frameStarted = false;
+		}
 
-        // OBJ0 and BG (both opaque, OBJ0 first to appear above
-        NO_TRANSPARENCY.apply(this);
-        mat3.identity(this.modelViewMatrix);
-        this._drawObjLayer(this.obj0Buffer, NO_TRANSPARENCY, OBJ0_CELL_LIMIT);
-        drawPendingMap(this, this.bgBuffer);
+		// OBJ0 and BG (both opaque, OBJ0 first to appear above
+		NO_TRANSPARENCY.apply(this);
+		mat3.identity(this.modelViewMatrix);
+		drawPendingMap(this, this.bgBuffer);
+		this._drawObjLayer(this.obj0Buffer, OBJ0_CELL_LIMIT);
 
-        // TBG then OBJ1
-        this.bgTransparency.apply(this);
-        gl.depthMask(false);
-        drawPendingMap(this, this.tbgBuffer);
-        gl.depthMask(true);
+		// TBG then OBJ1
+		this.bgTransparency.apply(this);
+		gl.depthMask(false);
+		drawPendingMap(this, this.tbgBuffer);
+		gl.depthMask(true);
 
-        // Draw in reverse order
-        this.obj1Buffer.sort();
-        this._drawObjLayer(this.obj1Buffer, this.objTransparency, OBJ1_CELL_LIMIT);
-    }
+		// Draw in reverse order
+		this.obj1Buffer.sort();
+		this.objTransparency.apply(this);
+		this._drawObjLayer(this.obj1Buffer, OBJ1_CELL_LIMIT);
+	}
 
 	/**
 	 * @param objBuffer {ObjBuffer}
-	 * @param transparencyConfig {TransparencyConfig}
 	 * @param objLimit {number} max number of cells drawable
 	 * @private
 	 */
-	private _drawObjLayer(objBuffer: ObjBuffer, transparencyConfig: TransparencyConfig, objLimit: number = 0) {
+	private _drawObjLayer(objBuffer: ObjBuffer, objLimit: number = 0) {
 		// Use config only for that poly list
-        mat3.identity(this.modelViewMatrix);
-		transparencyConfig.apply(this);
+		mat3.identity(this.modelViewMatrix);
 		drawPendingObj(this, objBuffer, objLimit);
 		mat3.identity(this.modelViewMatrix);
 	}
@@ -558,17 +536,17 @@ export class VDP {
 		return name;
 	}
 
-    private _getPalette(name: string|VdpPalette): VdpPalette {
+	private _getPalette(name: string|VdpPalette): VdpPalette {
 		if (typeof name === 'string') return this.palette(name);
 		return name;
 	}
 
-    private _getSprite(name: string|VdpSprite): VdpSprite {
+	private _getSprite(name: string|VdpSprite): VdpSprite {
 		if (typeof name === 'string') return this.sprite(name);
 		return name;
 	}
 
-    private _initContext(canvas: HTMLCanvasElement) {
+	private _initContext(canvas: HTMLCanvasElement) {
 		this.gl = canvas.getContext("webgl", { premultipliedAlpha: true, alpha: SEMITRANSPARENT_CANVAS });
 
 		// Only continue if WebGL is available and working
@@ -597,7 +575,7 @@ export class VDP {
 		return this.obj0Buffer.computeUsedObjects();
 	}
 
-    private _totalUsedOBJ1(): number {
+	private _totalUsedOBJ1(): number {
 		return this.obj1Buffer.computeUsedObjects();
 	}
 }
