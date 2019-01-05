@@ -123,10 +123,8 @@ export function initMapShaders(vdp: VDP) {
 			uniform vec4 uEnvColor;
 			uniform sampler2D uSamplerMaps, uSamplerSprites, uSamplerPalettes, uSamplerOthers;
 						
-			// y > 0! x can be negative or positive
-			int intDiv(int x, int y) {
-				if (x >= 0) return x / y;
-				return (x - y) / y;
+			int intDiv(float x, float y) {
+				return int(floor(x / y));
 			}
 
 			mat3 readLinescrollBuffer(int bufferNo, int horizOffset) {
@@ -172,9 +170,9 @@ export function initMapShaders(vdp: VDP) {
 				else {
 					transformationMatrix = vTransformationMatrix;
 				}
-
-				ivec2 texCoord = ivec2((transformationMatrix * vec3(vTextureCoord.x, y, 1)).xy);
-				int mapX = intDiv(texCoord.x, int(vTileSize.x)), mapY = intDiv(texCoord.y, int(vTileSize.y));
+				
+				vec2 texCoord = floor((transformationMatrix * vec3(vTextureCoord.x, y, 1)).xy);
+				int mapX = intDiv(texCoord.x, vTileSize.x), mapY = intDiv(texCoord.y, vTileSize.y);
 				
 				// Out of bounds?
 				if (vOtherInfo.y < 1.0 && (mapX < 0 || mapY < 0 || mapX >= int(vMapSize.x) || mapY >= int(vMapSize.y))) {
@@ -191,7 +189,7 @@ export function initMapShaders(vdp: VDP) {
 				mapTileNo -= palOfs * ${1 << 12};
 
 				// Position of tile no in sprite texture, now we need to add the offset
-				vec2 offsetInTile = vec2(texCoord.x - mapX * int(vTileSize.x), texCoord.y - mapY * int(vTileSize.y));
+				vec2 offsetInTile = vec2(int(texCoord.x) - mapX * int(vTileSize.x), int(texCoord.y) - mapY * int(vTileSize.y));
 				vec2 tilesetPos = positionInTexture(mapTileNo) + offsetInTile;
 				float texel;
 
@@ -204,13 +202,19 @@ export function initMapShaders(vdp: VDP) {
 					paletteOffset += vPaletteNo;
 				}
 
-				// Color zero
-				if (texel < ${1.0 / PALETTE_TEX_W}) discard;
-				vec4 color = readPalette(texel, paletteOffset / ${PALETTE_TEX_H}.0);
-				color = ${makeOutputColor('color')};
-				//color.b = float(offsetInTile.y) / 8.0;
-				//color.r = float(mapY) / 1.0;
-				gl_FragColor = color;
+				// if (vTextureCoord.x < 16.0) {
+				// 	vec4 color = vec4(0, 0, 0, 1);
+				// 	color.r = abs(float(mapY)) / 2.0;
+				// 	color.g = abs(float(texCoord.y)) / 2.0;
+				// 	gl_FragColor = color;
+				// }
+				// else {
+					// Color zero
+					if (texel < ${1.0 / PALETTE_TEX_W}) discard;
+				
+					vec4 color = readPalette(texel, paletteOffset / ${PALETTE_TEX_H}.0);
+					gl_FragColor = ${makeOutputColor('color')};
+				// }
 			}
 		`;
 
@@ -329,8 +333,8 @@ export function drawPendingMap(vdp: VDP, mapBuffer: MapBuffer) {
 export function enqueueMap(mapBuffer: MapBuffer, uMap: number, vMap: number, uTileset: number, vTileset: number, mapWidth: number, mapHeight: number, tilesetWidth: number, tileWidth: number, tileHeight: number, winX: number, winY: number, winW: number, winH: number, scrollX: number, scrollY: number, palNo: number, hiColor: boolean, linescrollBuffer: number = -1, wrap: number = 1, z: number = 0) {
 
 	// Remove the + win* to start the map at the window instead of continuing it
-	scrollX = Math.floor(scrollX) + winX;
-	scrollY = Math.floor(scrollY) + winY;
+	scrollX += winX;
+	scrollY += winY;
 
 	tilesetWidth = Math.floor(tilesetWidth / tileWidth);
 	if (hiColor) palNo |= PALETTE_HICOLOR_FLAG;

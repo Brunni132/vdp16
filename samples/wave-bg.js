@@ -1,7 +1,7 @@
 import {loadVdp, runProgram} from "./vdp/runloop";
 import {color32} from "./vdp/color32";
 import { mat3 } from 'gl-matrix-ts';
-import {VDPCopySource} from "./vdp/vdp";
+import {LineTransformationArray, VDPCopySource} from "./vdp/vdp";
 
 const TextLayer = {
 	/**
@@ -53,20 +53,19 @@ function *main(vdp) {
 
 	let loop = 0;
 	while (true) {
-		// TODO Florian -- A good framework for that…
-		const buffer = [];
-		for (let i = 0; i < 256; i++) {
+		const buffer = new LineTransformationArray();
+		for (let i = 0; i < buffer.numLines; i++) {
 			const mat = mat3.create();
 			mat3.translate(mat, mat, [Math.sin((i + loop) / 20) * 10, i]);
-			buffer.push(mat);
+			buffer.setLine(i, mat);
 		}
 
-		vdp.drawBG('level1', { linescrollBuffer: buffer, scrollX: 0 });
+		vdp.drawBG('level1', { lineTransform: buffer, scrollX: 0 });
 		TextLayer.drawLayer();
 
 		const chars = Math.min(loop, 255).toString(16);
-		vdp.configOBJTransparency({ op: 'add', blendDst: '#000', blendSrc: `#${chars}${chars}${chars}`});
-		vdp.drawObj('gradient', 0, 180, { prio: 2, width: 256, height: 16, transparent: true});
+		//vdp.configOBJTransparency({ op: 'add', blendDst: '#000', blendSrc: `#${chars}${chars}${chars}`});
+		//vdp.drawObj('gradient', 0, 180, { prio: 2, width: 256, height: 16, transparent: true});
 
 		loop += 1;
 		yield 0;

@@ -13,7 +13,7 @@ import {
 	USE_PRIORITIES
 } from "./shaders";
 import { drawOpaquePoly, initOpaquePolyShaders } from "./generalpolys";
-import { Buffer2D, VdpMap, VdpPalette, VdpSprite } from "./memory";
+import { Array2D, VdpMap, VdpPalette, VdpSprite } from "./memory";
 import {
 	makeShadowFromTexture16,
 	makeShadowFromTexture32,
@@ -83,6 +83,31 @@ export enum VDPCopySource {
 	blank,
 }
 
+/**
+ * Use this class to provide a transformation for each line of the BG when drawing. You can create many kind of effects
+ * using this, look at the samples.
+ */
+export class LineTransformationArray {
+	buffer: Float32Array;
+	numLines: number;
+
+	constructor() {
+		// 8 floats per item (hack for the last one since mat3 is actually 9 items)
+		this.numLines = SCREEN_HEIGHT;
+		this.buffer = new Float32Array(this.numLines * 8);
+  }
+
+  getLine(lineNo): mat3type {
+	  if (lineNo < 0 || lineNo >= this.numLines) throw new Error(`getLine: index ${lineNo} out of range`);
+		return mat3.fromValues(this.buffer[lineNo * 8], this.buffer[lineNo * 8 + 1], this.buffer[lineNo * 8 + 2], this.buffer[lineNo * 8 + 3], this.buffer[lineNo * 8 + 4], this.buffer[lineNo * 8 + 5], this.buffer[lineNo * 8 + 6], this.buffer[lineNo * 8 + 7], 1);
+  }
+
+	setLine(lineNo, transformation: mat3type) {
+		if (lineNo < 0 || lineNo >= this.numLines) throw new Error(`setLine: index ${lineNo} out of range`);
+		this.buffer.set((transformation as Float32Array).subarray(0, 8), lineNo * 8);
+	}
+}
+
 const NO_TRANSPARENCY = new TransparencyConfig('none', 'add', 0, 0);
 const STANDARD_TRANSPARENCY = new TransparencyConfig('blend', 'add', 0, 0);
 
@@ -124,6 +149,7 @@ export class VDP {
 	private shadowPaletteTex: ShadowTexture;
 	private romMapTex: ShadowTexture;
 	private shadowMapTex: ShadowTexture;
+	private nextLinescrollBuffer: number = 0;
 
 	constructor(canvas: HTMLCanvasElement, done: () => void) {
 		this._initContext(canvas);
@@ -233,13 +259,13 @@ export class VDP {
 	 * @param opts.winY top coordinate on the screen to start drawing from (default to 0)
 	 * @param opts.winW width after which to stop drawing (defaults to SCREEN_WIDTH)
 	 * @param opts.winH height after which to stop drawing (defaults to SCREEN_HEIGHT)
-	 * @param opts.linescrollBuffer {mat3[]} number of the linescroll buffer to use
+	 * @param opts.lineTransform {LineTransformationArray} per-line transformation array
 	 * @param opts.wrap whether to wrap the map at the bounds (defaults to true)
 	 * @param opts.tileset custom tileset to use.
 	 * @param opts.transparent
 	 * @param opts.prio z-order
 	 */
-	drawBG(map, opts: {palette?: string|VdpPalette, scrollX?: number, scrollY?: number, winX?: number, winY?: number, winW?: number, winH?: number, linescrollBuffer?: mat3type[], wrap?: boolean, tileset?: string|VdpSprite, transparent?: boolean, prio?: number} = {}) {
+	drawBG(map, opts: {palette?: string|VdpPalette, scrollX?: number, scrollY?: number, winX?: number, winY?: number, winW?: number, winH?: number, lineTransform?: LineTransformationArray, wrap?: boolean, tileset?: string|VdpSprite, transparent?: boolean, prio?: number} = {}) {
 		if (typeof map === 'string') map = this.map(map);
 		// TODO Florian -- no need for such a param, since the user can modify map.designPalette himself…
 		// Maybe the other options could be in the map too… (just beware that they are strings, not actual links to the palette/tileset… but we could typecheck too)
@@ -267,14 +293,9 @@ export class VDP {
 		winH = Math.min(SCREEN_HEIGHT - winY, Math.max(0, winH));
 
 		let linescrollBuffer = -1;
-		if (opts.linescrollBuffer) {
-			// 8 floats per item (hack for the last one since mat3 is actually 9 items)
-			const buffer = new Float32Array(opts.linescrollBuffer.length * 8);
-			let i;
-			for (i = 0; i < opts.linescrollBuffer.length - 1; i++) buffer.set(opts.linescrollBuffer[i], i * 8);
-			buffer.set((opts.linescrollBuffer[i] as Float32Array).subarray(0, 8), i * 8);
-			writeToTextureFloat(this.gl, this.otherTexture, 0, 0, buffer.length / 4, 1, buffer);
-			linescrollBuffer = 256;
+		if (opts.lineTransform) {
+			linescrollBuffer = 256 + this.nextLinescrollBuffer;
+			writeToTextureFloat(this.gl, this.otherTexture, 0, this.nextLinescrollBuffer++, opts.lineTransform.buffer.length / 4, 1, opts.lineTransform.buffer);
 		}
 
 		enqueueMap(buffer, map.x, map.y, til.x, til.y, map.w, map.h, til.w, til.tw, til.th, winX, winY, winW, winH, scrollX, scrollY, pal.y, til.hiColor, linescrollBuffer, wrap ? 1 : 0, prio);
@@ -338,15 +359,15 @@ export class VDP {
 	 * the memory (you're going to write only and you need a buffer for that), vdp.SOURCE_CURRENT to read the current
 	 * contents of the memory (as was written the last time with writeMap) or vdp.SOURCE_ROM to get the original data
 	 * as downloaded from the cartridge.
-	 * @return a Buffer2D containing the map data (buffer member is a Uint16Array), each element being the tile number
+	 * @return a Array2D containing the map data (buffer member is a Uint16Array), each element being the tile number
 	 * in the tileset.
 	 */
-	readMap(map: string|VdpMap, source = VDPCopySource.current): Buffer2D {
+	readMap(map: string|VdpMap, source = VDPCopySource.current): Array2D {
 		const m = this._getMap(map);
 		const result = new Uint16Array(m.w * m.h);
 		if (source === VDPCopySource.current) this.shadowMapTex.readToBuffer(m.x, m.y, m.w, m.h, result);
 		if (source === VDPCopySource.rom) this.romMapTex.readToBuffer(m.x, m.y, m.w, m.h, result);
-		return new Buffer2D(result, m.w, m.h);
+		return new Array2D(result, m.w, m.h);
 	}
 
 	/**
@@ -366,23 +387,23 @@ export class VDP {
 	 * @param w
 	 * @param h
 	 * @param source look at readMap for more info.
-	 * @return a Buffer2D that contains color entries, encoded as 0xAABBGGRR
+	 * @return a Array2D that contains color entries, encoded as 0xAABBGGRR
 	 */
-	readPaletteMemory(x: number, y: number, w: number, h: number, source = VDPCopySource.current): Buffer2D {
+	readPaletteMemory(x: number, y: number, w: number, h: number, source = VDPCopySource.current): Array2D {
 		const result = new Uint32Array(w * h);
 		if (source === VDPCopySource.current) this.shadowPaletteTex.readToBuffer(x, y, w, h, result);
 		if (source === VDPCopySource.rom) this.romPaletteTex.readToBuffer(x, y, w, h, result);
-		return new Buffer2D(result, w, h);
+		return new Array2D(result, w, h);
 	}
 
 	/**
 	 * @param sprite name of the sprite (or sprite itself). You may also query an arbitrary portion of the
 	 * sprite memory using new VdpSprite(…) or offset an existing sprite, using vdp.sprite('mySprite').offsetted(…).
 	 * @param source look at readMap for more info.
-	 * @return a Buffer2D containing the tileset data. For hi-color sprites, each entry represents one pixel.
+	 * @return a Array2D containing the tileset data. For hi-color sprites, each entry represents one pixel.
 	 * For lo-color sprites, each entry corresponds to two packed pixels, of 4 bits each.
 	 */
-	readSprite(sprite: string|VdpSprite, source = VDPCopySource.current): Buffer2D {
+	readSprite(sprite: string|VdpSprite, source = VDPCopySource.current): Array2D {
 		const s = this._getSprite(sprite);
 
 		if (!s.hiColor && s.x % 2 !== 0) throw new Error('Lo-color sprites need to be aligned to 2 pixels');
@@ -392,7 +413,7 @@ export class VDP {
 		const result = new Uint8Array(w * s.h);
 		if (source === VDPCopySource.current) this.shadowSpriteTex.readToBuffer(x, s.y, w, s.h, result);
 		if (source === VDPCopySource.rom) this.romSpriteTex.readToBuffer(x, s.y, w, s.h, result);
-		return new Buffer2D(result, w, s.h);
+		return new Array2D(result, w, s.h);
 	}
 
 	sprite(name: string): VdpSprite {
@@ -404,9 +425,9 @@ export class VDP {
 	/**
 	 * @param map {string|VdpMap} name of the map (or map itself). You may also write to an arbitrary portion of the map
 	 * memory using new VdpMap(…) or offset an existing map, using vdp.map('myMap').offsetted(…).
-	 * @param data {Buffer2D} map data to write (use readMap to create a buffer like that)
+	 * @param data {Array2D} map data to write (use readMap to create a buffer like that)
 	 */
-	writeMap(map: string|VdpMap, data: Buffer2D) {
+	writeMap(map: string|VdpMap, data: Array2D) {
 		const m = this._getMap(map);
 		this.shadowMapTex.writeTo(m.x, m.y, m.w, m.h, data.buffer);
 		this.shadowMapTex.syncToVramTexture(this.gl, this.mapTexture, m.x, m.y, m.w, m.h);
@@ -418,7 +439,7 @@ export class VDP {
 	 */
 	writePalette(palette: string|VdpPalette, data: Uint32Array) {
 		const pal = this._getPalette(palette);
-		this.writePaletteMemory(0, pal.y, pal.size, 1, new Buffer2D(data, pal.size, 1));
+		this.writePaletteMemory(0, pal.y, pal.size, 1, new Array2D(data, pal.size, 1));
 	}
 
 	/**
@@ -427,9 +448,9 @@ export class VDP {
 	 * @param y
 	 * @param w
 	 * @param h
-	 * @param data {Buffer2D} color entries, encoded as 0xAABBGGRR
+	 * @param data {Array2D} color entries, encoded as 0xAABBGGRR
 	 */
-	writePaletteMemory(x: number, y: number, w: number, h: number, data: Buffer2D) {
+	writePaletteMemory(x: number, y: number, w: number, h: number, data: Array2D) {
 		this.shadowPaletteTex.writeTo(x, y, w, h, data.buffer);
 		this.shadowPaletteTex.syncToVramTexture(this.gl, this.paletteTexture, x, y, w, h);
 	}
@@ -437,10 +458,10 @@ export class VDP {
 	/**
 	 * @param sprite name of the sprite (or sprite itself). You may also write to an arbitrary portion
 	 * of the sprite memory using new VdpSprite(…) or offset an existing sprite, using vdp.sprite('mySprite').offsetted(…).
-	 * @param data {Buffer2D} the new data. For hi-color sprites, each entry represents one pixel. For lo-color sprites,
+	 * @param data {Array2D} the new data. For hi-color sprites, each entry represents one pixel. For lo-color sprites,
 	 * each entry corresponds to two packed pixels, of 4 bits each.
 	 */
-	writeSprite(sprite: string|VdpSprite, data: Buffer2D) {
+	writeSprite(sprite: string|VdpSprite, data: Array2D) {
 		const s = this._getSprite(sprite);
 
 		if (!s.hiColor && s.x % 2 !== 0) throw new Error('Lo-color sprites need to be aligned to 2 pixels');
@@ -504,6 +525,8 @@ export class VDP {
 		this.obj1Buffer.sort();
 		this.objTransparency.apply(this);
 		this._drawObjLayer(this.obj1Buffer, OBJ1_CELL_LIMIT);
+
+		this.nextLinescrollBuffer = 0;
 	}
 
 	/**

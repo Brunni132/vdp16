@@ -1,6 +1,7 @@
 import {loadVdp, runProgram} from "./vdp/runloop";
 import { mat3, mat4, vec3 } from 'gl-matrix-ts';
 import {SCREEN_HEIGHT, SCREEN_WIDTH} from "./vdp/shaders";
+import {LineTransformationArray} from "./vdp/vdp";
 
 // Just an attempt, doesn't quite work. Use reference instead: https://www.coranac.com/tonc/text/mode7.htm
 function *main(vdp) {
@@ -10,7 +11,7 @@ function *main(vdp) {
 		const viewerPos = [512, 372];
 		const viewerAngle = loop * 0.01;
 
-		const buffer = [];
+		const transformations = [];
 		for (let line = 0; line < SCREEN_HEIGHT + 64; line++) {
 			const scale = 100 / (line + 50);
 			const mat = mat3.create();
@@ -19,7 +20,7 @@ function *main(vdp) {
 			mat3.scale(mat, mat, [scale, scale]);
 			//mat3.scale(mat, mat, [0.5, 0.5]);
 			mat3.translate(mat, mat, [-128, -256 + line]);
-			buffer.push(mat);
+			transformations.push(mat);
 		}
 
 		function computeSpritePos(spritePos) {
@@ -28,9 +29,9 @@ function *main(vdp) {
 			const untransformed = vec3.fromValues(spritePos[0], spritePos[1], 1);
 			const result = vec3.create();
 			let line, scale;
-			for (line = buffer.length - 1; line >= 0; line--) {
+			for (line = transformations.length - 1; line >= 0; line--) {
 				scale = 100 / (line + 50);
-				mat3.invert(mat, buffer[line]);
+				mat3.invert(mat, transformations[line]);
 				vec3.transformMat3(result, untransformed, mat);
 				if (Math.abs(result[1] ) < scale * 2) {
 					break;
@@ -44,7 +45,12 @@ function *main(vdp) {
 			vdp.drawObj(obj, result[0] - scale * obj.w / 2, line - scale * obj.h, { width: obj.w * scale, height: obj.h * scale, prio: 2 });
 		}
 
-		vdp.drawBG('road', {linescrollBuffer: buffer, winY: 0, wrap: true});
+		const lineTransform = new LineTransformationArray();
+		for (let i = 0; i < lineTransform.numLines; i++) {
+			lineTransform.setLine(i, transformations[i]);
+		}
+
+		vdp.drawBG('road', { lineTransform, winY: 0, wrap: true});
 
 		// (x, z)
 		computeSpritePos([512, 351]);

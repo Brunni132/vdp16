@@ -93,7 +93,7 @@ export class VdpSprite {
  * In the VDP16, memory is always addressed in 2D. It has the advantage of being easier to represent for users and be
  * much more flexible. However, underlying memory is still exposed as a one-dimensional array in the end, containing
  * [height] lines of [width] integers, each of which represents a pixel, a map element or a palette color. Therefore,
- * accessing to the buffer element (x, y) is done as such: Buffer2D.buffer[x + y * width]. Since it's heavily used all
+ * accessing to the buffer element (x, y) is done as such: Array2D.buffer[x + y * width]. Since it's heavily used all
  * around, we created this class to wrap up the data buffer and the width of each column.
  *
  * For reference, sprites use 8 bit data (Uint8Array), each element being one or two pixels depending on the hi-color
@@ -101,7 +101,7 @@ export class VdpSprite {
  * (Uint32Array), each element representing a color in RGBA format (write 0xaabbggrr with r=8 red bits, g=green, b=blue
  * and a=alpha, ignored unless you use the alpha-based blending modes).
  */
-export class Buffer2D {
+export class Array2D {
     buffer: Uint8Array|Uint16Array|Uint32Array;
     width: number;
     height: number;

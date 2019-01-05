@@ -1,25 +1,25 @@
 import {loadVdp, runProgram} from "./vdp/runloop";
 import { mat3 } from 'gl-matrix-ts';
 import {SCREEN_HEIGHT, SCREEN_WIDTH} from "./vdp/shaders";
+import {LineTransformationArray} from "./vdp/vdp";
 
 /** @param vdp {VDP} */
 function *main(vdp) {
 	let loop = 0;
 	while (true) {
-		const buffer = [];
-		for (let i = 0; i < 256; i++) {
-			// TODO Florian -- Optimize (and remake API for that using .set(lineNo, mat))
+		const array = new LineTransformationArray();
+		for (let i = 0; i < array.numLines; i++) {
 			const mat = mat3.create();
 			mat3.translate(mat, mat, [loop, 0]);
 			mat3.translate(mat, mat, [SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2]);
 			mat3.rotate(mat, mat, loop / 800);
 			mat3.translate(mat, mat, [-SCREEN_WIDTH / 2, -SCREEN_HEIGHT / 2]);
 			mat3.translate(mat, mat, [0, i]);
-			buffer.push(mat);
+			array.setLine(i, mat);
 		}
 
 		// vdp.configFade('#000', 192);
-		vdp.drawBG('level1', { scrollX: 0, linescrollBuffer: buffer });
+		vdp.drawBG('level1', { scrollX: 0, lineTransform: array });
 		loop += 1;
 		yield 0;
 	}
