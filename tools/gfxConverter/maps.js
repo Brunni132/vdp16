@@ -128,8 +128,8 @@ class Tileset {
 	static fromImage(name, texture, tileWidth, tileHeight, palettes) {
 		assert(texture.width % tileWidth === 0 || texture.height % tileHeight === 0, `Undividable tileset ${texture.width}x${texture.height} by ${tileWidth}x${tileHeight}`);
 
-		const tilesWide = texture.width / tileWidth;
-		const tilesTall = texture.height / tileHeight;
+		const tilesWide = Math.ceil(texture.width / tileWidth);
+		const tilesTall = Math.ceil(texture.height / tileHeight);
 		const result = new Tileset(name, tileWidth, tileHeight, tilesWide, tilesTall, palettes);
 
 		for (let y = 0; y < tilesTall; y++) {

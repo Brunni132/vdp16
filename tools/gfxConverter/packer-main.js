@@ -122,7 +122,7 @@ function tileset(name, contents, tileWidth, tileHeight, cb) {
 	conv.addTileset(result);
 	tilesetNamed[name] = result;
 	currentTileset = result;
-	cb();
+	if (cb) cb();
 	currentTileset = null;
 }
 
@@ -137,7 +137,7 @@ palette('Default', () => {
 });
 
 palette('Mario', () => {
-	sprite('mario', image('gfx/mario-luigi-2.png').rect(80, 32, 224, 16));
+	tileset('mario', image('gfx/mario-luigi-2.png').rect(80, 32, 224, 16), 16, 16);
 });
 
 palette('level1', () => {

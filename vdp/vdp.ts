@@ -53,10 +53,10 @@ class TransparencyConfig {
 		envColor[0] = envColor[1] = envColor[2] = envColor[3] = 1;
 		gl.blendEquation(operation === 'sub' ? gl.FUNC_REVERSE_SUBTRACT : gl.FUNC_ADD);
 
-		if (effect === 'blend' && !DISCARD_ALPHA) {
+		if (effect === 'blend') { // Used internally for the fade
 			gl.enable(gl.BLEND);
 			gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-		} else if (effect === 'premult' && !DISCARD_ALPHA) {
+		} else if (effect === 'premult') {
 			gl.enable(gl.BLEND);
 			gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 		} else if (effect === 'color') {

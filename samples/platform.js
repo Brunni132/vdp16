@@ -46,8 +46,7 @@ function *main(vdp) {
 		vdp.configOBJTransparency({ op: 'sub', blendSrc: '#fff', blendDst: '#fff' });
 		vdp.drawObj('gradient', 0, 190, { transparent: true, prio: 1, height: 32 });
 
-		const marioSprite = vdp.sprite('mario').offsetted(0, 0, 16, 24);
-		vdp.drawObj(marioSprite, mario.x, mario.y);
+		vdp.drawObj(vdp.sprite('mario').tile(0), mario.x, mario.y);
 
 		loop += 1;
 
