@@ -64,7 +64,8 @@ export function initMapShaders(vdp: VDP) {
 			varying vec2 vTextureCoord;
 			varying float vPaletteNo;
 			// TODO Florian -- use vec4 and extract in fragment program
-			varying vec2 vMapStart, vMapSize;
+			varying highp vec2 vMapStart;
+			varying highp vec2 vMapSize;
 			varying vec2 vTilesetStart;
 			varying float vTilesetWidth;
 			varying vec2 vTileSize;
@@ -111,7 +112,8 @@ export function initMapShaders(vdp: VDP) {
 			
 			varying highp vec2 vTextureCoord;
 			varying highp float vPaletteNo;
-			varying vec2 vMapStart, vMapSize;
+			varying highp vec2 vMapStart;
+			varying highp vec2 vMapSize;
 			// tilesetSize is in tiles!
 			varying vec2 vTilesetStart;
 			varying float vTilesetWidth;
@@ -127,6 +129,15 @@ export function initMapShaders(vdp: VDP) {
 				return int(floor(x / y));
 			}
 
+			/**
+			 * Returns accurate MOD when arguments are approximate integers.
+			 * https://stackoverflow.com/questions/33908644/get-accurate-integer-modulo-in-webgl-shader
+			 */
+			float modI(float a,float b) {
+				float m=a-floor((a+0.5)/b)*b;
+				return floor(m+0.5);
+			}
+
 			mat3 readLinescrollBuffer(int bufferNo, int horizOffset) {
 				float vOfs = float(bufferNo) / ${OTHER_TEX_H}.0;
 				vec4 first = texture2D(uSamplerOthers, vec2(float(horizOffset) / ${OTHER_TEX_W}.0, vOfs));
@@ -138,8 +149,8 @@ export function initMapShaders(vdp: VDP) {
 			}
 			
 			int readMap(int x, int y) {
-				x = int(mod(float(x), vMapSize.x) + vMapStart.x);
-				y = int(mod(float(y), vMapSize.y) + vMapStart.y);
+				x = int(modI(float(x), vMapSize.x) + vMapStart.x);
+				y = int(modI(float(y), vMapSize.y) + vMapStart.y);
 				
 				int texelId = x / 2;
 				int texelC = x - texelId * 2;
@@ -154,7 +165,7 @@ export function initMapShaders(vdp: VDP) {
 				float colNo = mod(float(tileNo), vTilesetWidth);
 				return base + vec2(colNo * vTileSize.x, rowNo * vTileSize.y);
 			}
-	
+		
 			${declareReadTexel()}
 			${declareReadPalette()}
 		
@@ -204,9 +215,11 @@ export function initMapShaders(vdp: VDP) {
 
 				// if (vTextureCoord.x < 16.0) {
 				// 	vec4 color = vec4(0, 0, 0, 1);
-				// 	float ym = mod(float(mapY), vMapSize.y) + vMapStart.y;
-				// 	color.b = (float(mapY) - ( float(mapY / int(vMapSize.y))) / 2.0;
-				// 	color.g = float(mapY / int(vMapSize.y));
+				// 	// float ym = mod(float(mapY), vMapSize.y) + vMapStart.y;
+				// 	// color.b = (float(mapY) - ( float(mapY / int(vMapSize.y))) / 2.0;
+				// 	int times = intDiv(float(mapY), vMapSize.y - 0.001);
+				// 	color.g = modI(float(mapY), vMapSize.y) / 2.0;
+				// 	color.b = float(mapY) / 28.0;
 				// 	gl_FragColor = color;
 				// }
 				// else {

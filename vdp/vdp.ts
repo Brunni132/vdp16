@@ -298,7 +298,7 @@ export class VDP {
 			writeToTextureFloat(this.gl, this.otherTexture, 0, this.nextLinescrollBuffer++, opts.lineTransform.buffer.length / 4, 1, opts.lineTransform.buffer);
 		}
 
-		enqueueMap(buffer, map.x, map.y, til.x, til.y, map.w, map.h + 0, til.w, til.tw, til.th, winX, winY, winW, winH, scrollX, scrollY, pal.y, til.hiColor, linescrollBuffer, wrap ? 1 : 0, prio);
+		enqueueMap(buffer, map.x, map.y, til.x, til.y, map.w, map.h, til.w, til.tw, til.th, winX, winY, winW, winH, scrollX, scrollY, pal.y, til.hiColor, linescrollBuffer, wrap ? 1 : 0, prio);
 	}
 
 	/**
