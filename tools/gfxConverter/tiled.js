@@ -18,10 +18,10 @@ function findMainLayer(layer) {
  *
  * @param fileNameBase {string}
  * @param name {string} name of the tileset/map
- * @param palette {Palette[]} destination palettes
+ * @param palettes {Palette[]} destination palettes
  * @returns {Map}
  */
-function readTmx(fileNameBase, name, palette) {
+function readTmx(fileNameBase, name, palettes) {
 	const tmxFileName = `${fileNameBase}.tmx`;
 	const json = JSON.parse(parser.toJson(fs.readFileSync(tmxFileName))).map;
 
@@ -32,7 +32,7 @@ function readTmx(fileNameBase, name, palette) {
 	const tileHeight = json.tileset.tileheight;
 	const layer = findMainLayer(json.layer);
 	const imagePath = path.join(path.dirname(fileNameBase), json.tileset.image.source);
-	const tileset = Tileset.fromImage(tilesetName, Texture.fromPng32(imagePath), tileWidth, tileHeight, palette);
+	const tileset = Tileset.fromImage(tilesetName, Texture.fromPng32(imagePath), tileWidth, tileHeight, palettes);
 	const map = Map.blank(name, json.width, json.height, tileset);
 
 	assert(layer.data.encoding === 'csv', `Only CSV encoding is supported (map ${name})`);
@@ -42,7 +42,9 @@ function readTmx(fileNameBase, name, palette) {
 
 	for (let y = 0; y < mapHeight; y++) {
 		for (let x = 0; x < mapWidth; x++) {
-			map.setTile(x, y, layerData[i++] - 1);
+			const tileNo = layerData[i++] - 1;
+			const paletteFlags = tileset.tiles[tileNo].paletteIndex << 12;
+			map.setTile(x, y, tileNo | paletteFlags);
 		}
 	}
 

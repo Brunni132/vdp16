@@ -10,6 +10,7 @@ class Tile {
 	constructor(width, height) {
 		this.width = width;
 		this.height = height;
+		this.paletteIndex = 0;
 		this.pixelData = new Array(this.width * this.height);
 	}
 
@@ -28,15 +29,46 @@ class Tile {
 
 	/**
 	 * @param {Texture} texture
-	 * @param {Palette} palette
+	 * @param {Palette[]} palettes
 	 * @return {Tile}
 	 */
-	static fromImage32(texture, palette) {
+	static fromImage32(texture, palettes) {
 		const result = new Tile(texture.width, texture.height);
-		texture.forEachPixel((pixel, x, y) => {
-			// Add colors to the palette (or find them if they're already)
-			result.pixelData[y * result.width + x] = palette.pixelNumberInsidePalette(pixel);
-		});
+		// Simple case: we're allowed to create colors
+		if (palettes.length === 1) {
+			texture.forEachPixel((pixel, x, y) => {
+				// Add colors to the palette (or find them if they're already)
+				result.pixelData[y * result.width + x] = palettes[0].pixelNumberInsidePalette(pixel);
+			});
+		}
+		else {
+			// Multi-palette: not allowed to create colors. Just find the best palette for this tile.
+			// Note that we just compute the number of different pixels, not how far the pixels are. This means that even if
+			// a palette is better than another, if both don't contain the exact required color, they'll appear as wrong as
+			// each other.
+			// Therefore beware when you quantize palettes, if it changes one color to a very close but non-identical one, and
+			// a tile uses this color as a solid background for instance, that tile will choose any palette, but probably not
+			// the right one.
+			const mistakesByPalette = new Array(palettes.length);
+			for (let palNo = 0; palNo < palettes.length; palNo++) mistakesByPalette[palNo] = 0;
+			texture.forEachPixelLinear(pixel => {
+				for (let palNo = 0; palNo < palettes.length; palNo++) {
+					if (palettes[palNo].pixelNumberInsidePalette(pixel, false) === -1) mistakesByPalette[palNo]++;
+				}
+			});
+
+			let bestPalette = 0, bestPaletteMistake = mistakesByPalette[0];
+			for (let palNo = 0; palNo < palettes.length; palNo++) {
+				if (mistakesByPalette[palNo] < bestPaletteMistake) {
+					bestPalette = palNo;
+					bestPaletteMistake = mistakesByPalette[palNo];
+				}
+			}
+			texture.forEachPixel((pixel, x, y) => {
+				result.pixelData[y * result.width + x] = palettes[bestPalette].pixelNumberInsidePalette(pixel);
+			});
+			result.paletteIndex = bestPalette;
+		}
 		return result;
 	}
 
@@ -81,7 +113,6 @@ class Tileset {
 	 * @param [firstTileEmpty=false] {boolean}
 	 */
 	constructor(name, tileWidth, tileHeight, tilesWide, tilesTall, palettes, firstTileEmpty=false) {
-		assert(palettes.length === 1, 'Does support only one palette for now');
 		assert((tilesWide * tilesTall) >= 1, 'At least one tile required in tileset');
 		/** @type {string} */
 		this.name = name;
@@ -134,7 +165,7 @@ class Tileset {
 
 		for (let y = 0; y < tilesTall; y++) {
 			for (let x = 0; x < tilesWide; x++) {
-				result.addTile(Tile.fromImage32(texture.subtexture(x * tileWidth, y * tileHeight, tileWidth, tileHeight), palettes[0]));
+				result.addTile(Tile.fromImage32(texture.subtexture(x * tileWidth, y * tileHeight, tileWidth, tileHeight), palettes));
 			}
 		}
 		return result;
@@ -179,7 +210,7 @@ class Tileset {
 	 * @returns {number} tile number in tileset
 	 */
 	findOrAddTile(texture, paletteNo, tolerance=0) {
-		const resultConverted = Tile.fromImage32(texture, this.palettes[paletteNo]);
+		const resultConverted = Tile.fromImage32(texture, [this.palettes[paletteNo]]);
 
 		for (let k = 0; k < this.tiles.length; k++) {
 			if (resultConverted.equalsTile(this.tiles[k], tolerance)) {

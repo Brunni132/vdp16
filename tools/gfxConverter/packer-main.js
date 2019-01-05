@@ -117,13 +117,13 @@ function palettes(name, contents, cb) {
 		currentPaletteMultiple = new Array(numPalettes);
 		for (let i = 0; i < numPalettes; i++) {
 			// TODO Florian -- rename them, make multi-palette a thing
-			currentPaletteMultiple[i] = conv.createPalette(name);
+			currentPaletteMultiple[i] = conv.createPalette(name + (i > 0 ? `-${i}` : ''));
 		}
 		// TODO Florian -- Only the first is saved
 		paletteNamed[name] = currentPaletteMultiple[0];
-		assert(contents.width < currentPaletteMultiple.maxColors - 1, `Too many colors for multipalette ${name} (max ${currentPaletteMultiple - 1}, has ${contents.width})`);
+		assert(contents.width < currentPaletteMultiple[0].maxColors, `Too many colors for multipalette ${name} (max ${currentPaletteMultiple[0].maxColors - 1}, has ${contents.width})`);
 		contents.forEachPixel((color, x, y) => {
-			currentPaletteMultiple[y].colorData[x + 1] = color;
+			currentPaletteMultiple[y].pixelNumberInsidePalette(color);
 		});
 	}
 	else {
@@ -213,8 +213,7 @@ palette('level1', () => {
 	});
 });
 
-palette('tmx', () => {
-	addColors('gfx/tmx-pal.png');
+palettes('tmx', image('gfx/tmx-pal.png'), () => {
 	tiledMap('tmx', 'gfx/testTmx', { tileWidth: 8, tileHeight: 8, tilesetWidth: 64, tilesetHeight: 32 });
 });
 

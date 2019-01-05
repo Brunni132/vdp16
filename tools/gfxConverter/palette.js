@@ -88,7 +88,8 @@ class Palette {
 	 * May return -1 if the color is not found and allowCreate = false or palette is full.
 	 * @param {number} color 32-bit color
 	 * @param {boolean} allowCreate
-	 * @returns {number} the number inside the palette if this color already existed
+	 * @returns {number} the number inside the palette if this color already existed, or the number of the closest color.
+	 * If the color doesn't have an exact equivalent and allowCreate = false, returns -1.
 	 */
 	pixelNumberInsidePalette(color, allowCreate = true) {
 		color = this.toDesintationFormat(color);

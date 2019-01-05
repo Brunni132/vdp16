@@ -16,7 +16,7 @@ function *main(vdp) {
 
 	while (true) {
 		//vdp.drawBG('level1');
-		vdp.drawBG('tmx', {scrollX: loop});
+		vdp.drawBG('tmx', {scrollX: loop*2});
 		loop += 1;
 		yield 0;
 	}
