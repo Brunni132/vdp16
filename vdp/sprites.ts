@@ -8,7 +8,7 @@ import {
 	PALETTE_TEX_H,
 	PALETTE_TEX_W
 } from "./shaders";
-import {DEBUG} from "./vdp";
+import { DEBUG, VDP } from "./vdp";
 
 // How big (tall/wide) a sprite can be before it's broken down in smaller units of OBJ_CELL_SIZE^2
 const OBJ_CELL_SIZE = 32;
@@ -17,41 +17,38 @@ const OBJ_BUFFER_STRIDE = 6;
 
 // TODO Florian -- Refactor to use zero-based indexes (and document) for all helper functions, like MapBuffer
 export class ObjBuffer {
+	name: string;
+	xyzp: Float32Array;
+	uv: Float32Array;
+	usedVertices: number = 0;
+	maxVertices: number;
+
 	/**
 	 * @param name {string} for debugging
 	 * @param numVertices {number}
 	 */
 	constructor(name, numVertices) {
-		/** @type {string} */
 		this.name = name;
-		/** @type {Float32Array} */
 		this.xyzp = new Float32Array(numVertices * 4);
-		/** @type {Float32Array} */
 		this.uv = new Float32Array(numVertices * 2);
-		/** @type {number} */
-		this.usedVertices = 0;
-		/** @type {number} */
 		this.maxVertices = numVertices;
 	}
 
 	/**
-	 *
-	 * @param first {number}
-	 * @param count {number}
-	 * @returns	{number} number of cells used
+	 * Returns the number of cells used.
 	 */
-	computeUsedObjects(first = -1, count = -1) {
+	computeUsedObjects(first: number = -1, count: number = -1): number {
 		let result = 0;
 		if (first < 0) first = this.firstSprite;
 		if (count < 0) count = this.usedSprites;
 
 		for (let i = first; i < first + count; i++) {
-			result += this._computeObjectCells(this.getSizeOfObject(i));
+			result += this.computeObjectCells(this.getSizeOfObject(i));
 		}
 		return result;
 	}
 
-	get firstSprite() {
+	get firstSprite(): number {
 		return this.firstVertice / OBJ_BUFFER_STRIDE;
 	}
 
@@ -61,7 +58,7 @@ export class ObjBuffer {
 	 * @returns {number} the index of the first vertice in the arrays (there are `usedVertices` then). Note that you'll
 	 * need to multiply by OBJ_BUFFER_STRIDE * <components per entry> to address the arrays.
 	 */
-	get firstVertice() {
+	get firstVertice(): number {
 		return 	this.maxVertices - this.usedVertices;
 	}
 
@@ -69,17 +66,16 @@ export class ObjBuffer {
 	 * @returns {number} the z component of an object at the index-th position
 	 * @param index {number}
 	 */
-	getZOfObject(index) {
+	getZOfObject(index): number {
 		return this.xyzp[OBJ_BUFFER_STRIDE * 4 * index + 2];
 	}
 
 	/**
-	 * @returns {{w: number, h: number}} the size of an object at the index-th position.
-	 * @param index {number}
+	 * Returns the size of an object at the index-th position.
 	 */
-	getSizeOfObject(index) {
+	getSizeOfObject(objectIndex: number): {w: number, h: number} {
 		// (left,top) in row 0.xy, (right,bottom) in row 2.xy
-		const vert = OBJ_BUFFER_STRIDE * 4 * index;
+		const vert = OBJ_BUFFER_STRIDE * 4 * objectIndex;
 		return {
 			w: Math.abs(this.xyzp[vert + 4 * 2] - this.xyzp[vert]),
 			h: Math.abs(this.xyzp[vert + 4 * 2 + 1] - this.xyzp[vert + 1])
@@ -87,15 +83,39 @@ export class ObjBuffer {
 	}
 
 	/**
-	 * Limit the width of an object (usually as a result of going outside of the sprite limit).
-	 * @param index {number}
-	 * @param width {number} new width of the object
+	 * Modifies the OBJ list to fit within the number of cells. Use the return value to know how many sprites to draw.
+	 * @param maxCells {number} maximum allowed number of cells
+	 * @returns {number} sprites fully drawable for this list
 	 */
-	setWidthOfObject(index, width) {
-		// (left,top) in row 0.xy, (right,bottom) in row 2.xy
-		const vert = OBJ_BUFFER_STRIDE * 4 * index;
-		this.xyzp[vert + 4 * 2] = this.xyzp[vert] + width;
+	limitObjList(maxCells: number): number {
+		let cells = 0;
+		const endOfList = this.firstSprite + this.usedSprites;
+		for (let i = this.firstSprite; i < endOfList; i++) {
+			const size = this.getSizeOfObject(i);
+			const current = this.computeObjectCells(size);
+
+			if (cells + current > maxCells) {
+
+				// TODO Florian -- Limit the width of this sprite -- Doesn't work because we need to scale the UV too with floating point UV rendering
+				//const cellsTall = Math.ceil(size.h * layerTransform.scaling[1] / OBJ_CELL_SIZE);
+				//const allowedCellsWide = (maxCells - cells) / cellsTall;
+				//this.setWidthOfObject(i, allowedCellsWide * OBJ_CELL_SIZE);
+				//return i - this.firstSprite + 1;
+
+				if (DEBUG) console.log('Too many OBJ cells on ${this.name} (discarded ${endOfList - i}/${this.usedSprites} entries)');
+				return i - this.firstSprite;
+			}
+			cells += current;
+		}
+		return this.usedSprites;
 	}
+
+	// Limit the width of an object (usually as a result of going outside of the sprite limit).
+	// setWidthOfObject(objectIndex: number, width: number) {
+	// 	// (left,top) in row 0.xy, (right,bottom) in row 2.xy
+	// 	const vert = OBJ_BUFFER_STRIDE * 4 * objectIndex;
+	// 	this.xyzp[vert + 4 * 2] = this.xyzp[vert] + width;
+	// }
 
 	sort(frontToBack = true) {
 		const items = makeRangeArray(this.firstVertice / OBJ_BUFFER_STRIDE, this.usedVertices / OBJ_BUFFER_STRIDE);
@@ -118,52 +138,20 @@ export class ObjBuffer {
 		}
 	}
 
-	get usedSprites() {
+	get usedSprites(): number {
 		return this.usedVertices / OBJ_BUFFER_STRIDE;
 	}
 
 	/**
 	 * Computes the number of pixels that an object uses with the transform. Note that even offscreen pixels count toward
 	 * the limit!
-	 * @param size {{w: number, h: number}}
-	 * @returns {number} number of cells (32x32)
-	 * @private
 	 */
-	_computeObjectCells(size) {
+	private computeObjectCells(size: {w: number, h: number}): number {
 		return Math.max(1, Math.ceil(size.w / OBJ_CELL_SIZE) * Math.ceil(size.h / OBJ_CELL_SIZE));
-	}
-
-	/**
-	 * Modifies the OBJ list to fit within the number of cells. Use the return value to know how many sprites to draw.
-	 * @param maxCells {number} maximum allowed number of cells
-	 * @returns {number} sprites fully drawable for this list
-	 * @protected
-	 */
-	_limitObjList(maxCells) {
-		let cells = 0;
-		const endOfList = this.firstSprite + this.usedSprites;
-		for (let i = this.firstSprite; i < endOfList; i++) {
-			const size = this.getSizeOfObject(i);
-			const current = this._computeObjectCells(size);
-
-			if (cells + current > maxCells) {
-
-				// TODO Florian -- Limit the width of this sprite -- Doesn't work because we need to scale the UV too with floating point UV rendering
-				//const cellsTall = Math.ceil(size.h * layerTransform.scaling[1] / OBJ_CELL_SIZE);
-				//const allowedCellsWide = (maxCells - cells) / cellsTall;
-				//this.setWidthOfObject(i, allowedCellsWide * OBJ_CELL_SIZE);
-				//return i - this.firstSprite + 1;
-
-				if (DEBUG) console.log('Too many OBJ cells on ${this.name} (discarded ${endOfList - i}/${this.usedSprites} entries)');
-				return i - this.firstSprite;
-			}
-			cells += current;
-		}
-		return this.usedSprites;
 	}
 }
 
-export function initObjShaders(vdp) {
+export function initObjShaders(vdp: VDP) {
 	const gl = vdp.gl;
 	// Vertex shader program
 	const vsSource = `
@@ -244,12 +232,9 @@ export function initObjShaders(vdp) {
  * @param objBuffer {ObjBuffer}
  * @param objLimit {number} max number of cells drawable
  */
-export function drawPendingObj(vdp, objBuffer, objLimit = 0) {
+export function drawPendingObj(vdp: VDP, objBuffer: ObjBuffer, objLimit: number = 0) {
 	let numObjectsToDraw = objBuffer.usedSprites;
-	if (objLimit > 0) {
-		const scaling = getScalingFactorOfMatrix(vdp.modelViewMatrix);
-		numObjectsToDraw = objBuffer._limitObjList(scaling, objLimit);
-	}
+	if (objLimit > 0) numObjectsToDraw = objBuffer.limitObjList(objLimit);
 	if (numObjectsToDraw <= 0) return;
 
 	const prog = vdp.spriteProgram;
@@ -302,22 +287,7 @@ export function drawPendingObj(vdp, objBuffer, objLimit = 0) {
 	objBuffer.usedVertices = 0;
 }
 
-/**
- *
- * @param objBuffer {ObjBuffer}
- * @param xStart {number}
- * @param yStart {number}
- * @param xEnd {number}
- * @param yEnd {number}
- * @param uStart {number}
- * @param vStart {number}
- * @param uEnd {number}
- * @param vEnd {number}
- * @param palNo {number}
- * @param hiColor {boolean}
- * @param z {number}
- */
-export function enqueueObj(objBuffer, xStart, yStart, xEnd, yEnd, uStart, vStart, uEnd, vEnd, palNo, hiColor, z = 0) {
+export function enqueueObj(objBuffer: ObjBuffer, xStart: number, yStart: number, xEnd: number, yEnd: number, uStart: number, vStart: number, uEnd: number, vEnd: number, palNo: number, hiColor: boolean, z: number = 0) {
 	if (hiColor) palNo |= PALETTE_HICOLOR_FLAG;
 
 	if (objBuffer.usedVertices >= objBuffer.maxVertices) {
@@ -345,11 +315,6 @@ export function enqueueObj(objBuffer, xStart, yStart, xEnd, yEnd, uStart, vStart
 
 }
 
-/**
- * @param name {string}
- * @param numSprites {number}
- * @returns {ObjBuffer}
- */
-export function makeObjBuffer(name, numSprites) {
+export function makeObjBuffer(name: string, numSprites: number): ObjBuffer {
 	return new ObjBuffer(name, numSprites * OBJ_BUFFER_STRIDE);
 }

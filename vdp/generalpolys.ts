@@ -1,7 +1,8 @@
 import {initShaderProgram, makeBuffer} from "./utils";
+import { VDP } from './vdp';
 
 // For debugging only
-export function initOpaquePolyShaders(vdp) {
+export function initOpaquePolyShaders(vdp: VDP) {
 	const gl = vdp.gl;
 	// Vertex shader program
 	const vsSource = `
@@ -52,18 +53,7 @@ export function initOpaquePolyShaders(vdp) {
 }
 
 // Color is float (r, g, b, a) between 0 and 1
-/**
- * @param vdp {VDP}
- * @param xStart
- * @param yStart
- * @param xEnd
- * @param yEnd
- * @param colorR
- * @param colorG
- * @param colorB
- * @param colorA
- */
-export function drawOpaquePoly(vdp, xStart, yStart, xEnd, yEnd, colorR, colorG, colorB, colorA) {
+export function drawOpaquePoly(vdp: VDP, xStart: number, yStart: number, xEnd: number, yEnd: number, colorR: number, colorG: number, colorB: number, colorA: number) {
 	const gl = vdp.gl;
 	const prog = vdp.opaquePolyProgram;
 	const positions = [

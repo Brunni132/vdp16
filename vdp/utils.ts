@@ -1,12 +1,14 @@
-import {mat4, vec3} from 'gl-matrix-ts';
+import { mat3type, vec3type } from 'gl-matrix-ts/dist/common';
+import {mat4, vec3 } from 'gl-matrix-ts';
 
-const assert = require('assert');
+let OES_texture_float_ext: any = null;
+let readPixelsFramebuffer: WebGLFramebuffer = null;
 
 /**
  * @param mat {mat3type}
  * @returns {vec3}
  */
-export function getScalingFactorOfMatrix(mat) {
+export function getScalingFactorOfMatrix(mat: mat3type): vec3type {
 	const scaling = vec3.create();
 	const fullMat = mat4.fromValues(
 		mat[0], mat[1], mat[2], 0,
@@ -21,12 +23,13 @@ export function getScalingFactorOfMatrix(mat) {
 // Texture
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 export class LoadedTexture {
-	constructor(texture, image) {
-		/** @type {WebGLTexture} */
+	texture: WebGLTexture;
+	width: number;
+	height: number;
+
+	constructor(texture: WebGLTexture, image: {width: number, height: number}) {
 		this.texture = texture;
-		/** @type {number} */
 		this.width = image.width;
-		/** @type {number} */
 		this.height = image.height;
 	}
 }
@@ -46,7 +49,7 @@ export class LoadedTexture {
 // }
 
 // If you're going to store 8 bits components for instance, divide the width by 4
-export function createDataTexture32(gl, width, height) {
+export function createDataTexture32(gl: WebGLRenderingContext, width: number, height: number): WebGLTexture {
 	const texture = gl.createTexture();
 	gl.bindTexture(gl.TEXTURE_2D, texture);
 	gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
@@ -57,9 +60,7 @@ export function createDataTexture32(gl, width, height) {
 	return texture;
 }
 
-let OES_texture_float_ext = null;
-
-export function createDataTextureFloat(gl, width, height) {
+export function createDataTextureFloat(gl, width, height): WebGLTexture {
 	if (!OES_texture_float_ext) OES_texture_float_ext = gl.getExtension('OES_texture_float');
 
 	const texture = gl.createTexture();
@@ -75,7 +76,7 @@ export function createDataTextureFloat(gl, width, height) {
 }
 
 /** creates a shader of the given type, uploads the source and compiles it. */
-function loadShader(gl, type, source) {
+function loadShader(gl: WebGLRenderingContext, type: GLenum, source: string) {
 	const shader = gl.createShader(type);
 
 	// Send the source to the shader object
@@ -98,7 +99,7 @@ function loadShader(gl, type, source) {
 }
 
 /** Initialize a shader program, so WebGL knows how to draw our data. */
-export function initShaderProgram(gl, vsSource, fsSource) {
+export function initShaderProgram(gl: WebGLRenderingContext, vsSource: string, fsSource: string): WebGLProgram {
 	const vertexShader = loadShader(gl, gl.VERTEX_SHADER, vsSource);
 	const fragmentShader = loadShader(gl, gl.FRAGMENT_SHADER, fsSource);
 
@@ -124,7 +125,7 @@ export function initShaderProgram(gl, vsSource, fsSource) {
  * @param url {string}
  * @returns {Promise<LoadedTexture>} giving a LoadedTexture
  */
-export function loadTexture(gl, url) {
+export function loadTexture(gl: WebGLRenderingContext, url: string): Promise<LoadedTexture> {
 	const texture = gl.createTexture();
 	const image = new Image();
 
@@ -146,7 +147,7 @@ export function loadTexture(gl, url) {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Buffer - memory
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-export function makeBuffer(gl) {
+export function makeBuffer(gl: WebGLRenderingContext): WebGLBuffer {
 	return gl.createBuffer();
 }
 
@@ -156,9 +157,7 @@ export function memcpy(dst, dstOffset, src, srcOffset, length) {
 	dstU8.set(srcU8);
 }
 
-let readPixelsFramebuffer = null;
-
-function bindToFramebuffer(gl, texture) {
+function bindToFramebuffer(gl: WebGLRenderingContext, texture: WebGLTexture) {
 	if (!readPixelsFramebuffer) {
 		readPixelsFramebuffer = gl.createFramebuffer();
 	}
@@ -175,7 +174,7 @@ function bindToFramebuffer(gl, texture) {
  * @param n {number}
  * @returns {Array} an array with [first, first+1, …, first+n-1]
  */
-export function makeRangeArray(first, n) {
+export function makeRangeArray(first: number, n: number): Array<number> {
 	return Array.from({length: n}, (v, k) => first + k);
 	//return Array.apply(null, {length: n}).map(Number.call, Number)
 }
@@ -184,25 +183,8 @@ export function makeRangeArray(first, n) {
  * @param n {number}
  * @returns {Array} an array with [n-1, n-2, …, 1, 0]
  */
-export function makeReverseRangeArray(n) {
+export function makeReverseRangeArray(n: number): Array<number> {
 	return Array.from({length: n}, (v, k) => n - 1 - k);
-}
-
-/**
- * @param gl
- * @param texture
- * @param x {number} in texels (1 16-bit word per texel)
- * @param y {number}
- * @param w {number} in texels
- * @param h {number}
- * @returns {Uint16Array}
- */
-export function readFromTexture16(gl, texture, x, y, w, h) {
-	const result = new Uint16Array(w * h);
-	bindToFramebuffer(gl, texture);
-	gl.readPixels(x, y, w, h, gl.RGBA, gl.UNSIGNED_SHORT_4_4_4_4, result);
-	bindToFramebuffer(gl, null);
-	return result;
 }
 
 /**
@@ -214,27 +196,12 @@ export function readFromTexture16(gl, texture, x, y, w, h) {
  * @param h {number}
  * @returns {Uint8Array}
  */
-export function readFromTexture32(gl, texture, x, y, w, h) {
+export function readFromTexture32(gl: WebGLRenderingContext, texture: WebGLTexture, x: number, y: number, w: number, h: number): Uint8Array {
 	const result = new Uint8Array(w * h * 4);
 	bindToFramebuffer(gl, texture);
 	gl.readPixels(x, y, w, h, gl.RGBA, gl.UNSIGNED_BYTE, result);
 	bindToFramebuffer(gl, null);
 	return result;
-}
-
-/**
- * @param gl
- * @param texture
- * @param x {number} in texels (2 bytes per texel)
- * @param y {number}
- * @param w {number} in texels
- * @param h {number}
- * @param result {Uint16Array}
- */
-export function readFromTextureToExisting16(gl, texture, x, y, w, h, result) {
-	bindToFramebuffer(gl, texture);
-	gl.readPixels(x, y, w, h, gl.RGBA, gl.UNSIGNED_SHORT_4_4_4_4, result);
-	bindToFramebuffer(gl, null);
 }
 
 /**
@@ -246,7 +213,7 @@ export function readFromTextureToExisting16(gl, texture, x, y, w, h, result) {
  * @param h {number}
  * @param result {Uint8Array}
  */
-export function readFromTextureToExisting(gl, texture, x, y, w, h, result) {
+export function readFromTextureToExisting(gl: WebGLRenderingContext, texture: WebGLTexture, x: number, y: number, w: number, h: number, result: Uint8Array) {
 	bindToFramebuffer(gl, texture);
 	gl.readPixels(x, y, w, h, gl.RGBA, gl.UNSIGNED_BYTE, result);
 	bindToFramebuffer(gl, null);
@@ -261,29 +228,12 @@ export function readFromTextureToExisting(gl, texture, x, y, w, h, result) {
  * @param h {number}
  * @returns {Float32Array}
  */
-export function readFromTextureFloat(gl, texture, x, y, w, h) {
+export function readFromTextureFloat(gl: WebGLRenderingContext, texture: WebGLTexture, x: number, y: number, w: number, h: number): Float32Array {
 	const result = new Float32Array(w * h * 4);
 	bindToFramebuffer(gl, texture);
 	gl.readPixels(x, y, w, h, gl.RGBA, gl.FLOAT, result);
 	bindToFramebuffer(gl, null);
 	return result;
-}
-
-/**
- * Do not use this for float arrays!
- * @param gl
- * @param texture
- * @param x {number} in texels (1 16-bit word per texel)
- * @param y {number}
- * @param w {number} in texels
- * @param h {number}
- * @param array {Uint16Array}
- */
-export function writeToTexture16(gl, texture, x, y, w, h, array) {
-	gl.bindTexture(gl.TEXTURE_2D, texture);
-	gl.texSubImage2D(gl.TEXTURE_2D, 0,
-		x, y, w, h,
-		gl.RGBA, gl.UNSIGNED_SHORT_4_4_4_4, array);
 }
 
 /**
@@ -296,7 +246,7 @@ export function writeToTexture16(gl, texture, x, y, w, h, array) {
  * @param h {number}
  * @param array {Uint8Array}
  */
-export function writeToTexture32(gl, texture, x, y, w, h, array) {
+export function writeToTexture32(gl: WebGLRenderingContext, texture: WebGLTexture, x: number, y: number, w: number, h: number, array: Uint8Array) {
 	gl.bindTexture(gl.TEXTURE_2D, texture);
 	gl.texSubImage2D(gl.TEXTURE_2D, 0,
 		x, y, w, h,
@@ -312,7 +262,7 @@ export function writeToTexture32(gl, texture, x, y, w, h, array) {
  * @param h {number}
  * @param array {Float32Array}
  */
-export function writeToTextureFloat(gl, texture, x, y, w, h, array) {
+export function writeToTextureFloat(gl: WebGLRenderingContext, texture: WebGLTexture, x: number, y: number, w: number, h: number, array: Float32Array) {
 	gl.bindTexture(gl.TEXTURE_2D, texture);
 	gl.texSubImage2D(gl.TEXTURE_2D, 0,
 		x, y, w, h,

@@ -36,6 +36,39 @@ export function loadTexture4444(gl, url, done) {
 	return texture;
 }
 
+/**
+ * @param gl
+ * @param texture
+ * @param x {number} in texels (2 bytes per texel)
+ * @param y {number}
+ * @param w {number} in texels
+ * @param h {number}
+ * @param result {Uint16Array}
+ */
+export function readFromTextureToExisting16(gl: WebGLRenderingContext, texture: WebGLTexture, x: number, y: number, w: number, h: number, result: Uint16Array) {
+	bindToFramebuffer(gl, texture);
+	gl.readPixels(x, y, w, h, gl.RGBA, gl.UNSIGNED_SHORT_4_4_4_4, result);
+	bindToFramebuffer(gl, null);
+}
+
+/**
+ * Do not use this for float arrays!
+ * @param gl
+ * @param texture
+ * @param x {number} in texels (1 16-bit word per texel)
+ * @param y {number}
+ * @param w {number} in texels
+ * @param h {number}
+ * @param array {Uint16Array}
+ */
+export function writeToTexture16(gl, texture, x, y, w, h, array) {
+	gl.bindTexture(gl.TEXTURE_2D, texture);
+	gl.texSubImage2D(gl.TEXTURE_2D, 0,
+		x, y, w, h,
+		gl.RGBA, gl.UNSIGNED_SHORT_4_4_4_4, array);
+}
+
+
 shadowtexture.js:
 export class ShadowTexture {
 	/**

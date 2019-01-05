@@ -1,4 +1,3 @@
-
 export let SCREEN_WIDTH, SCREEN_HEIGHT;
 export let MAP_TEX_W = 1024, MAP_TEX_H = 1024;
 export let SPRITE_TEX_W = 1024, SPRITE_TEX_H = 1024;
@@ -18,15 +17,15 @@ export const MAX_SPRITES = 1 << 16;
 
 export const PALETTE_HICOLOR_FLAG = 1 << 15;
 
-export const envColor = [1, 1, 1, 1];
+export const envColor: number[] = [1, 1, 1, 1];
 
-export function setParams(screenWidth, screenHeight, compositedFramebuffer = false) {
+export function setParams(screenWidth: number, screenHeight: number, compositedFramebuffer: boolean = false) {
 	SCREEN_WIDTH = screenWidth;
 	SCREEN_HEIGHT = screenHeight;
 	SEMITRANSPARENT_CANVAS = compositedFramebuffer;
 }
 
-export function setTextureSizes(paletteTexW, paletteTexH, mapTexW, mapTexH, spriteTexW, spriteTexH) {
+export function setTextureSizes(paletteTexW: number, paletteTexH: number, mapTexW: number, mapTexH: number, spriteTexW: number, spriteTexH: number) {
 	PALETTE_TEX_H = paletteTexH;
 	PALETTE_TEX_W = paletteTexW;
 	SPRITE_TEX_W = spriteTexW;
@@ -35,7 +34,7 @@ export function setTextureSizes(paletteTexW, paletteTexH, mapTexW, mapTexH, spri
 	MAP_TEX_H = mapTexH;
 }
 
-export function declareReadTexel() {
+export function declareReadTexel(): string {
 	const paletteMultiplier8 = `float(${(255.0 / 256.0) * (256 / PALETTE_TEX_W)})`;
 	const paletteMultiplier4 = `float(${16.0 / PALETTE_TEX_W / 16.0})`;
 	const byteMultiplier = '255.0';
@@ -79,7 +78,7 @@ export function declareReadTexel() {
 			}`;
 }
 
-export function declareReadPalette() {
+export function declareReadPalette(): string {
 	// Can be reused, works and is checked to be 100% equivalent to having a RGBA4444 texture. But beware that makeOutputColor takes in account the envColor but doesn't posterize it, so you may want to move that
 	// return `vec4 readPalette(float x, float y) {
 	// 			vec4 data = texture2D(uSamplerPalettes, vec2(x, y));
@@ -100,7 +99,7 @@ export function declareReadPalette() {
 			}`;
 }
 
-export function makeOutputColor(colorExpr) {
+export function makeOutputColor(colorExpr: string): string {
 	if (DISCARD_ALPHA) {
 		return `vec4((${colorExpr}).rgb * uEnvColor.rgb, 1)`;
 	}
