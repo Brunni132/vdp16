@@ -1,4 +1,5 @@
 import {loadVdp, runProgram} from "./vdp/runloop";
+import {color32} from "./vdp/color32";
 
 /**
  * @param vdp {VDP}
@@ -6,6 +7,12 @@ import {loadVdp, runProgram} from "./vdp/runloop";
  */
 function *main(vdp) {
 	let loop = 0;
+
+	const pal = vdp.readPalette('level1');
+	pal.forEach((c, i) => {
+		pal[i] = color32.sub(c, color32.parse('#888'));
+	});
+	vdp.writePalette('level1', pal);
 
 	while (true) {
 		vdp.drawBG('level1');

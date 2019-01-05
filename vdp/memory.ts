@@ -1,10 +1,10 @@
 export class VdpMap {
-    x: number; // U position in the map texture (cells)
-    y: number; // V position in the map texture (cells)
-    w: number; // width of sprite (pixels)
-    h: number; // height of sprite (pixels)
-    designTileset: string; // name of the tileset (VdpSprite)
-    designPalette: string; // name of the first palette (takes precedence over the one defined in the tileset); tiles can use this and the next 15 palettes via the bits 12-15 in the tile number.
+	x: number; // U position in the map texture (cells)
+	y: number; // V position in the map texture (cells)
+	w: number; // width of sprite (pixels)
+	h: number; // height of sprite (pixels)
+	designTileset: string; // name of the tileset (VdpSprite)
+	designPalette: string; // name of the first palette (takes precedence over the one defined in the tileset); tiles can use this and the next 15 palettes via the bits 12-15 in the tile number.
 
 	constructor(x: number, y: number, w: number, h: number, designTileset: string, designPalette: string) {
 		this.x = x;
@@ -25,8 +25,8 @@ export class VdpMap {
 }
 
 export class VdpPalette {
-    y: number; // V position of palette (color units)
-    size: number; // count (color units)
+	y: number; // V position of palette (color units)
+	size: number; // count (color units)
 
 	constructor(y: number, size: number) {
 		this.y = y;
@@ -41,22 +41,24 @@ export class VdpPalette {
 }
 
 export class VdpSprite {
-    x: number; // U position in the sprite texture (pixels)
-    y: number; // V position in the sprite texture (pixels)
-    w: number; // width of sprite or tileset as a whole (pixels)
-    h: number; // height of sprite or tileset as a whole (pixels)
-    tw: number; // tile width (pixels) if it's a tileset
-    th: number; // tile height (pixels) if it's a tileset
-    hiColor: boolean; // whether it's a 8-bit-per-pixel tile (or 4-bit)
-    designPalette: string; // design palette name (can be overriden)
+	x: number; // U position in the sprite texture (pixels)
+	y: number; // V position in the sprite texture (pixels)
+	w: number; // width of sprite or tileset as a whole (pixels)
+	h: number; // height of sprite or tileset as a whole (pixels)
+	tw: number; // tile width (pixels) if it's a tileset
+	th: number; // tile height (pixels) if it's a tileset
+	tiles: number; // number of (used) tiles in the tileset
+	hiColor: boolean; // whether it's a 8-bit-per-pixel tile (or 4-bit)
+	designPalette: string; // design palette name (can be overriden)
 
-	constructor(x: number, y: number, w: number, h: number, tw: number, th: number, hiColor: boolean, designPalette: string) {
+	constructor(x: number, y: number, w: number, h: number, tw: number, th: number, tiles: number, hiColor: boolean, designPalette: string) {
 		this.x = x;
 		this.y = y;
 		this.w = w;
 		this.h = h;
 		this.tw = tw;
 		this.th = th;
+		this.tiles = tiles;
 		this.hiColor = hiColor;
 		this.designPalette = designPalette;
 	}
@@ -82,7 +84,7 @@ export class VdpSprite {
 		}
 
 		const col = no % columnsPerRow;
-		const row = no / columnsPerRow;
+		const row = Math.floor(no / columnsPerRow);
 		return this.offsetted(col * this.tw, row * this.th, this.tw, this.th);
 	}
 }
@@ -102,23 +104,23 @@ export class VdpSprite {
  * and a=alpha, ignored unless you use the alpha-based blending modes).
  */
 export class Array2D {
-    buffer: Uint8Array|Uint16Array|Uint32Array;
-    width: number;
-    height: number;
+	buffer: Uint8Array|Uint16Array|Uint32Array;
+	width: number;
+	height: number;
 
-    constructor(buffer: Uint8Array|Uint16Array|Uint32Array, width: number, height: number) {
-        this.buffer = buffer;
-        this.width = width;
-        this.height = height;
-    }
+	constructor(buffer: Uint8Array|Uint16Array|Uint32Array, width: number, height: number) {
+		this.buffer = buffer;
+		this.width = width;
+		this.height = height;
+	}
 
-    getElement(x: number, y: number): number {
-        return this.buffer[this.width * y + x];
-    }
+	getElement(x: number, y: number): number {
+		return this.buffer[this.width * y + x];
+	}
 
-    setElement(x: number, y: number, value: number) {
-        this.buffer[this.width * y + x] = value;
-    }
+	setElement(x: number, y: number, value: number) {
+		this.buffer[this.width * y + x] = value;
+	}
 }
 
 /**
