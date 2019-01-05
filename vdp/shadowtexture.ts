@@ -1,4 +1,5 @@
 import { LoadedTexture, readFromTexture32 } from "./utils";
+import { color32 } from './color32';
 
 /**
  * Typed buffer that represents a texture stored in RAM. Contrary to the OpenGL textures, the type doesn't need to be
@@ -10,6 +11,7 @@ export class ShadowTexture {
 	public readonly width: number;
 	public readonly height: number;
 	private readonly pixelsPerTexel: number;
+	private posterizeToBpp: number = -1;
 
 	/**
 	 * @param buffer {Uint8Array|Uint16Array|Uint32Array} original texture to construct this shadow texture from (no copy made! use .slice() if required).
@@ -32,7 +34,9 @@ export class ShadowTexture {
 	 * @returns {ShadowTexture} deep copy
 	 */
 	clone(): ShadowTexture {
-		return new ShadowTexture(this.buffer.slice(0), this.width, this.height, this.pixelsPerTexel);
+		const result = new ShadowTexture(this.buffer.slice(0), this.width, this.height, this.pixelsPerTexel);
+		result.posterizeToBpp = this.posterizeToBpp;
+		return result;
 	}
 
 	/**
@@ -49,6 +53,15 @@ export class ShadowTexture {
 			src += texWidth;
 			dst += w;
 		}
+	}
+
+	/**
+	 * Enables automatic posterization when writing from this ShaowedTexture to the VRAM. You can either pass -1 to
+	 * disable it or pass a number of 2, 3, 4 or 5 (meaning that many bits per RGBA component).
+	 */
+	setPosterization(bitsPerPixel: number) {
+		if (this.buffer.constructor !== Uint32Array) throw new Error('Posterization only available for color buffers (32-bit)');
+		this.posterizeToBpp = bitsPerPixel;
 	}
 
 	/**
@@ -88,6 +101,12 @@ export class ShadowTexture {
 		const view = new Uint32Array(this.buffer.buffer);
 		const temp = new ShadowTexture(view, this.width, this.height, 1);
 		temp.readToBuffer(x, y, w, h, tightlyPackedBuffer);
+
+		if (this.posterizeToBpp >= 1) {
+			for (let i = 0; i < tightlyPackedBuffer.length; i++) {
+				tightlyPackedBuffer[i] = color32.posterize(tightlyPackedBuffer[i], this.posterizeToBpp);
+			}
+		}
 
 		gl.bindTexture(gl.TEXTURE_2D, texture);
 		gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, w, h, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(tightlyPackedBuffer.buffer));

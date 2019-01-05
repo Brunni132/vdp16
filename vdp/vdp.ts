@@ -147,6 +147,7 @@ export class VDP {
 					this.paletteTexture = palettes.texture;
 					this.romPaletteTex = makeShadowFromTexture32(gl, palettes);
 					this.shadowPaletteTex = this.romPaletteTex.clone();
+					if (this.paletteBpp !== 8) this.shadowPaletteTex.setPosterization(this.paletteBpp);
 
 					loadTexture(gl, 'build/maps.png').then(maps => {
 						this.mapTexture = maps.texture;
