@@ -144,10 +144,11 @@ class MasterPack {
 	 * Creates a palette and adds it to the build.
 	 * @param name {string} palette name
 	 * @param {number} [maxColors=0] max number of colors
+	 * @param {number} [rows=1] for multiple palettes
 	 * @returns {Palette} the newly created palette.
 	 */
-	createPalette(name, maxColors = 0) {
-		const result = new Palette(name, maxColors);
+	createPalette(name, maxColors = 0, rows = 1) {
+		const result = new Palette(name, maxColors, rows);
 		this.palettes.push(result);
 		return result;
 	}
@@ -177,9 +178,12 @@ class MasterPack {
 			}};
 
 		// Convert all palettes to the palette tex
+		let paletteY = 0;
 		for (let i = 0; i < this.palettes.length; i++) {
 			if (this.palettes[i]) {
-				resultJson.pals[this.palettes[i].name] = this.palettes[i].copyToTexture(this.paletteTex, 0, i);
+				if (paletteY + this.palettes[i].numRows > this.paletteTex.height) throw new Error(`Too many palettes, failed while adding ${this.palettes[i].name} (max ${this.paletteTex.height})`);
+				resultJson.pals[this.palettes[i].name] = this.palettes[i].copyToTexture(this.paletteTex, 0, paletteY);
+				paletteY += this.palettes[i].numRows;
 			}
 		}
 
@@ -198,7 +202,7 @@ class MasterPack {
 			const tileset = this.tilesets[i];
 			spriteBaker.bake(tileset.usedWidth, tileset.usedHeight, tileset.name, (destTexture, x, y) => {
 				tileset.copyToTexture(destTexture, x, y);
-				resultJson.sprites[tileset.name] = { x, y, w: tileset.usedWidth, h: tileset.usedHeight, tw: tileset.tileWidth, th: tileset.tileHeight, tiles: tileset.tiles.length, hicol: g_config.hiColorMode ? 1 : 0, pal: tileset.palettes[0].name };
+				resultJson.sprites[tileset.name] = { x, y, w: tileset.usedWidth, h: tileset.usedHeight, tw: tileset.tileWidth, th: tileset.tileHeight, tiles: tileset.tiles.length, hicol: g_config.hiColorMode ? 1 : 0, pal: tileset.palette.name };
 			});
 		}
 
@@ -208,7 +212,7 @@ class MasterPack {
 			const m = this.maps[i];
 			mapBaker.bake(m.width, m.height, m.name, (destTexture, x, y) => {
 				m.copyToTexture(destTexture, x, y);
-				resultJson.maps[m.name] = { x, y, w: m.width, h: m.height, til: m.tileset.name, pal: m.tileset.palettes[0].name };
+				resultJson.maps[m.name] = { x, y, w: m.width, h: m.height, til: m.tileset.name, pal: m.tileset.palette.name };
 			});
 		}
 
@@ -251,7 +255,7 @@ class MasterPack {
 		const result = new Texture('sample', this.spriteTex.width, this.spriteTex.height, 32);
 		this.spriteTex.forEachPixel((pix, x, y) => {
 			const palette = this.findPaletteAt(resultJson, x, y) || defaultPal;
-			result.setPixel(x, y, palette.colorData[pix]);
+			result.setPixel(x, y, palette.colorRows[0][pix]);
 		});
 		result.writeToPng(fileName);
 	}

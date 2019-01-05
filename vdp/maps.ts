@@ -204,8 +204,9 @@ export function initMapShaders(vdp: VDP) {
 
 				// if (vTextureCoord.x < 16.0) {
 				// 	vec4 color = vec4(0, 0, 0, 1);
-				// 	color.r = abs(float(mapY)) / 2.0;
-				// 	color.g = abs(float(texCoord.y)) / 2.0;
+				// 	float ym = mod(float(mapY), vMapSize.y) + vMapStart.y;
+				// 	color.b = (float(mapY) - ( float(mapY / int(vMapSize.y))) / 2.0;
+				// 	color.g = float(mapY / int(vMapSize.y));
 				// 	gl_FragColor = color;
 				// }
 				// else {

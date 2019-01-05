@@ -1,7 +1,8 @@
 /**
  * @typedef {Object} BigFile~Palette
  * @property y {number} V position of palette (color units)
- * @property size {number} count (color units)
+ * @property w {number} count (color units)
+ * @property h {number} number of rows (consecutive palettes)
  */
 
 /**

@@ -18,10 +18,10 @@ function findMainLayer(layer) {
  *
  * @param fileNameBase {string}
  * @param name {string} name of the tileset/map
- * @param palettes {Palette[]} destination palettes
+ * @param palette {Palette} destination palette (can have multiple rows)
  * @returns {Map}
  */
-function readTmx(fileNameBase, name, palettes) {
+function readTmx(fileNameBase, name, palette) {
 	const tmxFileName = `${fileNameBase}.tmx`;
 	const json = JSON.parse(parser.toJson(fs.readFileSync(tmxFileName))).map;
 
@@ -32,7 +32,7 @@ function readTmx(fileNameBase, name, palettes) {
 	const tileHeight = json.tileset.tileheight;
 	const layer = findMainLayer(json.layer);
 	const imagePath = path.join(path.dirname(fileNameBase), json.tileset.image.source);
-	const tileset = Tileset.fromImage(tilesetName, Texture.fromPng32(imagePath), tileWidth, tileHeight, palettes);
+	const tileset = Tileset.fromImage(tilesetName, Texture.fromPng32(imagePath), tileWidth, tileHeight, palette);
 	const map = Map.blank(name, json.width, json.height, tileset);
 
 	assert(layer.data.encoding === 'csv', `Only CSV encoding is supported (map ${name})`);
@@ -58,9 +58,9 @@ function readTmx(fileNameBase, name, palettes) {
 function writeTmx(fileNameBase, map) {
 	/** @type {Tileset} */
 	const tileset = map.tileset;
-	assert(map.tileset.palettes.length === 1, 'Only one color maps supported for now');
+	assert(map.tileset.palette.numRows === 1, 'Only single-palette maps supported for now');
 	/** @type {Palette} */
-	const palette = map.tileset.palettes[0];
+	const palette = map.tileset.palette;
 	const tilesetFileName = `${fileNameBase}-til.png`;
 	const tmxFileName = `${fileNameBase}.tmx`;
 
@@ -71,7 +71,7 @@ function writeTmx(fileNameBase, map) {
 	// Make a true color version and write it
 	const destImageTrueColor = Texture.blank(tilesetFileName, destImageIndexed.width, destImageIndexed.height, 32);
 	destImageIndexed.forEachPixel((color, x, y) => {
-		destImageTrueColor.setPixel(x, y, palette.colorData[color]);
+		destImageTrueColor.setPixel(x, y, palette.colorRows[0][color]);
 	});
 	destImageTrueColor.writeToPng(tilesetFileName);
 

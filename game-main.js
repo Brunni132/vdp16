@@ -8,15 +8,15 @@ import {color32} from "./vdp/color32";
 function *main(vdp) {
 	let loop = 0;
 
-	//const pal = vdp.readPalette('level1');
-	//pal.forEach((c, i) => {
-	//	pal[i] = color32.sub(c, color32.parse('#888'));
-	//});
-	//vdp.writePalette('level1', pal);
+	const pal = vdp.readPalette('tmx');
+	pal.buffer.forEach((c, i) => {
+		pal.buffer[i] = color32.sub(c, color32.parse('#888'));
+	});
+	vdp.writePalette('tmx', pal);
 
 	while (true) {
-		//vdp.drawBG('level1');
-		vdp.drawBG('tmx', {scrollX: loop*2});
+		vdp.drawBG('level1', {scrollX: -loop});
+		//vdp.drawBG('tmx', {scrollX: loop*2});
 		loop += 1;
 		yield 0;
 	}

@@ -298,7 +298,7 @@ export class VDP {
 			writeToTextureFloat(this.gl, this.otherTexture, 0, this.nextLinescrollBuffer++, opts.lineTransform.buffer.length / 4, 1, opts.lineTransform.buffer);
 		}
 
-		enqueueMap(buffer, map.x, map.y, til.x, til.y, map.w, map.h, til.w, til.tw, til.th, winX, winY, winW, winH, scrollX, scrollY, pal.y, til.hiColor, linescrollBuffer, wrap ? 1 : 0, prio);
+		enqueueMap(buffer, map.x, map.y, til.x, til.y, map.w, map.h + 0, til.w, til.tw, til.th, winX, winY, winW, winH, scrollX, scrollY, pal.y, til.hiColor, linescrollBuffer, wrap ? 1 : 0, prio);
 	}
 
 	/**
@@ -349,7 +349,7 @@ export class VDP {
 	palette(name: string): VdpPalette {
 		const pal = this.gameData.pals[name];
 		if (!pal) throw new Error(`Palette ${name} not found`);
-		return new VdpPalette(pal.y, pal.size);
+		return new VdpPalette(pal.y, pal.w, pal.h);
 	}
 
 	/**
@@ -374,11 +374,11 @@ export class VDP {
 	 * @param palette name of the palette (or palette itself). You may also query an arbitrary portion
 	 * of the palette memory using new VdpPalette(…) or offset an existing map, using vdp.map('myMap').offsetted(…).
 	 * @param source look at readMap for more info.
-	 * @return a buffer (table) containing the color entries, encoded as 0xAABBGGRR
+	 * @return {Array2D} an array containing the color entries, encoded as 0xAABBGGRR
 	 */
-	readPalette(palette: string|VdpPalette, source = VDPCopySource.current): Uint32Array {
+	readPalette(palette: string|VdpPalette, source = VDPCopySource.current): Array2D {
 		const pal = this._getPalette(palette);
-		return this.readPaletteMemory(0, pal.y, pal.size, 1, source).buffer as Uint32Array;
+		return this.readPaletteMemory(0, pal.y, pal.w, pal.h, source);
 	}
 
 	/**
@@ -435,11 +435,11 @@ export class VDP {
 
 	/**
 	 * @param palette
-	 * @param data color entries, encoded as 0xAABBGGRR
+	 * @param data {Array2D} color entries, encoded as 0xAABBGGRR
 	 */
-	writePalette(palette: string|VdpPalette, data: Uint32Array) {
+	writePalette(palette: string|VdpPalette, data: Array2D) {
 		const pal = this._getPalette(palette);
-		this.writePaletteMemory(0, pal.y, pal.size, 1, new Array2D(data, pal.size, 1));
+		this.writePaletteMemory(0, pal.y, pal.w, pal.h, data);
 	}
 
 	/**

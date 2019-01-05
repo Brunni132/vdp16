@@ -29,16 +29,16 @@ class Tile {
 
 	/**
 	 * @param {Texture} texture
-	 * @param {Palette[]} palettes
+	 * @param {Palette} palette
 	 * @return {Tile}
 	 */
-	static fromImage32(texture, palettes) {
+	static fromImage32(texture, palette) {
 		const result = new Tile(texture.width, texture.height);
 		// Simple case: we're allowed to create colors
-		if (palettes.length === 1) {
+		if (palette.numRows === 1) {
 			texture.forEachPixel((pixel, x, y) => {
 				// Add colors to the palette (or find them if they're already)
-				result.pixelData[y * result.width + x] = palettes[0].pixelNumberInsidePalette(pixel);
+				result.pixelData[y * result.width + x] = palette.pixelNumberInsidePalette(pixel);
 			});
 		}
 		else {
@@ -49,23 +49,23 @@ class Tile {
 			// Therefore beware when you quantize palettes, if it changes one color to a very close but non-identical one, and
 			// a tile uses this color as a solid background for instance, that tile will choose any palette, but probably not
 			// the right one.
-			const mistakesByPalette = new Array(palettes.length);
-			for (let palNo = 0; palNo < palettes.length; palNo++) mistakesByPalette[palNo] = 0;
+			const mistakesByPalette = new Array(palette.numRows);
+			for (let palNo = 0; palNo < palette.numRows; palNo++) mistakesByPalette[palNo] = 0;
 			texture.forEachPixelLinear(pixel => {
-				for (let palNo = 0; palNo < palettes.length; palNo++) {
-					if (palettes[palNo].pixelNumberInsidePalette(pixel, false) === -1) mistakesByPalette[palNo]++;
+				for (let palNo = 0; palNo < palette.numRows; palNo++) {
+					if (palette.pixelNumberInsidePalette(pixel, false, palNo) === -1) mistakesByPalette[palNo]++;
 				}
 			});
 
 			let bestPalette = 0, bestPaletteMistake = mistakesByPalette[0];
-			for (let palNo = 0; palNo < palettes.length; palNo++) {
+			for (let palNo = 0; palNo < palette.numRows; palNo++) {
 				if (mistakesByPalette[palNo] < bestPaletteMistake) {
 					bestPalette = palNo;
 					bestPaletteMistake = mistakesByPalette[palNo];
 				}
 			}
 			texture.forEachPixel((pixel, x, y) => {
-				result.pixelData[y * result.width + x] = palettes[bestPalette].pixelNumberInsidePalette(pixel);
+				result.pixelData[y * result.width + x] = palette.pixelNumberInsidePalette(pixel, true, bestPalette);
 			});
 			result.paletteIndex = bestPalette;
 		}
@@ -109,10 +109,10 @@ class Tileset {
 	 * @param tileHeight {number}
 	 * @param tilesWide {number}
 	 * @param tilesTall {number}
-	 * @param palettes {Palette[]}
+	 * @param palette {Palette}
 	 * @param [firstTileEmpty=false] {boolean}
 	 */
-	constructor(name, tileWidth, tileHeight, tilesWide, tilesTall, palettes, firstTileEmpty=false) {
+	constructor(name, tileWidth, tileHeight, tilesWide, tilesTall, palette, firstTileEmpty=false) {
 		assert((tilesWide * tilesTall) >= 1, 'At least one tile required in tileset');
 		/** @type {string} */
 		this.name = name;
@@ -124,8 +124,8 @@ class Tileset {
 		this.tilesWide = tilesWide;
 		/** @type {number} */
 		this.tilesTall = tilesTall;
-		/** @type {Palette[]} */
-		this.palettes = palettes;
+		/** @type {Palette} */
+		this.palette = palette;
 		/** @type {Tile[]} */
 		this.tiles = [];
 
@@ -140,11 +140,11 @@ class Tileset {
 	 * @param tileHeight {number}
 	 * @param tilesWide {number}
 	 * @param tilesTall {number}
-	 * @param palettes {Palette[]}
+	 * @param palette {Palette}
 	 * @returns {Tileset}
 	 */
-	static blank(name, tileWidth, tileHeight, tilesWide, tilesTall, palettes) {
-		return new Tileset(name, tileWidth, tileHeight, tilesWide, tilesTall, palettes);
+	static blank(name, tileWidth, tileHeight, tilesWide, tilesTall, palette) {
+		return new Tileset(name, tileWidth, tileHeight, tilesWide, tilesTall, palette);
 	}
 
 	/**
@@ -153,19 +153,19 @@ class Tileset {
 	 * @param texture {Texture}
 	 * @param tileWidth {number}
 	 * @param tileHeight {number}
-	 * @param palettes {Palette[]}
+	 * @param palette {Palette}
 	 * @returns {Tileset}
 	 */
-	static fromImage(name, texture, tileWidth, tileHeight, palettes) {
+	static fromImage(name, texture, tileWidth, tileHeight, palette) {
 		assert(texture.width % tileWidth === 0 || texture.height % tileHeight === 0, `Undividable tileset ${texture.width}x${texture.height} by ${tileWidth}x${tileHeight}`);
 
 		const tilesWide = Math.ceil(texture.width / tileWidth);
 		const tilesTall = Math.ceil(texture.height / tileHeight);
-		const result = new Tileset(name, tileWidth, tileHeight, tilesWide, tilesTall, palettes);
+		const result = new Tileset(name, tileWidth, tileHeight, tilesWide, tilesTall, palette);
 
 		for (let y = 0; y < tilesTall; y++) {
 			for (let x = 0; x < tilesWide; x++) {
-				result.addTile(Tile.fromImage32(texture.subtexture(x * tileWidth, y * tileHeight, tileWidth, tileHeight), palettes));
+				result.addTile(Tile.fromImage32(texture.subtexture(x * tileWidth, y * tileHeight, tileWidth, tileHeight), palette));
 			}
 		}
 		return result;
@@ -205,12 +205,11 @@ class Tileset {
 
 	/**
 	 * @param texture {Texture}
-	 * @param paletteNo {number} palette to use
 	 * @param [tolerance=0] {number} tolerates a certain number of different pixels
 	 * @returns {number} tile number in tileset
 	 */
-	findOrAddTile(texture, paletteNo, tolerance=0) {
-		const resultConverted = Tile.fromImage32(texture, [this.palettes[paletteNo]]);
+	findOrAddTile(texture, tolerance=0) {
+		const resultConverted = Tile.fromImage32(texture, this.palette);
 
 		for (let k = 0; k < this.tiles.length; k++) {
 			if (resultConverted.equalsTile(this.tiles[k], tolerance)) {
@@ -294,7 +293,7 @@ class Map {
 		for (let j = 0; j < mapHeight; j++) {
 			for (let i = 0; i < mapWidth; i++) {
 				const tile = image.subtexture(i * tileset.tileWidth, j * tileset.tileHeight, tileset.tileWidth, tileset.tileHeight);
-				map.setTile(i, j, tileset.findOrAddTile(tile, 0, tolerance));
+				map.setTile(i, j, tileset.findOrAddTile(tile, tolerance));
 			}
 		}
 		return map;

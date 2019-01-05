@@ -23,7 +23,8 @@ const tilesetNamed = {};
 const mapNamed = {};
 
 function addColors(contents) {
-	assert(!!currentPalette, 'addColors must be inside palette');
+	assert(currentPalette, 'addColors must be inside palette');
+	assert(!currentPaletteMultiple, 'addColors doesn\'t support multiple palettes');
 	if (typeof contents === 'string') contents = image(contents);
 	if (Array.isArray(contents)) {
 		currentPalette.addColors(contents);
@@ -33,7 +34,7 @@ function addColors(contents) {
 		contents.forEachPixel((pixel) => {
 			if (colors.indexOf(pixel) === -1) colors.push(pixel);
 		});
-		currentPalette.addColors(colors);
+		currentPalette.addColors(colors, 0);
 	}
 	else {
 		assert(false, `unsupported addColors arg ${contents}`);
@@ -109,21 +110,17 @@ function palette(name, cb) {
 
 function palettes(name, contents, cb) {
 	checkConv();
-	assert(!currentPalette, 'nested palettes not supported');
+	assert(!currentPalette && !currentPaletteMultiple, 'nested palettes not supported');
 	if (typeof contents === 'string') contents = image(contents);
 
 	if (contents instanceof Texture) {
 		const numPalettes = contents.height;
-		currentPaletteMultiple = new Array(numPalettes);
-		for (let i = 0; i < numPalettes; i++) {
-			// TODO Florian -- rename them, make multi-palette a thing
-			currentPaletteMultiple[i] = conv.createPalette(name + (i > 0 ? `-${i}` : ''));
-		}
-		// TODO Florian -- Only the first is saved
-		paletteNamed[name] = currentPaletteMultiple[0];
-		assert(contents.width < currentPaletteMultiple[0].maxColors, `Too many colors for multipalette ${name} (max ${currentPaletteMultiple[0].maxColors - 1}, has ${contents.width})`);
+		currentPaletteMultiple = conv.createPalette(name, 0, numPalettes);
+		paletteNamed[name] = currentPaletteMultiple;
+		assert(contents.width < currentPaletteMultiple.maxColors, `Too many colors for multipalette ${name} (max ${currentPaletteMultiple.maxColors - 1}, has ${contents.width})`);
+		// Add initial colors
 		contents.forEachPixel((color, x, y) => {
-			currentPaletteMultiple[y].pixelNumberInsidePalette(color);
+			currentPaletteMultiple.pixelNumberInsidePalette(color, true, y);
 		});
 	}
 	else {
@@ -141,10 +138,10 @@ function tileset(name, contents, tileWidth, tileHeight, cb) {
 	if (contents.type === 'blank') {
 		const { params } = contents;
 		assert(params.length === 2, 'Expects 2 params to blank(…) inside tileset');
-		result = Tileset.blank(name, tileWidth, tileHeight, params[0], params[1], [currentPalette]);
+		result = Tileset.blank(name, tileWidth, tileHeight, params[0], params[1], currentPalette);
 	}
 	else if (contents instanceof Texture) {
-		result = Tileset.fromImage(name, contents, tileWidth, tileHeight, [currentPalette]);
+		result = Tileset.fromImage(name, contents, tileWidth, tileHeight, currentPalette);
 	}
 	else {
 		assert(false, `unsupported tileset arg ${contents}`);
@@ -182,7 +179,7 @@ function tiledMap(name, fileNameBase, opts, cb) {
 	}
 
 	// Add these two to the conversion
-	const map = readTmx(fileNameBase, name, currentPaletteMultiple || [currentPalette]);
+	const map = readTmx(fileNameBase, name, currentPaletteMultiple || currentPalette);
 
 	conv.addTileset(map.tileset);
 	tilesetNamed[map.tileset.name] = map.tileset;

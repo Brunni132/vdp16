@@ -26,16 +26,19 @@ export class VdpMap {
 
 export class VdpPalette {
 	y: number; // V position of palette (color units)
-	size: number; // count (color units)
+	w: number; // count (color units)
+	h: number; // number of rows (consecutive palettes)
 
-	constructor(y: number, size: number) {
+	constructor(y: number, w: number, h: number) {
 		this.y = y;
-		this.size = size;
+		this.w = w;
+		this.h = h;
 	}
 
-	offsetted(y: number, size: number): VdpPalette {
+	offsetted(y: number, w: number, h: number): VdpPalette {
 		this.y += y;
-		this.size = size;
+		this.w = w;
+		this.h = h;
 		return this;
 	}
 }
