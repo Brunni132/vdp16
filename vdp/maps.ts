@@ -162,7 +162,7 @@ export function initMapShaders(vdp: VDP) {
 			vec2 positionInTexture(int tileNo) {
 				vec2 base = vTilesetStart;
 				float rowNo = float(tileNo / int(vTilesetWidth));
-				float colNo = mod(float(tileNo), vTilesetWidth);
+				float colNo = modI(float(tileNo), vTilesetWidth);
 				return base + vec2(colNo * vTileSize.x, rowNo * vTileSize.y);
 			}
 		

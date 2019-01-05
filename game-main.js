@@ -1,22 +1,25 @@
 import {loadVdp, runProgram} from "./vdp/runloop";
-import {color32} from "./vdp/color32";
+import { mat3 } from 'gl-matrix-ts';
+import {SCREEN_HEIGHT, SCREEN_WIDTH} from "./vdp/shaders";
+import {LineTransformationArray} from "./vdp/vdp";
 
-/**
- * @param vdp {VDP}
- * @returns {IterableIterator<number>}
- */
+/** @param vdp {VDP} */
 function *main(vdp) {
 	let loop = 0;
-
-	const pal = vdp.readPalette('tmx');
-	pal.buffer.forEach((c, i) => {
-		pal.buffer[i] = color32.sub(c, color32.parse('#888'));
-	});
-	vdp.writePalette('tmx', pal);
-
 	while (true) {
-		vdp.drawBG('level1', {scrollX: -loop});
-		//vdp.drawBG('tmx', {scrollX: loop*2});
+		const array = new LineTransformationArray();
+		for (let i = 0; i < array.numLines; i++) {
+			const mat = mat3.create();
+			mat3.translate(mat, mat, [loop, 0]);
+			mat3.translate(mat, mat, [SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2]);
+			mat3.rotate(mat, mat, loop / 800);
+			mat3.translate(mat, mat, [-SCREEN_WIDTH / 2, -SCREEN_HEIGHT / 2]);
+			mat3.translate(mat, mat, [0, i]);
+			array.setLine(i, mat);
+		}
+
+		// vdp.configFade('#000', 192);
+		vdp.drawBG('level1', { scrollX: 0, lineTransform: array });
 		loop += 1;
 		yield 0;
 	}
