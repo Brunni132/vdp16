@@ -34,7 +34,6 @@ class Palette {
 	 * @param {number} numColors
 	 */
 	constructor(name, numColors = 0) {
-		assert(numColors < 256, `Can't create a palette of ${numColors} (${name})`);
 		/** @type {number[]} */
 		this.colorData = [0]; // First color is always transparent (RGBA 0000)
 		this.maxColors = numColors || (g_config.hiColorMode ? 256 : 16);

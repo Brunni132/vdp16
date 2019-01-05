@@ -1,19 +1,21 @@
 const assert = require('assert');
+const fs = require('fs');
 const { Map, Tile, Tileset } = require('./maps');
 const { Sprite } = require('./sprite');
 const Texture = require('./texture');
+const { g_config, Palette } = require("./palette");
+const { readTmx, writeTmx } = require("./tiled");
 const { MasterPack } = require("./masterpack");
 
 // System-only
-const DEBUG = true;
-
 function checkConv() {
-	assert(conv, 'config({ compact: true, hiColorMode: false }); should come first in your program');
+	assert(conv, 'config({ compact: true, debug: true, hiColorMode: false }); should come first in your program');
 }
 
 // User accessible
 let conv = null;
 let currentPalette = null;
+let currentPaletteMultiple = null;
 let currentTileset = null;
 const paletteNamed = {};
 const spriteNamed = {};
@@ -51,21 +53,13 @@ function image(name) {
 	return Texture.fromPng32(name);
 }
 
-function palette(name, cb) {
-	checkConv();
-	assert(!currentPalette, 'nested palettes not supported');
-	currentPalette = conv.createPalette(name);
-	paletteNamed[name] = currentPalette;
-	cb();
-	currentPalette = null;
-}
-
-function map(name, contents, opts) {
+function map(name, contents, opts, cb) {
 	let result;
-	if (DEBUG) console.log(`Processing map ${name}`);
+	if (g_config.debug) console.log(`Processing map ${name}`);
 	assert(!!currentPalette, 'cannot define map outside of palette block');
 	assert(!!currentTileset, 'cannot define map outside of tileset block');
 	if (typeof contents === 'string') contents = image(contents);
+	if (typeof opts === 'function') { cb = opts; opts = null; }
 	opts = opts || {};
 	if (contents.type === 'blank') {
 		const { params } = contents;
@@ -81,11 +75,12 @@ function map(name, contents, opts) {
 
 	conv.addMap(result);
 	mapNamed[name] = result;
+	if (cb) cb(result);
 }
 
 function sprite(name, contents) {
 	let result;
-	if (DEBUG) console.log(`Processing sprite ${name}`);
+	if (g_config.debug) console.log(`Processing sprite ${name}`);
 	assert(!!currentPalette, 'cannot define sprite outside of palette block');
 	if (typeof contents === 'string') contents = image(contents);
 	if (contents.type === 'blank') {
@@ -102,9 +97,45 @@ function sprite(name, contents) {
 	spriteNamed[name] = result;
 }
 
+
+function palette(name, cb) {
+	checkConv();
+	assert(!currentPalette && !currentPaletteMultiple, 'nested palettes not supported');
+	currentPalette = conv.createPalette(name);
+	paletteNamed[name] = currentPalette;
+	cb();
+	currentPalette = null;
+}
+
+function palettes(name, contents, cb) {
+	checkConv();
+	assert(!currentPalette, 'nested palettes not supported');
+	if (typeof contents === 'string') contents = image(contents);
+
+	if (contents instanceof Texture) {
+		const numPalettes = contents.height;
+		currentPaletteMultiple = new Array(numPalettes);
+		for (let i = 0; i < numPalettes; i++) {
+			// TODO Florian -- rename them, make multi-palette a thing
+			currentPaletteMultiple[i] = conv.createPalette(name);
+		}
+		// TODO Florian -- Only the first is saved
+		paletteNamed[name] = currentPaletteMultiple[0];
+		assert(contents.width < currentPaletteMultiple.maxColors - 1, `Too many colors for multipalette ${name} (max ${currentPaletteMultiple - 1}, has ${contents.width})`);
+		contents.forEachPixel((color, x, y) => {
+			currentPaletteMultiple[y].colorData[x + 1] = color;
+		});
+	}
+	else {
+		assert(false, `unsupported palettes arg ${contents}`);
+	}
+	cb();
+	currentPaletteMultiple = null;
+}
+
 function tileset(name, contents, tileWidth, tileHeight, cb) {
 	let result;
-	if (DEBUG) console.log(`Processing tileset ${name}`);
+	if (g_config.debug) console.log(`Processing tileset ${name}`);
 	assert(!!currentPalette, 'cannot define tileset outside of palette block');
 	if (typeof contents === 'string') contents = image(contents);
 	if (contents.type === 'blank') {
@@ -126,11 +157,46 @@ function tileset(name, contents, tileWidth, tileHeight, cb) {
 	currentTileset = null;
 }
 
+function tiledMap(name, fileNameBase, opts, cb) {
+	assert(currentPalette || currentPaletteMultiple, 'cannot define tmx map outside of palette block');
+	assert(!currentTileset, 'cannot define TMX map inside of tileset');
+	opts = opts || {};
+	if (g_config.debug) console.log(`Processing TMX map ${name}`);
+
+	assert(opts.tileWidth && opts.tileHeight, 'tmxMap requires tileWidth and tileHeight');
+
+	const tmxFileName = `${fileNameBase}.tmx`;
+
+	// Start with conversion if necessary
+	if (!fs.existsSync(tmxFileName)) {
+		const originalImageFname = `${fileNameBase}.png`;
+		const tolerance = opts.tolerance || 0;
+		console.log(`TMX file ${tmxFileName} not found, creating from ${originalImageFname}`);
+		assert(fs.existsSync(originalImageFname), `Map ${tmxFileName} not found, neither an image to build from, ${originalImageFname}. Please create one.`);
+		assert(opts.tilesetWidth && opts.tilesetHeight, `Map ${tmxFileName} not found, specify tilesetWidth and tilesetHeight to build a tileset`);
+
+		const palette = new Palette(name, 65536);
+		const tileset = Tileset.blank(name, opts.tileWidth, opts.tileHeight, opts.tilesetWidth, opts.tilesetHeight, [palette]);
+		const map = Map.fromImage(name, Texture.fromPng32(originalImageFname), tileset, tolerance);
+		writeTmx(fileNameBase, map);
+	}
+
+	// Add these two to the conversion
+	const map = readTmx(fileNameBase, name, currentPaletteMultiple || [currentPalette]);
+
+	conv.addTileset(map.tileset);
+	tilesetNamed[map.tileset.name] = map.tileset;
+
+	conv.addMap(map);
+	mapNamed[map.name] = map;
+	if (cb) cb(map);
+}
+
 // Your program
 const SCREEN_WIDTH = 256;
 const SCREEN_HEIGHT = 256;
 
-config({ compact: true, paletteBpp: 4, hiColorMode: false });
+config({ compact: true, debug: false, paletteBpp: 4, hiColorMode: false });
 
 palette('Default', () => {
 	sprite('gradient', 'gfx/gradient.png');
@@ -147,6 +213,11 @@ palette('level1', () => {
 	});
 });
 
+palette('tmx', () => {
+	addColors('gfx/tmx-pal.png');
+	tiledMap('tmx', 'gfx/testTmx', { tileWidth: 8, tileHeight: 8, tilesetWidth: 64, tilesetHeight: 32 });
+});
+
 palette('text', () => {
 	tileset('text', 'gfx/font.png', 8, 8, () => {
 		map('text', blank(SCREEN_WIDTH / 8, SCREEN_HEIGHT / 8));
@@ -159,5 +230,5 @@ palette('road', () => {
 	});
 });
 
-conv.pack(false);
+conv.pack(g_config.debug);
 

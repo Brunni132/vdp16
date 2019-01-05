@@ -68,6 +68,7 @@ class MasterPackBaker {
 	startNewLine() {
 		this.currentLineX = 0;
 		this.currentLineY += this.currentLineHeight;
+		this.currentLineHeight = 0;
 	}
 }
 
@@ -79,6 +80,7 @@ class MasterPack {
 	 * Hi-color mode: 4096x1024 sprites (4 MB), 256x256 RGBA8888 color RAM (256 kB), 2048x1024 maps (4 MB)
 	 * @param opts {Object}
 	 * @param [opts.compact=true] {boolean} use a smaller video memory (512 kB)
+	 * @param [opts.debug=false] {boolean} outputs additional data for debugging purpose
 	 * @param [opts.paletteBpp=4] {number} uses that number of bits per component; can be set to 2, 3, 4, 5 or 8.
 	 * Allows to spare memory and colors.
 	 * @param [opts.hiColorMode=false] {boolean} if true, colors are 8 bits per pixel and palettes have 256 colors;
@@ -87,6 +89,7 @@ class MasterPack {
 	constructor(opts) {
 		g_config.hiColorMode = opts.hasOwnProperty('hiColorMode') ? opts.hiColorMode : false;
 		g_config.paletteBpp = opts.hasOwnProperty('paletteBpp') ? opts.paletteBpp : 4;
+		g_config.debug = !!opts.debug;
 
 		if (!opts.compact) {
 			/** @type {Texture} */
