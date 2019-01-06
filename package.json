@@ -6,7 +6,7 @@
   "dependencies": {
     "gl-matrix-ts": "^2.3.3",
     "pngjs": "^3.3.3",
-    "xml2json": "^0.11.2"
+    "xml2js": "^0.4.19"
   },
   "devDependencies": {
     "nodemon": "^1.17.5",

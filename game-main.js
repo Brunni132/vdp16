@@ -19,7 +19,7 @@ function *main(vdp) {
 		}
 
 		// vdp.configFade('#000', 192);
-		vdp.drawBG('level1', { scrollX: 0, lineTransform: array });
+		vdp.drawBG('tmx', { scrollX: 0, lineTransform: array });
 		loop += 1;
 		yield 0;
 	}

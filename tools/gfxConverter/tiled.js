@@ -1,13 +1,13 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const parser = require('xml2json');
 const Texture = require("./texture");
 const { Tileset, Map } = require("./maps");
+const xml2js = require('xml2js');
 
 function findMainLayer(layer) {
 	if (Array.isArray(layer)) {
-		const result = layer.find(l => l.name === 'MainTileLayer');
+		const result = layer.find(l => l['$'].name === 'MainTileLayer');
 		assert(result, `No layer named MainTileLayer in ${JSON.stringify(layer)}`);
 		return result;
 	}
@@ -23,32 +23,34 @@ function findMainLayer(layer) {
  */
 function readTmx(fileNameBase, name, palette) {
 	const tmxFileName = `${fileNameBase}.tmx`;
-	const json = JSON.parse(parser.toJson(fs.readFileSync(tmxFileName))).map;
+	let resultMap = null;
 
-	const mapWidth = json.width;
-	const mapHeight = json.height;
-	const tilesetName = json.tileset.name;
-	const tileWidth = json.tileset.tilewidth;
-	const tileHeight = json.tileset.tileheight;
-	const layer = findMainLayer(json.layer);
-	const imagePath = path.join(path.dirname(fileNameBase), json.tileset.image.source);
-	const tileset = Tileset.fromImage(tilesetName, Texture.fromPng32(imagePath), tileWidth, tileHeight, palette);
-	const map = Map.blank(name, json.width, json.height, tileset);
+	new xml2js.Parser().parseString(fs.readFileSync(tmxFileName), (err, result) => {
+		const json = result.map;
+		//console.dir(json.tileset[0]);
+		const mapWidth = json['$'].width;
+		const mapHeight = json['$'].height;
+		const tilesetName = json.tileset[0]['$'].name;
+		const tileWidth = json.tileset[0]['$'].tilewidth;
+		const tileHeight = json.tileset[0]['$'].tileheight;
+		const jsonImage = json.tileset[0].image[0]['$'];
+		const layer = findMainLayer(json.layer);
+		const imagePath = path.join(path.dirname(fileNameBase), jsonImage.source);
+		const tileset = Tileset.fromImage(tilesetName, Texture.fromPng32(imagePath), tileWidth, tileHeight, palette);
+		resultMap = Map.blank(name, mapWidth, mapHeight, tileset);
 
-	assert(layer.data.encoding === 'csv', `Only CSV encoding is supported (map ${name})`);
-	const layerData = layer.data['$t'].split(',');
-	let i = 0;
-	assert(layerData.length, `Length ${layerData.length} is not equal to map size ${mapWidth}*${mapHeight} (${name})`);
-
-	for (let y = 0; y < mapHeight; y++) {
-		for (let x = 0; x < mapWidth; x++) {
-			const tileNo = layerData[i++] - 1;
-			const paletteFlags = tileset.tiles[tileNo].paletteIndex << 12;
-			map.setTile(x, y, tileNo | paletteFlags);
+		assert(layer.data[0]['$'].encoding === 'csv', `Only CSV encoding is supported (map ${name})`);
+		const layerData = layer.data[0]['_'].split(',');
+		let i = 0;
+		for (let y = 0; y < mapHeight; y++) {
+			for (let x = 0; x < mapWidth; x++) {
+				const tileNo = layerData[i++] - 1;
+				const paletteFlags = tileset.tiles[tileNo].paletteIndex << 12;
+				resultMap.setTile(x, y, tileNo | paletteFlags);
+			}
 		}
-	}
-
-	return map;
+	});
+	return resultMap;
 }
 
 /**
