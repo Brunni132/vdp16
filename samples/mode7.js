@@ -46,7 +46,7 @@ function *main(vdp) {
 		}
 
 		const lineTransform = new LineTransformationArray();
-		for (let i = 0; i < lineTransform.numLines; i++) {
+		for (let i = 0; i < lineTransform.length; i++) {
 			lineTransform.setLine(i, transformations[i]);
 		}
 

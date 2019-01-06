@@ -87,21 +87,21 @@ export enum VDPCopySource {
  */
 export class LineTransformationArray {
 	buffer: Float32Array;
-	numLines: number;
+	length: number;
 
 	constructor() {
 		// 8 floats per item (hack for the last one since mat3 is actually 9 items)
-		this.numLines = SCREEN_HEIGHT;
-		this.buffer = new Float32Array(this.numLines * 8);
+		this.length = SCREEN_HEIGHT;
+		this.buffer = new Float32Array(this.length * 8);
   }
 
   getLine(lineNo): mat3 {
-	  if (lineNo < 0 || lineNo >= this.numLines) throw new Error(`getLine: index ${lineNo} out of range`);
+	  if (lineNo < 0 || lineNo >= this.length) throw new Error(`getLine: index ${lineNo} out of range`);
 		return mat3.fromValues(this.buffer[lineNo * 8], this.buffer[lineNo * 8 + 1], this.buffer[lineNo * 8 + 2], this.buffer[lineNo * 8 + 3], this.buffer[lineNo * 8 + 4], this.buffer[lineNo * 8 + 5], this.buffer[lineNo * 8 + 6], this.buffer[lineNo * 8 + 7], 1);
   }
 
 	setLine(lineNo, transformation: mat3) {
-		if (lineNo < 0 || lineNo >= this.numLines) throw new Error(`setLine: index ${lineNo} out of range`);
+		if (lineNo < 0 || lineNo >= this.length) throw new Error(`setLine: index ${lineNo} out of range`);
 		this.buffer.set((transformation as Float32Array).subarray(0, 8), lineNo * 8);
 	}
 }
@@ -155,7 +155,10 @@ export class VDP {
 
 		const gl = this.gl;
 		// TODO Florian -- run all requests at the same time and wait for them all.
-		window.fetch('build/game.json').then((res) => res.json()).then((json) => {
+		window.fetch('build/game.json').then((res) => {
+			if (!res.ok) throw new Error('You need to build your project first; run `npm run convert-gfx`.')
+			return res.json();
+		}).then((json) => {
 			this.gameData = json;
 			this.paletteBpp = json.info.paletteBpp;
 			if ([2, 3, 4, 5, 8].indexOf(this.paletteBpp) === -1) throw new Error(`Unsupported paletteBpp ${this.paletteBpp}`);
