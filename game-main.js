@@ -1,7 +1,7 @@
-import {loadVdp, runProgram} from "./vdp/runloop";
 import { mat3 } from 'gl-matrix';
 import {SCREEN_HEIGHT, SCREEN_WIDTH} from "./vdp/shaders";
 import {LineTransformationArray} from "./vdp/vdp";
+import {startGame} from "./lib-main";
 
 /** @param vdp {VDP} */
 function *main(vdp) {
@@ -25,4 +25,4 @@ function *main(vdp) {
 	}
 }
 
-loadVdp(document.querySelector("#glCanvas")).then(vdp => runProgram(vdp, main(vdp)));
+startGame(document.querySelector("#glCanvas"), vdp => main(vdp));

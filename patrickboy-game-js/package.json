@@ -15,7 +15,7 @@
   },
   "scripts": {
     "build": "webpack --config webpack.prod.js",
-    "server": "webpack-dev-server --config webpack.dev.js",
+    "dev-server": "webpack-dev-server --config webpack.dev.js",
     "convert-gfx": "node tools/gfxConverter/packer-main.js"
   },
   "author": "",
