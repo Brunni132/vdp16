@@ -14,8 +14,8 @@ var config = {
 	// the name to filter the second entry point for applying code
 	// minification via UglifyJS
 	entry: {
-		'vdp-lib': [PATHS.entryPoint],
-		'vdp-lib.min': [PATHS.entryPoint]
+		'vdp-lib': [PATHS.entryPoint]
+		// 'vdp-lib.min': [PATHS.entryPoint]
 	},
 	// The output defines how and where we want the bundles. The special
 	// value `[name]` in `filename` tell Webpack to use the name we defined above.
@@ -35,14 +35,6 @@ var config = {
 				commonjs: 'gl-matrix',
 				commonjs2: 'gl-matrix',
 				amd: 'gl-matrix'
-			}
-		},
-		{
-			'gl-matrix-ts': {
-				root: 'window',
-				commonjs: 'gl-matrix-ts',
-				commonjs2: 'gl-matrix-ts',
-				amd: 'gl-matrix-ts'
 			}
 		}
 	],

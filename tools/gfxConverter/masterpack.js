@@ -251,7 +251,7 @@ class MasterPack {
 	 */
 	writeSampleImage(resultJson, fileName) {
 		// Use only one palette
-		const defaultPal = this.sprites[0].palette;
+		const defaultPal = this.palettes[0];
 		const result = new Texture('sample', this.spriteTex.width, this.spriteTex.height, 32);
 		this.spriteTex.forEachPixel((pix, x, y) => {
 			const palette = this.findPaletteAt(resultJson, x, y) || defaultPal;

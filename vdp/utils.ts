@@ -1,14 +1,13 @@
-import { mat3type, vec3type } from 'gl-matrix-ts/dist/common';
-import {mat4, vec3 } from 'gl-matrix-ts';
+import { mat3, mat4, vec3 } from 'gl-matrix';
 
 let OES_texture_float_ext: any = null;
 let readPixelsFramebuffer: WebGLFramebuffer = null;
 
 /**
- * @param mat {mat3type}
+ * @param mat {mat3}
  * @returns {vec3}
  */
-export function getScalingFactorOfMatrix(mat: mat3type): vec3type {
+export function getScalingFactorOfMatrix(mat: mat3): vec3 {
 	const scaling = vec3.create();
 	const fullMat = mat4.fromValues(
 		mat[0], mat[1], mat[2], 0,

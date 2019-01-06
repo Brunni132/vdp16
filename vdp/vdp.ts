@@ -1,5 +1,4 @@
 import { createDataTextureFloat, loadTexture, writeToTextureFloat } from "./utils";
-import { mat3, mat4 } from 'gl-matrix-ts';
 import { drawPendingObj, enqueueObj, initObjShaders, makeObjBuffer, ObjBuffer } from "./sprites";
 import { drawPendingMap, enqueueMap, initMapShaders, makeMapBuffer } from "./maps";
 import {
@@ -20,7 +19,7 @@ import {
 	ShadowTexture
 } from "./shadowtexture";
 import { color32 } from "./color32";
-import { mat3type, mat4type } from 'gl-matrix-ts/dist/common';
+import { mat3, mat4 } from 'gl-matrix';
 
 export const DEBUG = true;
 // Specs of the fantasy console, do not modify for now
@@ -96,12 +95,12 @@ export class LineTransformationArray {
 		this.buffer = new Float32Array(this.numLines * 8);
   }
 
-  getLine(lineNo): mat3type {
+  getLine(lineNo): mat3 {
 	  if (lineNo < 0 || lineNo >= this.numLines) throw new Error(`getLine: index ${lineNo} out of range`);
 		return mat3.fromValues(this.buffer[lineNo * 8], this.buffer[lineNo * 8 + 1], this.buffer[lineNo * 8 + 2], this.buffer[lineNo * 8 + 3], this.buffer[lineNo * 8 + 4], this.buffer[lineNo * 8 + 5], this.buffer[lineNo * 8 + 6], this.buffer[lineNo * 8 + 7], 1);
   }
 
-	setLine(lineNo, transformation: mat3type) {
+	setLine(lineNo, transformation: mat3) {
 		if (lineNo < 0 || lineNo >= this.numLines) throw new Error(`setLine: index ${lineNo} out of range`);
 		this.buffer.set((transformation as Float32Array).subarray(0, 8), lineNo * 8);
 	}
@@ -114,8 +113,8 @@ export class VDP {
 	gl: WebGLRenderingContext;
 	gameData: any;
 	mapProgram: any;
-	modelViewMatrix: mat3type;
-	projectionMatrix: mat4type;
+	modelViewMatrix: mat3;
+	projectionMatrix: mat4;
 	spriteProgram: any;
 	opaquePolyProgram: any;
 	mapTexture: WebGLTexture;
@@ -510,7 +509,6 @@ export class VDP {
 
 		// OBJ0 and BG (both opaque, OBJ0 first to appear above
 		NO_TRANSPARENCY.apply(this);
-		console.log(`TEMP matrix `, mat3);
 		mat3.identity(this.modelViewMatrix);
 		drawPendingMap(this, this.bgBuffer);
 		this._drawObjLayer(this.obj0Buffer, OBJ0_CELL_LIMIT);

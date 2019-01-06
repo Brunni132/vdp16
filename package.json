@@ -5,12 +5,13 @@
   "main": "lib-main.ts",
   "typings": "Temp/lib-main.d.ts",
   "dependencies": {
-    "gl-matrix-ts": "^2.3.3",
+    "gl-matrix": "^3.0.0",
     "pngjs": "^3.3.3",
     "xml2js": "^0.4.19",
     "awesome-typescript-loader": "^3.0.4-rc.2"
   },
   "devDependencies": {
+    "@types/gl-matrix": "^2.4.4",
     "copy-webpack-plugin": "^4.6.0",
     "dts-bundle-generator": "^2.0.0",
     "dts-generator": "^2.1.0",
@@ -26,8 +27,8 @@
   },
   "scripts": {
     "clean-lib": "shx rm -rf bundles temp temp-esm",
-    "build-lib": "npm run clean-lib && tsc && tsc -m es6 --outDir temp-esm && webpack --config webpack.prod.js",
-    "build-lib-quick": "npm run clean-lib && tsc && webpack --config webpack.prod.js && dts-bundle-generator --no-check --project ./tsconfig.json -o bundles/vdp-lib.d.ts lib-main.ts",
+    "build-lib-esm": "npm run clean-lib && tsc -m es6 && webpack --config webpack.prod.js && dts-bundle-generator --no-check --project ./tsconfig.json -o bundles/vdp-lib.d.ts lib-main.ts",
+    "build-lib": "npm run clean-lib && tsc && webpack --config webpack.prod.js && dts-bundle-generator --no-check --project ./tsconfig.json -o bundles/vdp-lib.d.ts lib-main.ts",
     "dev-server": "webpack-dev-server --config webpack.dev.js",
     "convert-gfx": "node tools/gfxConverter/packer-main.js"
   },
