@@ -17,7 +17,7 @@
   "scripts": {
     "build": "webpack --config webpack.prod.js",
     "dev-server": "webpack-dev-server --config webpack.dev.js",
-    "convert-gfx": "node tools/gfxConverter/packer-main.js"
+    "convert-gfx": "node gfx/packer-main.js"
   },
   "author": "",
   "license": "ISC"
