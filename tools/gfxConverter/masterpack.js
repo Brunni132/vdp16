@@ -227,6 +227,7 @@ class MasterPack {
 
 		// Write all textures
 		console.log('Writing game data…');
+		if (!fs.existsSync('build')) fs.mkdirSync('build');
 		fs.writeFileSync('build/game.json', JSON.stringify(resultJson), function(err) {
 				if (err) throw err;
 				console.log('complete');
