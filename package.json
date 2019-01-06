@@ -18,8 +18,8 @@
     "webpack-dev-server": "^3.1.4"
   },
   "scripts": {
-    "build": "webpack",
-    "server": "webpack-dev-server",
+    "build": "webpack --config webpack.prod.js",
+    "server": "webpack-dev-server --config webpack.dev.js",
     "convert-gfx": "node tools/gfxConverter/packer-main.js"
   },
   "author": "",
