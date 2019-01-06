@@ -54,7 +54,7 @@ function *main(vdp) {
 	let loop = 0;
 	while (true) {
 		const buffer = new LineTransformationArray();
-		for (let i = 0; i < buffer.numLines; i++) {
+		for (let i = 0; i < buffer.length; i++) {
 			const mat = mat3.create();
 			mat3.translate(mat, mat, [Math.sin((i + loop) / 20) * 10, i]);
 			buffer.setLine(i, mat);

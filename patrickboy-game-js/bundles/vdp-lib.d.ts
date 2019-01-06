@@ -1,5 +1,3 @@
-import { mat3, mat4 } from 'gl-matrix';
-
 declare class VdpMap {
 	x: number;
 	y: number;
@@ -57,7 +55,7 @@ declare enum VDPCopySource {
  */
 export declare class LineTransformationArray {
 	buffer: Float32Array;
-	numLines: number;
+	length: number;
 	constructor();
 	getLine(lineNo: any): mat3;
 	setLine(lineNo: any, transformation: mat3): void;

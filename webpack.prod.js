@@ -1,7 +1,5 @@
-var path = require("path");
-var webpack = require("webpack");
+const path = require("path");
 const UglifyJSPlugin = require("uglifyjs-webpack-plugin");
-const CopyWebpackPlugin = require('copy-webpack-plugin');
 
 var PATHS = {
 	entryPoint: path.resolve(__dirname, 'lib-main.ts'),
@@ -54,12 +52,6 @@ var config = {
 	// Activate source maps for the bundles in order to preserve the original
 	// source when the user debugs the application
 	devtool: 'source-map',
-	// plugins: [
-	// 	new CopyWebpackPlugin([
-	// 		{from: 'Temp/lib-main.d.ts', to: path.join(PATHS.bundles, 'vdp-lib.d.ts')},
-	// 		{from: 'Temp/lib-main.d.ts', to: path.join(PATHS.bundles, 'vdp-lib.min.d.ts')}
-	// 	])
-	// ],
 	module: {
 		// Webpack doesn't understand TypeScript files and a loader is needed.
 		// `node_modules` folder is excluded in order to prevent problems with

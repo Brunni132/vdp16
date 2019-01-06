@@ -8,7 +8,7 @@ function *main(vdp) {
 	let loop = 0;
 
 	const array = new LineTransformationArray();
-	for (let i = 0; i < array.numLines; i++) {
+	for (let i = 0; i < array.length; i++) {
 		const t = mat3.create();
 		mat3.translate(t, t, vec2.fromValues(i / 4, i));
 		array.setLine(i, t);

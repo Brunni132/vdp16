@@ -8,7 +8,7 @@ function *main(vdp) {
 	let loop = 0;
 	while (true) {
 		const array = new LineTransformationArray();
-		for (let i = 0; i < array.numLines; i++) {
+		for (let i = 0; i < array.length; i++) {
 			const mat = mat3.create();
 			mat3.translate(mat, mat, [loop, 0]);
 			mat3.translate(mat, mat, [SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2]);

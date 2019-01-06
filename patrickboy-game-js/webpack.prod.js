@@ -1,4 +1,5 @@
 const path = require('path');
+//const CopyWebpackPlugin = require('copy-webpack-plugin');
 
 module.exports = {
 	entry: './src/game-main.js',
@@ -11,5 +12,10 @@ module.exports = {
 		publicPath: '/build/',
 		filename: 'game.bundle.js'
 	},
+//plugins: [
+//new CopyWebpackPlugin([
+//{from: 'index.html', to: './'},
+//])
+//],
 	mode: 'production',
 };

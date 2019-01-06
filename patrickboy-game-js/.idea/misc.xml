@@ -71,7 +71,4 @@
       <textMaps />
     </LinkMapSettings>
   </component>
-  <component name="NodePackageJsonFileManager">
-    <packageJsonPaths />
-  </component>
 </project>

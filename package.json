@@ -11,8 +11,6 @@
     "awesome-typescript-loader": "^3.0.4-rc.2"
   },
   "devDependencies": {
-    "@types/gl-matrix": "^2.4.4",
-    "copy-webpack-plugin": "^4.6.0",
     "dts-bundle-generator": "^2.0.0",
     "dts-generator": "^2.1.0",
     "nodemon": "^1.17.5",
