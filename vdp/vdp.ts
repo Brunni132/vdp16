@@ -3,7 +3,6 @@ import { mat3, mat4 } from 'gl-matrix-ts';
 import { drawPendingObj, enqueueObj, initObjShaders, makeObjBuffer, ObjBuffer } from "./sprites";
 import { drawPendingMap, enqueueMap, initMapShaders, makeMapBuffer } from "./maps";
 import {
-	DISCARD_ALPHA,
 	envColor,
 	OTHER_TEX_W,
 	SCREEN_HEIGHT,
@@ -511,6 +510,7 @@ export class VDP {
 
 		// OBJ0 and BG (both opaque, OBJ0 first to appear above
 		NO_TRANSPARENCY.apply(this);
+		console.log(`TEMP matrix `, mat3);
 		mat3.identity(this.modelViewMatrix);
 		drawPendingMap(this, this.bgBuffer);
 		this._drawObjLayer(this.obj0Buffer, OBJ0_CELL_LIMIT);

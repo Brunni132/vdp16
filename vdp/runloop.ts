@@ -1,14 +1,8 @@
-import {setParams} from "./shaders";
-import {DEBUG, VDP} from "./vdp";
-import {FramerateAdjuster, NOMINAL_FRAMERATE} from "./FramerateAdjuster";
+import { setParams } from "./shaders";
+import { DEBUG, VDP } from "./vdp";
+import { FramerateAdjuster, NOMINAL_FRAMERATE } from "./FramerateAdjuster";
 
-/**
- * @param canvas {HTMLCanvasElement}
- * @param [params] {Object}
- * @returns {Promise}
- */
-export function loadVdp(canvas, params) {
-	params = params || {};
+export function loadVdp(canvas: HTMLCanvasElement): Promise<VDP> {
 	//canvas.style.width = `${canvas.width * 2}px`;
 	//canvas.style.height = `${canvas.height * 2}px`;
 	setParams(canvas.width, canvas.height, false);
@@ -20,11 +14,7 @@ export function loadVdp(canvas, params) {
 	});
 }
 
-/**
- * @param {VDP} vdp
- * @param {IterableIterator<number>} coroutine
- */
-export function runProgram(vdp, coroutine) {
+export function runProgram(vdp: VDP, coroutine: IterableIterator<number>) {
 	// All in seconds except last
 	let lastInt = 0;
 	const times = [];

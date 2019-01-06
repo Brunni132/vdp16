@@ -5,7 +5,7 @@ export class color32 {
 	 * @param [bitsPerComponent=8] {number} can be 2, 3, 4, 5 to return a reduced color value (x bits per component)
 	 * @returns {{r: number, g: number, b: number, a: number}}
 	 */
-	static extract(c, bitsPerComponent=8) {
+	static extract(c: number, bitsPerComponent: number = 8): { a: number; b: number; r: number; g: number } {
 		c = color32.posterize(c, bitsPerComponent);
 		return {
 			a: c >>> 24,
@@ -22,8 +22,9 @@ export class color32 {
 	 * @param [g] {number} green component (0 to 255)
 	 * @param [b] {number} blue component (0 to 255)
 	 * @param [a=255] {number} alpha component (not used, only required to make a valid color for your display adapter)
+	 * @returns {number} resulting color
 	 */
-	static make(r, g, b, a = 0xff) {
+	static make(r: number|{r: number, g: number, b: number, a: number}, g: number = 0, b: number = 0, a: number = 0xff): number {
 		if (typeof r === 'number') return r | g << 8 | b << 16 | a << 24;
 		return r.r | r.g << 8 | r.b << 16 | r.a << 24;
 	}
@@ -34,7 +35,7 @@ export class color32 {
 	 * @param col {number}
 	 * @returns {number}
 	 */
-	static extendColor12(col) {
+	static extendColor12(col: number): number {
 		return color32.reverseColor32((col & 0xf) | (col & 0xf) << 4 |
 			(col & 0xf0) << 4 | (col & 0xf0) << 8 |
 			(col & 0xf00) << 8 | (col & 0xf00) << 12 |
@@ -47,7 +48,7 @@ export class color32 {
 	 * or a string (#rgb, #rrggbb, #rrggbbaa).
 	 * @returns {number} the color in 32-bit RGBA format.
 	 */
-	static parse(col) {
+	static parse(col: string|number): number {
 		if (typeof col === 'string') {
 			if (col.charAt(0) !== '#') col = ''; // fail
 
@@ -86,7 +87,7 @@ export class color32 {
 	 * @param c {number} color to affect
 	 * @param bitsPerComponent {number} can be 2, 3, 4, 5 to return a reduced color value (x bits per component)
 	 */
-	static posterize(c, bitsPerComponent) {
+	static posterize(c: number, bitsPerComponent: number) {
 		if (bitsPerComponent === 2) {
 			let hiBits = (c >>> 6 & 0x01010101) | (c >>> 7 & 0x01010101);
 			hiBits |= hiBits << 1;
@@ -112,11 +113,11 @@ export class color32 {
 	 * @param col {number}
 	 * @returns {number}
 	 */
-	static reverseColor32(col) {
+	static reverseColor32(col: number): number {
 		return (col & 0xff) << 24 | (col >>> 8 & 0xff) << 16 | (col >>> 16 & 0xff) << 8 | (col >>> 24 & 0xff);
 	}
 
-	static add(c, d) {
+	static add(c: number, d: number): number {
 		let a = (c >>> 24) + (d >>> 24);
 		let b = ((c >>> 16) & 0xff) + ((d >>> 16) & 0xff);
 		let g = ((c >>> 8) & 0xff) + ((d >>> 8) & 0xff);
@@ -128,7 +129,7 @@ export class color32 {
 		return r | g << 8 | b << 16 | a << 24;
 	}
 
-	static sub(c, d) {
+	static sub(c: number, d: number): number {
 		let a = (c >>> 24) - (d >>> 24);
 		let b = ((c >>> 16) & 0xff) - ((d >>> 16) & 0xff);
 		let g = ((c >>> 8) & 0xff) - ((d >>> 8) & 0xff);
@@ -140,7 +141,7 @@ export class color32 {
 		return r | g << 8 | b << 16 | a << 24;
 	}
 
-	static mul(c, d) {
+	static mul(c: number, d: number): number {
 		let a = ((c >>> 24) * (d >>> 24)) / 255;
 		let b = ((c >>> 16) & 0xff) * ((d >>> 16) & 0xff) / 255;
 		let g = ((c >>> 8) & 0xff) * ((d >>> 8) & 0xff) / 255;
@@ -148,7 +149,7 @@ export class color32 {
 		return r | g << 8 | b << 16 | a << 24;
 	}
 
-	static blend(c, d, factor) {
+	static blend(c: number, d: number, factor: number): number {
 		factor = Math.min(1, Math.max(0, factor));
 		const invF = 1 - factor;
 

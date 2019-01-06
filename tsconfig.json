@@ -1,12 +1,14 @@
 {
   "compilerOptions": {
-    "outDir": "./Temp/",
+    "outDir": "./temp/",
     "noImplicitAny": false,
     "module": "es6",
     "target": "es5",
     "downlevelIteration": true,
     "lib": ["esnext", "dom"],
     "moduleResolution": "node",
-    "allowJs": true
+    "allowJs": false,
+    "sourceMap": true,
+    "declaration": true
   }
 }

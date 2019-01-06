@@ -6,6 +6,9 @@ desktop.ini
 sample.png
 gfx/road-til.png
 gfx/road.tmx
+bundles/**
+temp/**
+temp-esm/**
 
 # User-specific stuff
 .idea/**/workspace.xml
