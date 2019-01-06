@@ -79,36 +79,7 @@ function map(name, contents, opts, cb) {
 	if (cb) cb(result);
 }
 
-function sprite(name, contents) {
-	let result;
-	if (g_config.debug) console.log(`Processing sprite ${name}`);
-	assert(!!currentPalette, 'cannot define sprite outside of palette block');
-	if (typeof contents === 'string') contents = image(contents);
-	if (contents.type === 'blank') {
-		assert(false, 'blank sprites not supported yet');
-	}
-	else if (contents instanceof Texture) {
-		result = Sprite.fromImage(name, contents, currentPalette);
-	}
-	else {
-		assert(false, `unsupported sprite arg ${contents}`);
-	}
-
-	conv.addSprite(result);
-	spriteNamed[name] = result;
-}
-
-
-function palette(name, cb) {
-	checkConv();
-	assert(!currentPalette && !currentPaletteMultiple, 'nested palettes not supported');
-	currentPalette = conv.createPalette(name);
-	paletteNamed[name] = currentPalette;
-	cb();
-	currentPalette = null;
-}
-
-function palettes(name, contents, cb) {
+function multiPalette(name, contents, cb) {
 	checkConv();
 	assert(!currentPalette && !currentPaletteMultiple, 'nested palettes not supported');
 	if (typeof contents === 'string') contents = image(contents);
@@ -128,6 +99,34 @@ function palettes(name, contents, cb) {
 	}
 	cb();
 	currentPaletteMultiple = null;
+}
+
+function palette(name, cb) {
+	checkConv();
+	assert(!currentPalette && !currentPaletteMultiple, 'nested palettes not supported');
+	currentPalette = conv.createPalette(name);
+	paletteNamed[name] = currentPalette;
+	cb();
+	currentPalette = null;
+}
+
+function sprite(name, contents) {
+	let result;
+	if (g_config.debug) console.log(`Processing sprite ${name}`);
+	assert(!!currentPalette, 'cannot define sprite outside of palette block');
+	if (typeof contents === 'string') contents = image(contents);
+	if (contents.type === 'blank') {
+		assert(false, 'blank sprites not supported yet');
+	}
+	else if (contents instanceof Texture) {
+		result = Sprite.fromImage(name, contents, currentPalette);
+	}
+	else {
+		assert(false, `unsupported sprite arg ${contents}`);
+	}
+
+	conv.addSprite(result);
+	spriteNamed[name] = result;
 }
 
 function tileset(name, contents, tileWidth, tileHeight, cb) {
@@ -173,7 +172,7 @@ function tiledMap(name, fileNameBase, opts, cb) {
 		assert(opts.tilesetWidth && opts.tilesetHeight, `Map ${tmxFileName} not found, specify tilesetWidth and tilesetHeight to build a tileset`);
 
 		const palette = new Palette(name, 65536);
-		const tileset = Tileset.blank(name, opts.tileWidth, opts.tileHeight, opts.tilesetWidth, opts.tilesetHeight, [palette]);
+		const tileset = Tileset.blank(name, opts.tileWidth, opts.tileHeight, opts.tilesetWidth, opts.tilesetHeight, palette);
 		const map = Map.fromImage(name, Texture.fromPng32(originalImageFname), tileset, tolerance);
 		writeTmx(fileNameBase, map);
 	}
@@ -193,7 +192,7 @@ function tiledMap(name, fileNameBase, opts, cb) {
 const SCREEN_WIDTH = 256;
 const SCREEN_HEIGHT = 256;
 
-config({ compact: true, debug: false, paletteBpp: 4, hiColorMode: false });
+config({ compact: true, debug: true, paletteBpp: 4, hiColorMode: false });
 
 palette('Default', () => {
 	sprite('gradient', 'gfx/gradient.png');
@@ -210,7 +209,7 @@ palette('level1', () => {
 	});
 });
 
-palettes('tmx', image('gfx/tmx-pal.png'), () => {
+multiPalette('tmx', image('gfx/testTmx-pal.png'), () => {
 	tiledMap('tmx', 'gfx/testTmx', { tileWidth: 8, tileHeight: 8, tilesetWidth: 64, tilesetHeight: 32 });
 });
 
@@ -221,9 +220,7 @@ palette('text', () => {
 });
 
 palette('road', () => {
-	tileset('road', blank(64, 16), 16, 16, () => {
-		map('road', 'gfx/road.png', { tolerance: 200 });
-	});
+	tiledMap('road', 'gfx/road', { tolerance: 200, tileWidth: 16, tileHeight: 16, tilesetWidth: 64, tilesetHeight: 16 });
 });
 
 conv.pack(g_config.debug);

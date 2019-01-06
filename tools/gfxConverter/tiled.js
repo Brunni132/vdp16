@@ -28,11 +28,11 @@ function readTmx(fileNameBase, name, palette) {
 	new xml2js.Parser().parseString(fs.readFileSync(tmxFileName), (err, result) => {
 		const json = result.map;
 		//console.dir(json.tileset[0]);
-		const mapWidth = json['$'].width;
-		const mapHeight = json['$'].height;
+		const mapWidth = parseInt(json['$'].width);
+		const mapHeight = parseInt(json['$'].height);
 		const tilesetName = json.tileset[0]['$'].name;
-		const tileWidth = json.tileset[0]['$'].tilewidth;
-		const tileHeight = json.tileset[0]['$'].tileheight;
+		const tileWidth = parseInt(json.tileset[0]['$'].tilewidth);
+		const tileHeight = parseInt(json.tileset[0]['$'].tileheight);
 		const jsonImage = json.tileset[0].image[0]['$'];
 		const layer = findMainLayer(json.layer);
 		const imagePath = path.join(path.dirname(fileNameBase), jsonImage.source);
