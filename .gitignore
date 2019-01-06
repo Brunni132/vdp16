@@ -4,6 +4,8 @@ build/*
 node_modules
 desktop.ini
 sample.png
+gfx/road-til.png
+gfx/road.tmx
 
 # User-specific stuff
 .idea/**/workspace.xml

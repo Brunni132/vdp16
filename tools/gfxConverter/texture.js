@@ -180,7 +180,8 @@ class Texture {
 			}
 		}
 
-		mapPng.pack().pipe(fs.createWriteStream(destFileName));
+		//mapPng.pack().pipe(fs.createWriteStream(destFileName));
+		fs.writeFileSync(destFileName, PNG.sync.write(mapPng));
 	}
 }
 

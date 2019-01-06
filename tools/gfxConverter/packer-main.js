@@ -173,7 +173,7 @@ function tiledMap(name, fileNameBase, opts, cb) {
 		assert(opts.tilesetWidth && opts.tilesetHeight, `Map ${tmxFileName} not found, specify tilesetWidth and tilesetHeight to build a tileset`);
 
 		const palette = new Palette(name, 65536);
-		const tileset = Tileset.blank(name, opts.tileWidth, opts.tileHeight, opts.tilesetWidth, opts.tilesetHeight, [palette]);
+		const tileset = Tileset.blank(name, opts.tileWidth, opts.tileHeight, opts.tilesetWidth, opts.tilesetHeight, palette);
 		const map = Map.fromImage(name, Texture.fromPng32(originalImageFname), tileset, tolerance);
 		writeTmx(fileNameBase, map);
 	}
@@ -193,7 +193,7 @@ function tiledMap(name, fileNameBase, opts, cb) {
 const SCREEN_WIDTH = 256;
 const SCREEN_HEIGHT = 256;
 
-config({ compact: true, debug: false, paletteBpp: 4, hiColorMode: false });
+config({ compact: true, debug: true, paletteBpp: 4, hiColorMode: false });
 
 palette('Default', () => {
 	sprite('gradient', 'gfx/gradient.png');
@@ -221,9 +221,7 @@ palette('text', () => {
 });
 
 palette('road', () => {
-	tileset('road', blank(64, 16), 16, 16, () => {
-		map('road', 'gfx/road.png', { tolerance: 200 });
-	});
+	tiledMap('road', 'gfx/road', { tolerance: 200, tileWidth: 16, tileHeight: 16, tilesetWidth: 64, tilesetHeight: 16 });
 });
 
 conv.pack(g_config.debug);
