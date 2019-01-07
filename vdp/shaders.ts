@@ -5,19 +5,18 @@ export let PALETTE_TEX_W, PALETTE_TEX_H = 256;
 export let SEMITRANSPARENT_CANVAS = false;
 
 export const OTHER_TEX_W = 2048, OTHER_TEX_H = 16;
+// The last 4 entries are reserved for color swap tables
+export const OTHER_TEX_COLORSWAP_INDEX = 12;
 
 // Used for limited machine
 export const USE_PRIORITIES = true;
-// 4 on limited machine
-export const MAX_BGS = 1;
 // True on limited machine, false otherwise
 export const DISCARD_ALPHA = true;
-
-export const MAX_SPRITES = 1 << 16;
 
 export const PALETTE_HICOLOR_FLAG = 1 << 15;
 
 export const envColor: number[] = [1, 1, 1, 1];
+export const colorSwaps: number[] = [-1, -1, -1, -1];
 
 export function setParams(screenWidth: number, screenHeight: number, compositedFramebuffer: boolean = false) {
 	SCREEN_WIDTH = screenWidth;
@@ -40,42 +39,42 @@ export function declareReadTexel(): string {
 	const byteMultiplier = '255.0';
 	// Returns a value between 0 and 1, ready to map a color in palette (0..255)
 	return `
-			float readTexel8(float x, float y) {
-				int texelId = int(x / 4.0);
-				vec4 read = texture2D(uSamplerSprites, vec2(float(texelId) / ${SPRITE_TEX_W}.0, y / ${SPRITE_TEX_H}.0));
-				int texelC = int(x) - texelId * 4;
-				if (texelC == 0) return read.r * ${paletteMultiplier8};
-				if (texelC == 1) return read.g * ${paletteMultiplier8};
-				if (texelC == 2) return read.b * ${paletteMultiplier8};
-				return read.a * ${paletteMultiplier8};
-			}
-			
-			float extractTexelHi(float colorComp) {
-				int intValue = int(colorComp * ${byteMultiplier});
-				return float(intValue / 16) * ${paletteMultiplier4};
-			}
+float readTexel8(float x, float y) {
+	int texelId = int(x / 4.0);
+	vec4 read = texture2D(uSamplerSprites, vec2(float(texelId) / ${SPRITE_TEX_W}.0, y / ${SPRITE_TEX_H}.0));
+	int texelC = int(x) - texelId * 4;
+	if (texelC == 0) return read.r * ${paletteMultiplier8};
+	if (texelC == 1) return read.g * ${paletteMultiplier8};
+	if (texelC == 2) return read.b * ${paletteMultiplier8};
+	return read.a * ${paletteMultiplier8};
+}
 
-			float extractTexelLo(float colorComp) {
-				int intValue = int(colorComp * ${byteMultiplier});
-				return float(intValue - (intValue / 16) * 16) * ${paletteMultiplier4};
-				//return float(mod(float(intValue), 16.0)) * ${paletteMultiplier4};
-			}
+float extractTexelHi(float colorComp) {
+	int intValue = int(colorComp * ${byteMultiplier});
+	return float(intValue / 16) * ${paletteMultiplier4};
+}
+
+float extractTexelLo(float colorComp) {
+	int intValue = int(colorComp * ${byteMultiplier});
+	return float(intValue - (intValue / 16) * 16) * ${paletteMultiplier4};
+	//return float(mod(float(intValue), 16.0)) * ${paletteMultiplier4};
+}
+
+float readTexel4(float x, float y) {
+	int texelId = int(x / 8.0);
+	vec4 read = texture2D(uSamplerSprites, vec2(float(texelId) / ${SPRITE_TEX_W}.0, y / ${SPRITE_TEX_H}.0));
+	int texelC = int(x) - texelId * 8;
 	
-			float readTexel4(float x, float y) {
-				int texelId = int(x / 8.0);
-				vec4 read = texture2D(uSamplerSprites, vec2(float(texelId) / ${SPRITE_TEX_W}.0, y / ${SPRITE_TEX_H}.0));
-				int texelC = int(x) - texelId * 8;
-				
-				if (texelC == 0) return extractTexelHi(read.r);
-				if (texelC == 1) return extractTexelLo(read.r);
-				if (texelC == 2) return extractTexelHi(read.g);
-				if (texelC == 3) return extractTexelLo(read.g);
-				if (texelC == 4) return extractTexelHi(read.b);
-				if (texelC == 5) return extractTexelLo(read.b);
-				if (texelC == 6) return extractTexelHi(read.a);
-				return extractTexelLo(read.a);
-				//return 9.0 * ${paletteMultiplier4};
-			}`;
+	if (texelC == 0) return extractTexelHi(read.r);
+	if (texelC == 1) return extractTexelLo(read.r);
+	if (texelC == 2) return extractTexelHi(read.g);
+	if (texelC == 3) return extractTexelLo(read.g);
+	if (texelC == 4) return extractTexelHi(read.b);
+	if (texelC == 5) return extractTexelLo(read.b);
+	if (texelC == 6) return extractTexelHi(read.a);
+	return extractTexelLo(read.a);
+	//return 9.0 * ${paletteMultiplier4};
+}`;
 }
 
 export function declareReadPalette(): string {
@@ -94,9 +93,26 @@ export function declareReadPalette(): string {
 	//			return vec4(mix(color, gray, -0.5), 1);
 	//		}`;
 
-	return `vec4 readPalette(float x, float y) {
-				return texture2D(uSamplerPalettes, vec2(x, y));
-			}`;
+	// Simplest shader, fast, doesn't support color swap
+	// return `vec4 readPalette(float x, float y) {
+	// 			return texture2D(uSamplerPalettes, vec2(x, y));
+	// 		}`;
+
+	return `vec4 readColorSwapBuffer(int bufferNo, float horizOffset) {
+	vec4 read = texture2D(uSamplerOthers, vec2((${SCREEN_HEIGHT}.0 - horizOffset) / ${OTHER_TEX_W}.0, float(bufferNo) / ${OTHER_TEX_H}.0));
+	if (read.x < ${1.0 / (PALETTE_TEX_W)}) discard; // color zero
+	return texture2D(uSamplerPalettes, read.xy);
+}
+
+vec4 readPalette(highp float x, highp float y) {
+	highp float index = x * ${PALETTE_TEX_W}.0 + (y * ${PALETTE_TEX_H}.0) * 256.0;
+	if (index == uColorSwaps[0]) return readColorSwapBuffer(${OTHER_TEX_COLORSWAP_INDEX}, gl_FragCoord.y);
+	if (index == uColorSwaps[1]) return readColorSwapBuffer(${OTHER_TEX_COLORSWAP_INDEX+1}, gl_FragCoord.y);
+	if (index == uColorSwaps[2]) return readColorSwapBuffer(${OTHER_TEX_COLORSWAP_INDEX+2}, gl_FragCoord.y);
+	if (index == uColorSwaps[3]) return readColorSwapBuffer(${OTHER_TEX_COLORSWAP_INDEX+3}, gl_FragCoord.y);
+	if (x < ${1.0 / (PALETTE_TEX_W)}) discard;
+	return texture2D(uSamplerPalettes, vec2(x, y));
+}`;
 }
 
 export function makeOutputColor(colorExpr: string): string {

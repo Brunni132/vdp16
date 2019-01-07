@@ -2,8 +2,9 @@ import { createDataTextureFloat, loadTexture, writeToTextureFloat } from "./util
 import { drawPendingObj, enqueueObj, initObjShaders, makeObjBuffer, ObjBuffer } from "./sprites";
 import { drawPendingMap, enqueueMap, initMapShaders, makeMapBuffer } from "./maps";
 import {
-	envColor,
-	OTHER_TEX_W,
+	colorSwaps,
+	envColor, OTHER_TEX_COLORSWAP_INDEX, OTHER_TEX_H,
+	OTHER_TEX_W, PALETTE_TEX_H, PALETTE_TEX_W,
 	SCREEN_HEIGHT,
 	SCREEN_WIDTH,
 	SEMITRANSPARENT_CANVAS,
@@ -23,10 +24,12 @@ import { mat3, mat4 } from 'gl-matrix';
 
 export const DEBUG = true;
 // Specs of the fantasy console, do not modify for now
-const BG_LIMIT = 4;
+const BG_LIMIT = 3;
 const TBG_LIMIT = 1;
-const OBJ1_CELL_LIMIT = 64;
 const OBJ0_CELL_LIMIT = 256;
+const OBJ1_CELL_LIMIT = 64;
+const OBJ0_LIMIT = 256;
+const OBJ1_LIMIT = 32;
 
 type TransparencyConfigEffect = 'none' | 'color' | 'blend' | 'premult';
 type TransparencyConfigOperation = 'add' | 'sub';
@@ -75,6 +78,9 @@ class TransparencyConfig {
 	}
 }
 
+const NO_TRANSPARENCY = new TransparencyConfig('none', 'add', 0, 0);
+const STANDARD_TRANSPARENCY = new TransparencyConfig('blend', 'add', 0, 0);
+
 export enum VDPCopySource {
 	current,
 	rom,
@@ -106,8 +112,25 @@ export class LineTransformationArray {
 	}
 }
 
-const NO_TRANSPARENCY = new TransparencyConfig('none', 'add', 0, 0);
-const STANDARD_TRANSPARENCY = new TransparencyConfig('blend', 'add', 0, 0);
+export class LineColorArray {
+	buffer: Float32Array;
+	length: number;
+	targetPaletteNumber: number;
+	targetPaletteIndex: number;
+
+	constructor(targetPaletteNumber: number, targetPaletteIndex: number) {
+		this.targetPaletteNumber = targetPaletteNumber;
+		this.targetPaletteIndex = targetPaletteIndex;
+		this.length = SCREEN_HEIGHT;
+		this.buffer = new Float32Array(this.length * 4);
+	}
+
+	setLine(lineNo: number, paletteNumber: number, paletteIndex: number) {
+		if (lineNo < 0 || lineNo >= this.length) throw new Error(`setLine: index ${lineNo} out of range`);
+		this.buffer[lineNo * 4] = Math.floor(paletteIndex % 256) / PALETTE_TEX_W;
+		this.buffer[lineNo * 4 + 1] = Math.floor(paletteNumber % 256) / PALETTE_TEX_H;
+	}
+}
 
 export class VDP {
 	gl: WebGLRenderingContext;
@@ -128,8 +151,8 @@ export class VDP {
 	private objTransparency = new TransparencyConfig('color', 'add', 0x888888, 0x888888);
 	private bgBuffer = makeMapBuffer('Opaque BG [BG]', BG_LIMIT);
 	private tbgBuffer = makeMapBuffer('Transparent BG [TBG]', TBG_LIMIT);
-	private obj0Buffer = makeObjBuffer('Opaque sprites [OBJ0]', 480);
-	private obj1Buffer = makeObjBuffer('Transparent sprites [OBJ1]', 32);
+	private obj0Buffer = makeObjBuffer('Opaque sprites [OBJ0]', OBJ0_LIMIT);
+	private obj1Buffer = makeObjBuffer('Transparent sprites [OBJ1]', OBJ1_LIMIT);
 	private stats = {
 		peakOBJ0: 0,
 		peakOBJ1: 0,
@@ -183,7 +206,7 @@ export class VDP {
 
 						setTextureSizes(palettes.width, palettes.height, maps.width, maps.height, sprites.width, sprites.height);
 
-						this.otherTexture = createDataTextureFloat(gl, OTHER_TEX_W, OTHER_TEX_W);
+						this.otherTexture = createDataTextureFloat(gl, OTHER_TEX_W, OTHER_TEX_H);
 						// Startup color
 						this.configBDColor('#008');
 
@@ -221,6 +244,19 @@ export class VDP {
 		this.bgTransparency.operation = opts.op;
 		this.bgTransparency.blendSrc = color32.parse(opts.blendSrc);
 		this.bgTransparency.blendDst = color32.parse(opts.blendDst);
+	}
+
+	/**
+	 * Configures up to 4 colors that are replaced every line by another palette color.
+	 * @param {LineColorArray[]} colorTable
+	 */
+	configColorSwap(colorTable: LineColorArray[]) {
+		if (colorTable.length >= 4) throw new Error('Can only swap up to 4 colors at a time');
+		colorTable.forEach((t, i) => {
+			colorSwaps[i] = t.targetPaletteNumber << 8 | t.targetPaletteIndex;
+			writeToTextureFloat(this.gl, this.otherTexture, 0, i + OTHER_TEX_COLORSWAP_INDEX, t.buffer.length / 4, 1, t.buffer);
+		});
+		for (let i = colorTable.length; i < 4; i++) colorSwaps[i] = -1; // Unreachable color
 	}
 
 	/**

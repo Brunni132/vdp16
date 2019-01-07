@@ -1,5 +1,6 @@
 import {getScalingFactorOfMatrix, initShaderProgram, makeBuffer, makeRangeArray, TEMP_MakeDualTriangle} from "./utils";
 import {
+	colorSwaps,
 	declareReadPalette,
 	declareReadTexel,
 	envColor,
@@ -179,8 +180,8 @@ export function initObjShaders(vdp: VDP) {
 			
 			varying highp vec2 vTextureCoord;
 			varying highp float vPaletteNo;
-			uniform vec4 uEnvColor;
-			uniform sampler2D uSamplerSprites, uSamplerPalettes;
+			uniform vec4 uEnvColor, uColorSwaps;
+			uniform sampler2D uSamplerOthers, uSamplerSprites, uSamplerPalettes;
 	
 			${declareReadTexel()}
 			${declareReadPalette()}
@@ -195,9 +196,6 @@ export function initObjShaders(vdp: VDP) {
 					texel = readTexel4(vTextureCoord.x, vTextureCoord.y);
 					palette = vPaletteNo / ${PALETTE_TEX_H}.0;
 				}
-
-				// Color zero
-				if (texel < ${1.0 / (PALETTE_TEX_W)}) discard;
 
 				vec4 color = readPalette(texel, palette);
 				gl_FragColor = ${makeOutputColor('color')};
@@ -218,9 +216,11 @@ export function initObjShaders(vdp: VDP) {
 			uv: makeBuffer(gl)
 		},
 		uniformLocations: {
+			colorSwaps: gl.getUniformLocation(shaderProgram, 'uColorSwaps'),
 			envColor: gl.getUniformLocation(shaderProgram, 'uEnvColor'),
 			projectionMatrix: gl.getUniformLocation(shaderProgram, 'uProjectionMatrix'),
 			modelViewMatrix: gl.getUniformLocation(shaderProgram, 'uModelViewMatrix'),
+			uSamplerOthers: gl.getUniformLocation(shaderProgram, 'uSamplerOthers'),
 			uSamplerSprites: gl.getUniformLocation(shaderProgram, 'uSamplerSprites'),
 			uSamplerPalettes: gl.getUniformLocation(shaderProgram, 'uSamplerPalettes'),
 		},
@@ -271,16 +271,20 @@ export function drawPendingObj(vdp: VDP, objBuffer: ObjBuffer, objLimit: number 
 	gl.bindTexture(gl.TEXTURE_2D, vdp.spriteTexture);
 	gl.activeTexture(gl.TEXTURE1);
 	gl.bindTexture(gl.TEXTURE_2D, vdp.paletteTexture);
+	gl.activeTexture(gl.TEXTURE3);
+	gl.bindTexture(gl.TEXTURE_2D, vdp.otherTexture);
 
 	// Tell the shader we bound the texture to texture unit 0
 	gl.uniform1i(prog.uniformLocations.uSamplerSprites, 0);
 	gl.uniform1i(prog.uniformLocations.uSamplerPalettes, 1);
+	gl.uniform1i(prog.uniformLocations.uSamplerOthers, 3);
 
 	// Set the shader uniforms
 	gl.uniformMatrix4fv(prog.uniformLocations.projectionMatrix, false, vdp.projectionMatrix);
 	gl.uniformMatrix3fv(prog.uniformLocations.modelViewMatrix,false, vdp.modelViewMatrix);
 
 	gl.uniform4f(prog.uniformLocations.envColor, envColor[0], envColor[1], envColor[2], envColor[3]);
+	gl.uniform4f(prog.uniformLocations.colorSwaps, colorSwaps[0], colorSwaps[1], colorSwaps[2], colorSwaps[3]);
 
 	gl.drawArrays(gl.TRIANGLES, 0, numObjectsToDraw * OBJ_BUFFER_STRIDE);
 

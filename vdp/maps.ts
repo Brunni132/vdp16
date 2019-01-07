@@ -1,5 +1,6 @@
 import {initShaderProgram, makeBuffer, TEMP_MakeDualTriangle} from "./utils";
 import {
+	colorSwaps,
 	declareReadPalette,
 	declareReadTexel,
 	envColor,
@@ -122,9 +123,9 @@ export function initMapShaders(vdp: VDP) {
 			varying vec2 vOtherInfo;
 			
 			uniform mat3 uModelViewMatrix;
-			uniform vec4 uEnvColor;
+			uniform vec4 uEnvColor, uColorSwaps;
 			uniform sampler2D uSamplerMaps, uSamplerSprites, uSamplerPalettes, uSamplerOthers;
-						
+
 			int intDiv(float x, float y) {
 				return int(floor(x / y));
 			}
@@ -223,9 +224,6 @@ export function initMapShaders(vdp: VDP) {
 				// 	gl_FragColor = color;
 				// }
 				// else {
-					// Color zero
-					if (texel < ${1.0 / PALETTE_TEX_W}) discard;
-				
 					vec4 color = readPalette(texel, paletteOffset / ${PALETTE_TEX_H}.0);
 					gl_FragColor = ${makeOutputColor('color')};
 				// }
@@ -250,6 +248,7 @@ export function initMapShaders(vdp: VDP) {
 			mapInfo4: makeBuffer(gl)
 		},
 		uniformLocations: {
+			colorSwaps: gl.getUniformLocation(shaderProgram, 'uColorSwaps'),
 			envColor: gl.getUniformLocation(shaderProgram, 'uEnvColor'),
 			projectionMatrix: gl.getUniformLocation(shaderProgram, 'uProjectionMatrix'),
 			modelViewMatrix: gl.getUniformLocation(shaderProgram, 'uModelViewMatrix'),
@@ -338,6 +337,7 @@ export function drawPendingMap(vdp: VDP, mapBuffer: MapBuffer) {
 	gl.uniformMatrix3fv(prog.uniformLocations.modelViewMatrix,false, vdp.modelViewMatrix);
 
 	gl.uniform4f(prog.uniformLocations.envColor, envColor[0], envColor[1], envColor[2], envColor[3]);
+	gl.uniform4f(prog.uniformLocations.colorSwaps, colorSwaps[0], colorSwaps[1], colorSwaps[2], colorSwaps[3]);
 
 	gl.drawArrays(gl.TRIANGLES, 0, mapBuffer.usedVertices);
 
