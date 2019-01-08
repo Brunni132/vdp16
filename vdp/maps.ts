@@ -53,182 +53,177 @@ export class MapBuffer {
 export function initMapShaders(vdp: VDP) {
 	const gl = vdp.gl;
 	// Vertex shader program
-	const vsSource = `
-			attribute vec4 aXyzp;
-			attribute vec4 aMapInfo1;
-			attribute vec4 aMapInfo2;
-			attribute vec4 aMapInfo3;
-			attribute vec4 aMapInfo4;
-			uniform mat3 uModelViewMatrix;
-			uniform mat4 uProjectionMatrix;
+	const vsSource = `attribute vec4 aXyzp;
+attribute vec4 aMapInfo1;
+attribute vec4 aMapInfo2;
+attribute vec4 aMapInfo3;
+attribute vec4 aMapInfo4;
+uniform mat3 uModelViewMatrix;
+uniform mat4 uProjectionMatrix;
 
-			varying vec2 vTextureCoord;
-			varying float vPaletteNo;
-			// TODO Florian -- use vec4 and extract in fragment program
-			varying highp vec2 vMapStart;
-			varying highp vec2 vMapSize;
-			varying vec2 vTilesetStart;
-			varying float vTilesetWidth;
-			varying vec2 vTileSize;
-			varying mat3 vTransformationMatrix;
-			// [0] = linescroll buffer, if 0 use vTransformationMatrix always, [1] = whether to wrap around
-			varying vec2 vOtherInfo;
-			
-			uniform sampler2D uSamplerMaps, uSamplerSprites, uSamplerPalettes, uSamplerOthers;
-		
-			mat3 readLinescrollBuffer(int bufferNo, int horizOffset) {
-				float vOfs = float(bufferNo) / ${OTHER_TEX_H}.0;
-				vec4 first = texture2D(uSamplerOthers, vec2(float(horizOffset) / ${OTHER_TEX_W}.0, vOfs));
-				vec4 second = texture2D(uSamplerOthers, vec2(float(horizOffset + 1) / ${OTHER_TEX_W}.0, vOfs));
-				return mat3(
-					first.xy, 0,
-					vec2(first.a, second.r), 0,
-					second.ba, 1.0);
-			}
-		
-			void main(void) {
-				// Only scale the final matrix (we can always say that the VDP supports fixed point math inside for matrix multiplication)
-				gl_Position = uProjectionMatrix * vec4(floor(uModelViewMatrix * aXyzp.xyz), 1);
-				vPaletteNo = floor(aXyzp.w);
-				vMapStart = floor(aMapInfo1.xy);
-				vTilesetStart = floor(aMapInfo1.zw);
-				vMapSize = floor(aMapInfo2.xy);
-				vTilesetWidth = floor(aMapInfo2.z);
-				vTileSize = floor(aMapInfo3.xy);
-				vTextureCoord = floor(aMapInfo3.zw);
-				vOtherInfo = floor(aMapInfo4.xy);
-				// If 0-255, use one transformation map-wide from the first line, if -1 never use transformations
-				if (aMapInfo4.x >= 0.0 && aMapInfo4.x < 256.0) {
-					vTransformationMatrix = readLinescrollBuffer(0, int(aMapInfo4.x) * 2);
-				} else {
-					vTransformationMatrix = mat3(
-						1, 0, 0,
-						0, 1, 0,
-						0, 0, 1);
-				}
-			}
-		`;
-	const fsSource = `
-			precision highp float;
-			
-			varying highp vec2 vTextureCoord;
-			varying highp float vPaletteNo;
-			varying highp vec2 vMapStart;
-			varying highp vec2 vMapSize;
-			// tilesetSize is in tiles!
-			varying vec2 vTilesetStart;
-			varying float vTilesetWidth;
-			varying vec2 vTileSize;
-			varying mat3 vTransformationMatrix;
-			varying vec2 vOtherInfo;
-			
-			uniform mat3 uModelViewMatrix;
-			uniform vec4 uEnvColor, uColorSwaps;
-			uniform sampler2D uSamplerMaps, uSamplerSprites, uSamplerPalettes, uSamplerOthers;
+varying vec2 vTextureCoord;
+varying float vPaletteNo;
+// TODO Florian -- use vec4 and extract in fragment program
+varying highp vec2 vMapStart;
+varying highp vec2 vMapSize;
+varying vec2 vTilesetStart;
+varying float vTilesetWidth;
+varying vec2 vTileSize;
+varying mat3 vTransformationMatrix;
+// [0] = linescroll buffer, if 0 use vTransformationMatrix always, [1] = whether to wrap around
+varying vec2 vOtherInfo;
 
-			int intDiv(float x, float y) {
-				return int(floor(x / y));
-			}
+uniform sampler2D uSamplerMaps, uSamplerSprites, uSamplerPalettes, uSamplerOthers;
 
-			/**
-			 * Returns accurate MOD when arguments are approximate integers.
-			 * https://stackoverflow.com/questions/33908644/get-accurate-integer-modulo-in-webgl-shader
-			 */
-			float modI(float a,float b) {
-				float m=a-floor((a+0.5)/b)*b;
-				return floor(m+0.5);
-			}
+mat3 readLinescrollBuffer(int bufferNo, int horizOffset) {
+	float vOfs = float(bufferNo) / ${OTHER_TEX_H}.0;
+	vec4 first = texture2D(uSamplerOthers, vec2(float(horizOffset) / ${OTHER_TEX_W}.0, vOfs));
+	vec4 second = texture2D(uSamplerOthers, vec2(float(horizOffset + 1) / ${OTHER_TEX_W}.0, vOfs));
+	return mat3(
+		first.xy, 0,
+		vec2(first.a, second.r), 0,
+		second.ba, 1.0);
+}
 
-			mat3 readLinescrollBuffer(int bufferNo, int horizOffset) {
-				float vOfs = float(bufferNo) / ${OTHER_TEX_H}.0;
-				vec4 first = texture2D(uSamplerOthers, vec2(float(horizOffset) / ${OTHER_TEX_W}.0, vOfs));
-				vec4 second = texture2D(uSamplerOthers, vec2(float(horizOffset + 1) / ${OTHER_TEX_W}.0, vOfs));
-				return mat3(
-					first.r, first.g, 0,
-					first.a, second.r, 0,
-					second.b, second.a, 1);
-			}
-			
-			int readMap(int x, int y) {
-				x = int(modI(float(x), vMapSize.x) + vMapStart.x);
-				y = int(modI(float(y), vMapSize.y) + vMapStart.y);
-				
-				int texelId = x / 2;
-				int texelC = x - texelId * 2;
-				vec4 read = texture2D(uSamplerMaps, vec2(float(texelId) / ${MAP_TEX_W}.0, float(y) / ${MAP_TEX_H}.0));
-				if (texelC == 0) return int(read.r * 255.0) + int(read.g * 255.0) * 256;
-				return int(read.b * 255.0) + int(read.a * 255.0) * 256;
-			}
-			
-			vec2 positionInTexture(int tileNo) {
-				vec2 base = vTilesetStart;
-				float rowNo = float(tileNo / int(vTilesetWidth));
-				float colNo = modI(float(tileNo), vTilesetWidth);
-				return base + vec2(colNo * vTileSize.x, rowNo * vTileSize.y);
-			}
-		
-			${declareReadTexel()}
-			${declareReadPalette()}
-		
-			void main(void) {
-				mat3 transformationMatrix;
-				float y = vTextureCoord.y;
-				// Per-line info
-				if (vOtherInfo.x >= 256.0) {
-					// 2 colors (8 float values) per matrix
-					transformationMatrix = readLinescrollBuffer(int(vOtherInfo.x) - 256, int(y) * 2);
-					y = 0.0;
-				}
-				else {
-					transformationMatrix = vTransformationMatrix;
-				}
-				
-				vec2 texCoord = floor((transformationMatrix * vec3(vTextureCoord.x, y, 1)).xy);
-				int mapX = intDiv(texCoord.x, vTileSize.x), mapY = intDiv(texCoord.y, vTileSize.y);
-				
-				// Out of bounds?
-				if (vOtherInfo.y < 1.0 && (mapX < 0 || mapY < 0 || mapX >= int(vMapSize.x) || mapY >= int(vMapSize.y))) {
-					discard;
-				}
-				
-				int mapTileNo = readMap(mapX, mapY);
-				// Invisible tile (TODO Florian -- support in the converter)
-				if (mapTileNo >= 65535) discard;
+void main(void) {
+	// Only scale the final matrix (we can always say that the VDP supports fixed point math inside for matrix multiplication)
+	gl_Position = uProjectionMatrix * vec4(floor(uModelViewMatrix * aXyzp.xyz), 1);
+	vPaletteNo = floor(aXyzp.w);
+	vMapStart = floor(aMapInfo1.xy);
+	vTilesetStart = floor(aMapInfo1.zw);
+	vMapSize = floor(aMapInfo2.xy);
+	vTilesetWidth = floor(aMapInfo2.z);
+	vTileSize = floor(aMapInfo3.xy);
+	vTextureCoord = floor(aMapInfo3.zw);
+	vOtherInfo = floor(aMapInfo4.xy);
+	// If 0-255, use one transformation map-wide from the first line, if -1 never use transformations
+	if (aMapInfo4.x >= 0.0 && aMapInfo4.x < 256.0) {
+		vTransformationMatrix = readLinescrollBuffer(0, int(aMapInfo4.x) * 2);
+	} else {
+		vTransformationMatrix = mat3(
+			1, 0, 0,
+			0, 1, 0,
+			0, 0, 1);
+	}
+}
+`;
+	// if (vTextureCoord.x < 16.0) {
+	// 	vec4 color = vec4(0, 0, 0, 1);
+	// 	// float ym = mod(float(mapY), vMapSize.y) + vMapStart.y;
+	// 	// color.b = (float(mapY) - ( float(mapY / int(vMapSize.y))) / 2.0;
+	// 	int times = intDiv(float(mapY), vMapSize.y - 0.001);
+	// 	color.g = modI(float(mapY), vMapSize.y) / 2.0;
+	// 	color.b = float(mapY) / 28.0;
+	// 	gl_FragColor = color;
+	// }
+	const fsSource = `precision highp float;
 
-				// Bits 12-15: palette No
-				int palOfs = mapTileNo / ${1 << 12};
-				float paletteOffset = float(palOfs);
-				mapTileNo -= palOfs * ${1 << 12};
+varying highp vec2 vTextureCoord;
+varying highp float vPaletteNo;
+varying highp vec2 vMapStart;
+varying highp vec2 vMapSize;
+// tilesetSize is in tiles!
+varying vec2 vTilesetStart;
+varying float vTilesetWidth;
+varying vec2 vTileSize;
+varying mat3 vTransformationMatrix;
+varying vec2 vOtherInfo;
 
-				// Position of tile no in sprite texture, now we need to add the offset
-				vec2 offsetInTile = vec2(int(texCoord.x) - mapX * int(vTileSize.x), int(texCoord.y) - mapY * int(vTileSize.y));
-				vec2 tilesetPos = positionInTexture(mapTileNo) + offsetInTile;
-				float texel;
+uniform mat3 uModelViewMatrix;
+uniform vec4 uEnvColor, uColorSwaps;
+uniform sampler2D uSamplerMaps, uSamplerSprites, uSamplerPalettes, uSamplerOthers;
 
-				if (vPaletteNo >= ${PALETTE_HICOLOR_FLAG}.0) {
-					texel = readTexel8(tilesetPos.x, tilesetPos.y);
-					paletteOffset += (vPaletteNo - ${PALETTE_HICOLOR_FLAG}.0);
-				}
-				else {
-					texel = readTexel4(tilesetPos.x, tilesetPos.y);
-					paletteOffset += vPaletteNo;
-				}
+int intDiv(float x, float y) {
+	return int(floor(x / y));
+}
 
-				// if (vTextureCoord.x < 16.0) {
-				// 	vec4 color = vec4(0, 0, 0, 1);
-				// 	// float ym = mod(float(mapY), vMapSize.y) + vMapStart.y;
-				// 	// color.b = (float(mapY) - ( float(mapY / int(vMapSize.y))) / 2.0;
-				// 	int times = intDiv(float(mapY), vMapSize.y - 0.001);
-				// 	color.g = modI(float(mapY), vMapSize.y) / 2.0;
-				// 	color.b = float(mapY) / 28.0;
-				// 	gl_FragColor = color;
-				// }
-				// else {
-					vec4 color = readPalette(texel, paletteOffset / ${PALETTE_TEX_H}.0);
-					gl_FragColor = ${makeOutputColor('color')};
-				// }
-			}
-		`;
+/**
+ * Returns accurate MOD when arguments are approximate integers.
+ * https://stackoverflow.com/questions/33908644/get-accurate-integer-modulo-in-webgl-shader
+ */
+float modI(float a,float b) {
+	float m=a-floor((a+0.5)/b)*b;
+	return floor(m+0.5);
+}
+
+mat3 readLinescrollBuffer(int bufferNo, int horizOffset) {
+	float vOfs = float(bufferNo) / ${OTHER_TEX_H}.0;
+	vec4 first = texture2D(uSamplerOthers, vec2(float(horizOffset) / ${OTHER_TEX_W}.0, vOfs));
+	vec4 second = texture2D(uSamplerOthers, vec2(float(horizOffset + 1) / ${OTHER_TEX_W}.0, vOfs));
+	return mat3(
+		first.r, first.g, 0,
+		first.a, second.r, 0,
+		second.b, second.a, 1);
+}
+
+int readMap(int x, int y) {
+	x = int(modI(float(x), vMapSize.x) + vMapStart.x);
+	y = int(modI(float(y), vMapSize.y) + vMapStart.y);
+
+	int texelId = x / 2;
+	int texelC = x - texelId * 2;
+	vec4 read = texture2D(uSamplerMaps, vec2(float(texelId) / ${MAP_TEX_W}.0, float(y) / ${MAP_TEX_H}.0));
+	if (texelC == 0) return int(read.r * 255.0) + int(read.g * 255.0) * 256;
+	return int(read.b * 255.0) + int(read.a * 255.0) * 256;
+}
+
+vec2 positionInTexture(int tileNo) {
+	vec2 base = vTilesetStart;
+	float rowNo = float(tileNo / int(vTilesetWidth));
+	float colNo = modI(float(tileNo), vTilesetWidth);
+	return base + vec2(colNo * vTileSize.x, rowNo * vTileSize.y);
+}
+
+${declareReadTexel()}
+${declareReadPalette()}
+
+void main(void) {
+	mat3 transformationMatrix;
+	float y = vTextureCoord.y;
+	// Per-line info
+	if (vOtherInfo.x >= 256.0) {
+		// 2 colors (8 float values) per matrix
+		transformationMatrix = readLinescrollBuffer(int(vOtherInfo.x) - 256, int(y) * 2);
+		y = 0.0;
+	}
+	else {
+		transformationMatrix = vTransformationMatrix;
+	}
+
+	vec2 texCoord = floor((transformationMatrix * vec3(vTextureCoord.x, y, 1)).xy);
+	int mapX = intDiv(texCoord.x, vTileSize.x), mapY = intDiv(texCoord.y, vTileSize.y);
+
+	// Out of bounds?
+	if (vOtherInfo.y < 1.0 && (mapX < 0 || mapY < 0 || mapX >= int(vMapSize.x) || mapY >= int(vMapSize.y))) {
+		discard;
+	}
+
+	int mapTileNo = readMap(mapX, mapY);
+	// Invisible tile (TODO Florian -- support in the converter)
+	if (mapTileNo >= 65535) discard;
+
+	// Bits 12-15: palette No
+	int palOfs = mapTileNo / ${1 << 12};
+	float paletteOffset = float(palOfs);
+	mapTileNo -= palOfs * ${1 << 12};
+
+	// Position of tile no in sprite texture, now we need to add the offset
+	vec2 offsetInTile = vec2(int(texCoord.x) - mapX * int(vTileSize.x), int(texCoord.y) - mapY * int(vTileSize.y));
+	vec2 tilesetPos = positionInTexture(mapTileNo) + offsetInTile;
+	float texel;
+
+	if (vPaletteNo >= ${PALETTE_HICOLOR_FLAG}.0) {
+		texel = readTexel8(tilesetPos.x, tilesetPos.y);
+		paletteOffset += (vPaletteNo - ${PALETTE_HICOLOR_FLAG}.0);
+	}
+	else {
+		texel = readTexel4(tilesetPos.x, tilesetPos.y);
+		paletteOffset += vPaletteNo;
+	}
+
+	vec4 color = readPalette(texel, paletteOffset / ${PALETTE_TEX_H}.0);
+	gl_FragColor = ${makeOutputColor('color')};
+}`;
 
 	const shaderProgram = initShaderProgram(gl, vsSource, fsSource);
 	vdp.mapProgram = {

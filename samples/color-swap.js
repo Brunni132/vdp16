@@ -7,13 +7,11 @@ function *main(vdp) {
 
 	// The color at (x, y) = (3, 10) in build/palettes.png is the one we want to modify
 	const swaps = new LineColorArray(3, 10);
-	// The first palette contains a gradient of red. Just avoid the color zero, which is transparent.
 	for (let i = 0; i < swaps.length; i++)
-		swaps.setLine(i, 0, 1 + i / swaps.length * 15);
+		swaps.setLine(i, 4, 1 + 15 * i / swaps.length);
 
 	while (true) {
-		// vdp.configFade('#000', 192);
-		vdp.drawBG('tmx', { scrollX: 0 });
+		vdp.drawBG('tmx', { scrollX: loop / 2, scrollY: loop });
 		vdp.configColorSwap([swaps]);
 		loop += 1;
 		yield 0;

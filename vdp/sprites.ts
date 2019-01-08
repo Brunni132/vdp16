@@ -6,8 +6,7 @@ import {
 	envColor,
 	makeOutputColor,
 	PALETTE_HICOLOR_FLAG,
-	PALETTE_TEX_H,
-	PALETTE_TEX_W
+	PALETTE_TEX_H
 } from "./shaders";
 import { DEBUG, VDP } from "./vdp";
 
@@ -155,52 +154,48 @@ export class ObjBuffer {
 export function initObjShaders(vdp: VDP) {
 	const gl = vdp.gl;
 	// Vertex shader program
-	const vsSource = `
-			// The 3 first are the vertex position, the 4th is the palette ID
-			attribute vec4 aXyzp;
-			// The 2 first are the texture position
-			attribute vec2 aUv;
-	
-			uniform mat3 uModelViewMatrix;
-			uniform mat4 uProjectionMatrix;
-	
-			varying highp vec2 vTextureCoord;
-			varying highp float vPaletteNo;
-			uniform sampler2D uSamplerSprites, uSamplerPalettes;
-		
-			void main(void) {
-				// Only scale the final matrix (we can always say that the VDP supports fixed point math inside for matrix multiplication)
-				gl_Position = uProjectionMatrix * vec4(floor(uModelViewMatrix * vec3(aXyzp.xy, aXyzp.z)), 1);
-				vPaletteNo = aXyzp.w;
-				vTextureCoord = floor(aUv);
-			}
-		`;
-	const fsSource = `
-			precision highp float;
-			
-			varying highp vec2 vTextureCoord;
-			varying highp float vPaletteNo;
-			uniform vec4 uEnvColor, uColorSwaps;
-			uniform sampler2D uSamplerOthers, uSamplerSprites, uSamplerPalettes;
-	
-			${declareReadTexel()}
-			${declareReadPalette()}
-		
-			void main(void) {
-				float texel, palette;
-				if (vPaletteNo >= ${PALETTE_HICOLOR_FLAG}.0) {
-					texel = readTexel8(vTextureCoord.x, vTextureCoord.y);
-					palette = (vPaletteNo - ${PALETTE_HICOLOR_FLAG}.0) / ${PALETTE_TEX_H}.0;
-				}
-				else {
-					texel = readTexel4(vTextureCoord.x, vTextureCoord.y);
-					palette = vPaletteNo / ${PALETTE_TEX_H}.0;
-				}
+	const vsSource = `// The 3 first are the vertex position, the 4th is the palette ID
+attribute vec4 aXyzp;
+// The 2 first are the texture position
+attribute vec2 aUv;
 
-				vec4 color = readPalette(texel, palette);
-				gl_FragColor = ${makeOutputColor('color')};
-			}
-		`;
+uniform mat3 uModelViewMatrix;
+uniform mat4 uProjectionMatrix;
+
+varying highp vec2 vTextureCoord;
+varying highp float vPaletteNo;
+uniform sampler2D uSamplerSprites, uSamplerPalettes;
+
+void main(void) {
+	// Only scale the final matrix (we can always say that the VDP supports fixed point math inside for matrix multiplication)
+	gl_Position = uProjectionMatrix * vec4(floor(uModelViewMatrix * vec3(aXyzp.xy, aXyzp.z)), 1);
+	vPaletteNo = aXyzp.w;
+	vTextureCoord = floor(aUv);
+}`;
+	const fsSource = `precision highp float;
+
+varying highp vec2 vTextureCoord;
+varying highp float vPaletteNo;
+uniform vec4 uEnvColor, uColorSwaps;
+uniform sampler2D uSamplerOthers, uSamplerSprites, uSamplerPalettes;
+
+${declareReadTexel()}
+${declareReadPalette()}
+
+void main(void) {
+	float texel, palette;
+	if (vPaletteNo >= ${PALETTE_HICOLOR_FLAG}.0) {
+		texel = readTexel8(vTextureCoord.x, vTextureCoord.y);
+		palette = (vPaletteNo - ${PALETTE_HICOLOR_FLAG}.0) / ${PALETTE_TEX_H}.0;
+	}
+	else {
+		texel = readTexel4(vTextureCoord.x, vTextureCoord.y);
+		palette = vPaletteNo / ${PALETTE_TEX_H}.0;
+	}
+
+	vec4 color = readPalette(texel, palette);
+	gl_FragColor = ${makeOutputColor('color')};
+}`;
 
 	// TODO Florian -- Use indexed VAOs
 	const shaderProgram = initShaderProgram(gl, vsSource, fsSource);
