@@ -100,11 +100,12 @@ export function declareReadPalette(): string {
 
 	return `vec4 readColorSwapBuffer(int bufferNo, float horizOffset) {
 	vec4 read = texture2D(uSamplerOthers, vec2((${SCREEN_HEIGHT}.0 - horizOffset) / ${OTHER_TEX_W}.0, float(bufferNo) / ${OTHER_TEX_H}.0));
+	if (read.x < ${1.0 / (PALETTE_TEX_W)}) discard; // color zero
 	return texture2D(uSamplerPalettes, read.xy);
 }
 
 vec4 readPalette(highp float x, highp float y) {
-	if (x < ${1.0 / (PALETTE_TEX_W)}) discard; // color zero
+	if (x < ${1.0 / (PALETTE_TEX_W)}) discard;
 	highp float index = x * ${PALETTE_TEX_W}.0 + (y * ${PALETTE_TEX_H}.0) * 256.0;
 	if (index == uColorSwaps[0]) return readColorSwapBuffer(${OTHER_TEX_COLORSWAP_INDEX}, gl_FragCoord.y);
 	if (index == uColorSwaps[1]) return readColorSwapBuffer(${OTHER_TEX_COLORSWAP_INDEX+1}, gl_FragCoord.y);
