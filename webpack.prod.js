@@ -1,5 +1,4 @@
 const path = require("path");
-const UglifyJSPlugin = require("uglifyjs-webpack-plugin");
 
 var PATHS = {
 	entryPoint: path.resolve(__dirname, 'lib-main.ts'),
@@ -40,14 +39,6 @@ var config = {
 	// only look for common JavaScript file extension (.js)
 	resolve: {
 		extensions: ['.ts', '.tsx', '.js']
-	},
-	optimization: {
-		minimizer: [
-			new UglifyJSPlugin({
-				sourceMap: true,
-				uglifyOptions: {}
-			})
-		]
 	},
 	// Activate source maps for the bundles in order to preserve the original
 	// source when the user debugs the application

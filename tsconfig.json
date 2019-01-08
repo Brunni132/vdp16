@@ -9,6 +9,11 @@
     "moduleResolution": "node",
     "allowJs": false,
     "sourceMap": true,
-    "declaration": true
-  }
+    "declaration": true,
+  },
+  "exclude": [
+    "node_modules",
+    "**/*.spec.ts",
+    "patrickboy-game-js"
+  ]
 }

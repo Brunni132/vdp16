@@ -1,5 +1,6 @@
 const path = require('path');
 //const CopyWebpackPlugin = require('copy-webpack-plugin');
+const TerserPlugin = require('terser-webpack-plugin');
 
 module.exports = {
 	entry: './src/game-main.js',
@@ -18,4 +19,18 @@ module.exports = {
 //])
 //],
 	mode: 'production',
+	//optimization: {
+	//	minimizer: [new TerserPlugin({
+	//		sourceMap: false,
+	//		terserOptions: {
+	//			mangle: {
+	//				properties: {
+	//					regex: /^.+$/,
+	//				},
+	//			},
+	//			compress: true,
+	//			"mangle.properties": true
+	//		},
+	//	})],
+	//},
 };
