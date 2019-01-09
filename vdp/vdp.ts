@@ -106,6 +106,14 @@ export class LineTransformationArray {
 		return mat3.fromValues(this.buffer[lineNo * 8], this.buffer[lineNo * 8 + 1], this.buffer[lineNo * 8 + 2], this.buffer[lineNo * 8 + 3], this.buffer[lineNo * 8 + 4], this.buffer[lineNo * 8 + 5], this.buffer[lineNo * 8 + 6], this.buffer[lineNo * 8 + 7], 1);
   }
 
+  setAll(transformation: mat3) {
+	  const copy = mat3.create();
+	  for (let i = 0; i < this.length; i++) {
+			mat3.translate(copy, transformation, [0, i]);
+			this.setLine(i, copy);
+	  }
+  }
+
 	setLine(lineNo, transformation: mat3) {
 		if (lineNo < 0 || lineNo >= this.length) throw new Error(`setLine: index ${lineNo} out of range`);
 		this.buffer.set((transformation as Float32Array).subarray(0, 8), lineNo * 8);
@@ -123,6 +131,10 @@ export class LineColorArray {
 		this.targetPaletteIndex = targetPaletteIndex;
 		this.length = SCREEN_HEIGHT;
 		this.buffer = new Float32Array(this.length * 4);
+	}
+
+	setAll(paletteNumber: number, paletteIndex: number) {
+		for (let i = 0; i < length; i++) this.setLine(i, paletteNumber, paletteIndex);
 	}
 
 	setLine(lineNo: number, paletteNumber: number, paletteIndex: number) {

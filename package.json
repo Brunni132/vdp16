@@ -5,10 +5,11 @@
   "main": "lib-main.ts",
   "typings": "Temp/lib-main.d.ts",
   "dependencies": {
+    "@types/gl-matrix": "^2.4.4",
+    "awesome-typescript-loader": "^3.0.4-rc.2",
     "gl-matrix": "^3.0.0",
     "pngjs": "^3.3.3",
-    "xml2js": "^0.4.19",
-    "awesome-typescript-loader": "^3.0.4-rc.2"
+    "xml2js": "^0.4.19"
   },
   "devDependencies": {
     "dts-bundle-generator": "^2.0.0",
