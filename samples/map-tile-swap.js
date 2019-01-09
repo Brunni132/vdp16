@@ -1,4 +1,4 @@
-import {loadVdp, runProgram} from "./vdp/runloop";
+import {startGame} from "./lib-main";
 import {VDPCopySource} from "./vdp/vdp";
 
 /** @param vdp {VDP} */
@@ -17,7 +17,7 @@ function *main(vdp) {
 			animStep = animStep + 1;
 		}
 
-		vdp.drawBG('level2', { scrollX: loop, wrap: false, scrollY: -32 });
+		vdp.drawBG('level2', { scrollX: loop, scrollY: -32, winY: 32, winH: 192 });
 		loop += 1;
 		yield 0;
 	}
