@@ -105,12 +105,12 @@ export function declareReadPalette(): string {
 }
 
 vec4 readPalette(highp float x, highp float y) {
-	if (x < ${1.0 / (PALETTE_TEX_W)}) discard;
 	highp float index = x * ${PALETTE_TEX_W}.0 + (y * ${PALETTE_TEX_H}.0) * 256.0;
 	if (index == uColorSwaps[0]) return readColorSwapBuffer(${OTHER_TEX_COLORSWAP_INDEX}, gl_FragCoord.y);
 	if (index == uColorSwaps[1]) return readColorSwapBuffer(${OTHER_TEX_COLORSWAP_INDEX+1}, gl_FragCoord.y);
 	if (index == uColorSwaps[2]) return readColorSwapBuffer(${OTHER_TEX_COLORSWAP_INDEX+2}, gl_FragCoord.y);
 	if (index == uColorSwaps[3]) return readColorSwapBuffer(${OTHER_TEX_COLORSWAP_INDEX+3}, gl_FragCoord.y);
+	if (x < ${1.0 / (PALETTE_TEX_W)}) discard;
 	return texture2D(uSamplerPalettes, vec2(x, y));
 }`;
 }
