@@ -37,9 +37,9 @@ config({ compact: true, debug: true, hiColorMode: false }, () => {
 	});
 
 	palette('sonic1-bg', () => {
-		tiledMap('sonic1-bg', 'gfx/sonic1-bg', { tileWidth: 16, tileHeight: 16, tilesetWidth: 32, tilesetHeight: 32 }, map => {
+		tiledMap('sonic1-bg', 'gfx/sonic1-bg', { tileWidth: 8, tileHeight: 8, tilesetWidth: 64, tilesetHeight: 32 }, map => {
 			// Make the bottom use another palette, which we'll make rotate
-			for (let i = 112/16; i < map.height; i++)
+			for (let i = 112/8; i < map.height; i++)
 				for (let x = 0; x < map.width; x++)
 					map.setTile(x, i, map.getTile(x, i) | 1 << 12);
 		});

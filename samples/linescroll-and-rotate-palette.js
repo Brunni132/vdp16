@@ -36,8 +36,8 @@ function *main(vdp) {
 			vdp.writePalette('sonic1-bg-rotating', pal);
 		}
 
-		// Separate the render into two because we don't want to
-		vdp.drawBG('sonic1-bg', { lineTransform });
+		// Do not render below 248 since the map is smaller
+		vdp.drawBG('sonic1-bg', { lineTransform, winH: 248 });
 		loop += 1;
 		yield 0;
 	}
