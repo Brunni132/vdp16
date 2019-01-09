@@ -61,6 +61,22 @@ var config = {
 		}]
 	},
 	mode: 'production',
+	//optimization: {
+	//      minimize: false
+	//}
+	// Crashes the resulting code
+	//optimization: {
+	//      minimizer: [new TerserPlugin({
+	//              sourceMap: false,
+	//              terserOptions: {
+	//                      mangle: {
+	//                              properties: {
+	//                                      regex: /^_.+$/,
+	//                              },
+	//                      },
+	//              },
+	//      })],
+	//},
 };
 
 module.exports = config;
