@@ -1,21 +1,22 @@
 import {loadVdp, runProgram} from "./vdp/runloop";
-import { mat3 } from 'gl-matrix';
-import {SCREEN_HEIGHT, SCREEN_WIDTH} from "./vdp/shaders";
-import {LineTransformationArray} from "./vdp/vdp";
 
 /** @param vdp {VDP} */
 function *main(vdp) {
 	let loop = 0;
-	while (true) {
-		const array = new LineTransformationArray();
-		const mat = mat3.create();
-		mat3.translate(mat, mat, [loop, 0]);
-		mat3.translate(mat, mat, [SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2]);
-		mat3.rotate(mat, mat, loop / 800);
-		mat3.translate(mat, mat, [-SCREEN_WIDTH / 2, -SCREEN_HEIGHT / 2]);
-		array.setAll(mat);
 
-		vdp.drawBG('level1', { scrollX: 0, lineTransform: array });
+	// Black has been made transparent to spare one color
+	vdp.configBDColor('#000');
+
+	while (true) {
+		// By opening the level2.tmx with Tiled, we know that the bush tile has ID 99, periodically swap with another bush tile (111)
+		if (loop % 30 === 0) {
+			const tile99 = vdp.readSprite(vdp.sprite('level2').tile(99));
+			const tile111 = vdp.readSprite(vdp.sprite('level2').tile(111));
+			vdp.writeSprite(vdp.sprite('level2').tile(99), tile111);
+			vdp.writeSprite(vdp.sprite('level2').tile(111), tile99);
+		}
+
+		vdp.drawBG('level2', { scrollX: 0, wrap: false, scrollY: -32 });
 		loop += 1;
 		yield 0;
 	}

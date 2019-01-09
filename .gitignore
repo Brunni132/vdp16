@@ -6,6 +6,8 @@ desktop.ini
 sample.png
 gfx/road-til.png
 gfx/road.tmx
+gfx/level2.tmx
+gfx/level2-til.png
 bundles/**
 temp/**
 temp-esm/**

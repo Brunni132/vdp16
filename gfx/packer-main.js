@@ -31,4 +31,8 @@ config({ compact: true, debug: true, hiColorMode: false }, () => {
 	palette('road', () => {
 		tiledMap('road', 'gfx/road', { tolerance: 200, tileWidth: 16, tileHeight: 16, tilesetWidth: 64, tilesetHeight: 16 });
 	});
+
+	palette('level2', () => {
+		tiledMap('level2', 'gfx/level2', { tileWidth: 16, tileHeight: 16, tilesetWidth: 32, tilesetHeight: 32 });
+	});
 });
