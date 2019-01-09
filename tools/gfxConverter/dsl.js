@@ -28,12 +28,12 @@ function addColors(contents) {
 	assert(!currentPaletteMultiple, 'addColors doesn\'t support multiple palettes');
 	if (typeof contents === 'string') contents = image(contents);
 	if (Array.isArray(contents)) {
-		currentPalette.addColors(contents);
+		currentPalette.addColors(contents, 0);
 	}
 	else if (contents instanceof Texture) {
 		const colors = [];
 		contents.forEachPixel((pixel) => {
-			if (colors.indexOf(pixel) === -1) colors.push(pixel);
+			if (pixel >>> 24 > 0 && colors.indexOf(pixel) === -1) colors.push(pixel);
 		});
 		currentPalette.addColors(colors, 0);
 	}

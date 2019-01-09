@@ -518,7 +518,7 @@ export class VDP {
 		const w = s.hiColor ? s.w : Math.ceil(s.w / 2);
 
 		this.shadowSpriteTex.writeTo(x, s.y, w, s.h, data.buffer);
-		this.shadowSpriteTex.syncToVramTexture(this.gl, this.paletteTexture, x, s.y, w, s.h);
+		this.shadowSpriteTex.syncToVramTexture(this.gl, this.spriteTexture, x, s.y, w, s.h);
 	}
 
 	// --------------------- PRIVATE ---------------------

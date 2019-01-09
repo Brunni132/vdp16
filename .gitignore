@@ -8,6 +8,8 @@ gfx/road-til.png
 gfx/road.tmx
 gfx/level2.tmx
 gfx/level2-til.png
+gfx/sonic1-bg.tmx
+gfx/sonic1-bg-til.png
 bundles/**
 temp/**
 temp-esm/**
