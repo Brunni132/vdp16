@@ -327,7 +327,7 @@ export class VDP {
 		let winW = opts.hasOwnProperty('winW') ? opts.winW : (SCREEN_WIDTH - winX);
 		let winH = opts.hasOwnProperty('winH') ? opts.winH : (SCREEN_HEIGHT - winY);
 		const wrap = opts.hasOwnProperty('wrap') ? opts.wrap : true;
-		const prio = opts.prio || 0;
+		const prio = opts.prio || (opts.transparent ? 1 : 0);
 		const buffer = opts.transparent ? this.tbgBuffer : this.bgBuffer;
 
 		if (this.bgBuffer.usedLayers + this.tbgBuffer.usedLayers >= BG_LIMIT) {
@@ -369,7 +369,7 @@ export class VDP {
 		const pal = this._getPalette(opts.hasOwnProperty('palette') ? opts.palette : sprite.designPalette);
 		const w = opts.hasOwnProperty('width') ? opts.width : sprite.w;
 		const h = opts.hasOwnProperty('height') ? opts.height : sprite.h;
-		const prio = opts.prio || 1;
+		const prio = opts.prio || (opts.transparent ? 2 : 1);
 		const buffer = opts.transparent ? this.obj1Buffer: this.obj0Buffer;
 
 		enqueueObj(buffer, x, y, x + w, y + h, sprite.x, sprite.y, sprite.x + sprite.w, sprite.y + sprite.h, pal.y, sprite.hiColor, prio);

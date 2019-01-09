@@ -72,11 +72,11 @@ export class color32 {
 			}
 		}
 
-		if (col <= 0xffff) {
+		if (col >>> 16 === 0) {
 			// 16-bit to 32
 			return color32.extendColor12(col);
 		}
-		else if (col <= 0xffffff) {
+		else if (col >>> 24 === 0) {
 			// 24-bit to 32
 			return col | 0xff << 24;
 		}
