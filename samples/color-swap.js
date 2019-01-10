@@ -5,10 +5,10 @@ import {startGame} from "./lib-main";
 function *main(vdp) {
 	let loop = 0;
 
-	// The color at (x, y) = (3, 10) in build/palettes.png is the one we want to modify
-	const swaps = new LineColorArray(3, 10);
+	// The color at (x, y) = (10, 3) in build/palettes.png is the one we want to modify
+	const swaps = new LineColorArray(10, 3);
 	for (let i = 0; i < swaps.length; i++)
-		swaps.setLine(i, 4, 16 * i / swaps.length);
+		swaps.setLine(i, 16 * i / swaps.length, 4);
 	vdp.configBDColor('#333');
 
 	while (true) {

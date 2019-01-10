@@ -126,18 +126,18 @@ export class LineColorArray {
 	targetPaletteNumber: number;
 	targetPaletteIndex: number;
 
-	constructor(targetPaletteNumber: number, targetPaletteIndex: number) {
+	constructor(targetPaletteIndex: number, targetPaletteNumber: number) {
 		this.targetPaletteNumber = targetPaletteNumber;
 		this.targetPaletteIndex = targetPaletteIndex;
 		this.length = SCREEN_HEIGHT;
 		this.buffer = new Float32Array(this.length * 4);
 	}
 
-	setAll(paletteNumber: number, paletteIndex: number) {
-		for (let i = 0; i < this.length; i++) this.setLine(i, paletteNumber, paletteIndex);
+	setAll(paletteIndex: number, paletteNumber: number) {
+		for (let i = 0; i < this.length; i++) this.setLine(i, paletteIndex, paletteNumber);
 	}
 
-	setLine(lineNo: number, paletteNumber: number, paletteIndex: number) {
+	setLine(lineNo: number, paletteIndex: number, paletteNumber: number) {
 		if (lineNo < 0 || lineNo >= this.length) throw new Error(`setLine: index ${lineNo} out of range`);
 		this.buffer[lineNo * 4] = Math.floor(paletteIndex % 256) / PALETTE_TEX_W;
 		this.buffer[lineNo * 4 + 1] = Math.floor(paletteNumber % 256) / PALETTE_TEX_H;

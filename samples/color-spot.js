@@ -8,8 +8,8 @@ function *main(vdp) {
 	const mario = { x: 120, y: 128, w: 16, h: 16 };
 
 	const maskBgPalNo = vdp.palette('mask-bg').y;
-	const colorReplacement = new LineColorArray(maskBgPalNo, 0);
-	colorReplacement.setAll(maskBgPalNo, 1);
+	const colorReplacement = new LineColorArray(0, maskBgPalNo);
+	colorReplacement.setAll(1, maskBgPalNo);
 
 	while (true) {
 		mario.y = 120 + Math.sin(loop / 90) * 112;
