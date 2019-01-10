@@ -67,6 +67,16 @@ function fadeToBlackVDP(vdp) {
 	fadeFactor += 6;
 }
 
+function fadeByDesaturating(colorsSource, colorsDest) {
+	const factor = Math.max(0, 1 - 0.02 * fadeFactor);
+	colorsSource.forEach((c, ind) => {
+		let hsl = color32.toHsl(c);
+		hsl.s *= factor;
+		colorsDest[ind] = color32.makeFromHsl(hsl);
+	});
+	fadeFactor++;
+}
+
 const TextLayer = {
 	setup: function(vdp) {
 		this.vdp = vdp;
@@ -108,6 +118,7 @@ const TextLayer = {
 function *main(vdp) {
 	const FADE_SPEED = 3;
 	let fadeType = 0;
+	const palette1Original = vdp.readPalette('level1', VDPCopySource.rom);
 	const FADE_LIST = [
 		{ text: 'Game Boy Color white', fn: (colors, vdp) => fadeToWhiteGameBoyColor(colors) },
 		{ text: 'Common black', fn: (colors, vdp) => fadeToBlackGameBoyColor(colors) },
@@ -116,13 +127,14 @@ function *main(vdp) {
 		{ text: 'VDP white', fn: (colors, vdp) => fadeToWhiteVDP(vdp) },
 		{ text: 'VDP gray', fn: (colors, vdp) => fadeToGrayVDP(vdp) },
 		{ text: 'VDP black', fn: (colors, vdp) => fadeToBlackVDP(vdp) },
+		{ text: 'Desaturate', fn: (colors, vdp) => fadeByDesaturating(palette1Original.buffer, colors) },
 	];
 
 	while (true) {
 		let loop = 0;
 
-		// Copy the original palette back
-		vdp.writePalette('level1', vdp.readPalette('level1', VDPCopySource.rom));
+		// Restore colors
+		vdp.writePalette('level1', palette1Original);
 		resetPatrickBoyFade(vdp);
 
 		TextLayer.setup(vdp);

@@ -42,6 +42,32 @@ export class color32 {
 			(col & 0xf000) << 12 | (col & 0xf000) << 16);
 	}
 
+	static makeFromHsl(col: {h: number, s: number, l: number}): number {
+		let r, g, b;
+
+		if (col.s == 0) {
+			r = g = b = col.l; // achromatic
+		} else {
+			// @ts-ignore
+			function hue2rgb(p, q, t) {
+				t -= Math.floor(t);
+				if (t < 1/6) return p + (q - p) * 6 * t;
+				if (t < 1/2) return q;
+				if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+				return p;
+			}
+
+			const q = col.l < 0.5 ? col.l * (1 + col.s) : col.l + col.s - col.l * col.s;
+			const p = 2 * col.l - q;
+
+			r = hue2rgb(p, q, col.h + 1/3);
+			g = hue2rgb(p, q, col.h);
+			b = hue2rgb(p, q, col.h - 1/3);
+		}
+
+		return this.make(r * 255, g * 255, b * 255);
+	}
+
 	/**
 	 * Parses a color, always in 32-bit RGBA format.
 	 * @param col {number|string} either a 12-bit number (0xrgb0), a 32-bit number (0xaabbggrr)
@@ -117,7 +143,7 @@ export class color32 {
 		return (col & 0xff) << 24 | (col >>> 8 & 0xff) << 16 | (col >>> 16 & 0xff) << 8 | (col >>> 24 & 0xff);
 	}
 
-	static rgbToHsl(col: number): { h: number, s: number, l: number } {
+	static toHsl(col: number): { h: number, s: number, l: number } {
 		const rgb = this.extract(col);
 		const r = rgb.r / 255, g = rgb.g / 255, b = rgb.b / 255;
 		const max = Math.max(r, g, b), min = Math.min(r, g, b);
@@ -140,34 +166,6 @@ export class color32 {
 
 		return {h, s, l};
 	}
-
-	static hslToRgb(col: {h: number, s: number, l: number}): number {
-		let r, g, b;
-
-		if (col.s == 0) {
-			r = g = b = col.l; // achromatic
-		} else {
-			// @ts-ignore
-			function hue2rgb(p, q, t) {
-				if (t < 0) t += Math.floor(t);
-				if (t > 1) t -= Math.floor(t);
-				if (t < 1/6) return p + (q - p) * 6 * t;
-				if (t < 1/2) return q;
-				if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
-				return p;
-			}
-
-			const q = col.l < 0.5 ? col.l * (1 + col.s) : col.l + col.s - col.l * col.s;
-			const p = 2 * col.l - q;
-
-			r = hue2rgb(p, q, col.h + 1/3);
-			g = hue2rgb(p, q, col.h);
-			b = hue2rgb(p, q, col.h - 1/3);
-		}
-
-		return this.make(r * 255, g * 255, b * 255);
-	}
-
 
 	static add(c: number, d: number): number {
 		let a = (c >>> 24) + (d >>> 24);
