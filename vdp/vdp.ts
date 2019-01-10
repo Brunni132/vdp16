@@ -134,7 +134,7 @@ export class LineColorArray {
 	}
 
 	setAll(paletteNumber: number, paletteIndex: number) {
-		for (let i = 0; i < length; i++) this.setLine(i, paletteNumber, paletteIndex);
+		for (let i = 0; i < this.length; i++) this.setLine(i, paletteNumber, paletteIndex);
 	}
 
 	setLine(lineNo: number, paletteNumber: number, paletteIndex: number) {

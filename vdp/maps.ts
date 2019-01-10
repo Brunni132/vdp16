@@ -121,9 +121,9 @@ void main(void) {
 varying highp vec2 vTextureCoord;
 varying highp float vPaletteNo;
 varying highp vec2 vMapStart;
-varying highp vec2 vMapSize;
+varying highp vec2 vMapSize;` +
 // tilesetSize is in tiles!
-varying vec2 vTilesetStart;
+`varying vec2 vTilesetStart;
 varying float vTilesetWidth;
 varying vec2 vTileSize;
 varying mat3 vTransformationMatrix;
@@ -135,13 +135,12 @@ uniform sampler2D uSamplerMaps, uSamplerSprites, uSamplerPalettes, uSamplerOther
 
 int intDiv(float x, float y) {
 	return int(floor(x / y));
-}
-
+}` +
 /**
  * Returns accurate MOD when arguments are approximate integers.
  * https://stackoverflow.com/questions/33908644/get-accurate-integer-modulo-in-webgl-shader
  */
-float modI(float a,float b) {
+`float modI(float a,float b) {
 	float m=a-floor((a+0.5)/b)*b;
 	return floor(m+0.5);
 }
@@ -181,9 +180,9 @@ void main(void) {
 	mat3 transformationMatrix;
 	float y = vTextureCoord.y;
 	// Per-line info
-	if (vOtherInfo.x >= 256.0) {
+	if (vOtherInfo.x >= 256.0) {` +
 		// 2 colors (8 float values) per matrix
-		transformationMatrix = readLinescrollBuffer(int(vOtherInfo.x) - 256, int(y) * 2);
+`		transformationMatrix = readLinescrollBuffer(int(vOtherInfo.x) - 256, int(y) * 2);
 		y = 0.0;
 	}
 	else {
@@ -193,32 +192,40 @@ void main(void) {
 	vec2 texCoord = floor((transformationMatrix * vec3(vTextureCoord.x, y, 1)).xy);
 	int mapX = intDiv(texCoord.x, vTileSize.x), mapY = intDiv(texCoord.y, vTileSize.y);
 
-	// Out of bounds?
-	if (vOtherInfo.y < 1.0 && (mapX < 0 || mapY < 0 || mapX >= int(vMapSize.x) || mapY >= int(vMapSize.y))) {
-		discard;
+	float basePalette = vPaletteNo;
+	if (vPaletteNo >= ${PALETTE_HICOLOR_FLAG}.0) {
+		basePalette -= ${PALETTE_HICOLOR_FLAG}.0;
+	}` +
+	// Out of bounds? Use color 0 of current map.
+`	if (vOtherInfo.y < 1.0 && (mapX < 0 || mapY < 0 || mapX >= int(vMapSize.x) || mapY >= int(vMapSize.y))) {
+		vec4 color = readPalette(0.0, basePalette / ${PALETTE_TEX_H}.0);
+		gl_FragColor = ${makeOutputColor('color')};
+		return;
 	}
 
-	int mapTileNo = readMap(mapX, mapY);
+	int mapTileNo = readMap(mapX, mapY);` +
 	// Invisible tile (TODO Florian -- support in the converter)
-	if (mapTileNo >= 65535) discard;
+`	if (mapTileNo >= 65535) {
+		vec4 color = readPalette(0.0, basePalette / ${PALETTE_TEX_H}.0);
+		gl_FragColor = ${makeOutputColor('color')};
+		return;
+	}` +
 
 	// Bits 12-15: palette No
-	int palOfs = mapTileNo / ${1 << 12};
-	float paletteOffset = float(palOfs);
-	mapTileNo -= palOfs * ${1 << 12};
+`	int palOfs = mapTileNo / ${1 << 12};
+	float paletteOffset = basePalette + float(palOfs);
+	mapTileNo -= palOfs * ${1 << 12};` +
 
 	// Position of tile no in sprite texture, now we need to add the offset
-	vec2 offsetInTile = vec2(int(texCoord.x) - mapX * int(vTileSize.x), int(texCoord.y) - mapY * int(vTileSize.y));
+`	vec2 offsetInTile = vec2(int(texCoord.x) - mapX * int(vTileSize.x), int(texCoord.y) - mapY * int(vTileSize.y));
 	vec2 tilesetPos = positionInTexture(mapTileNo) + offsetInTile;
 	float texel;
 
 	if (vPaletteNo >= ${PALETTE_HICOLOR_FLAG}.0) {
 		texel = readTexel8(tilesetPos.x, tilesetPos.y);
-		paletteOffset += (vPaletteNo - ${PALETTE_HICOLOR_FLAG}.0);
 	}
 	else {
 		texel = readTexel4(tilesetPos.x, tilesetPos.y);
-		paletteOffset += vPaletteNo;
 	}
 
 	vec4 color = readPalette(texel, paletteOffset / ${PALETTE_TEX_H}.0);

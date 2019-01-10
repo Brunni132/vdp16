@@ -49,4 +49,13 @@ config({ compact: true, debug: true, hiColorMode: false }, () => {
 	palette('sonic1-bg-rotating', () => {
 		addColors(paletteNamed['sonic1-bg'].colorRows[0].slice(1));
 	});
+
+	palette('mask-bg', () => {
+		// TODO Florian -- why doesn't it work with 8x1?
+		tileset('mask-bg', blank(1, 1), 8, 8, () => {
+			map('mask-bg', 'gfx/mask-bg.png', m => {
+				console.log(`TEMP `, JSON.stringify(m.tileset));
+			});
+		});
+	});
 });
