@@ -13,9 +13,7 @@ config({ compact: true, debug: true, hiColorMode: false }, () => {
 
 	palette('level1', () => {
 		addColors('gfx/mario-1-1-pal.png');
-		tileset('level1-til', blank(32, 32), 8, 8, () => {
-			map('level1', 'gfx/mario-1-1.png');
-		});
+		tiledMap('level1', 'gfx/mario-1-1', { tileWidth: 8, tileHeight: 8, tilesetWidth: 32, tilesetHeight: 32 });
 	});
 
 	multiPalette('tmx', image('gfx/testTmx-pal.png'), () => {

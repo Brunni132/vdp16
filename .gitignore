@@ -10,6 +10,10 @@ gfx/level2.tmx
 gfx/level2-til.png
 gfx/sonic1-bg.tmx
 gfx/sonic1-bg-til.png
+gfx/mario-1-1.tmx
+gfx/mario-1-1-til.png
+
+
 bundles/**
 temp/**
 temp-esm/**
