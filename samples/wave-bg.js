@@ -1,7 +1,5 @@
-import {loadVdp, runProgram} from "./vdp/runloop";
-import {color32} from "./vdp/color32";
-import { mat3 } from 'gl-matrix-ts';
-import {LineTransformationArray, VDPCopySource} from "./vdp/vdp";
+import {startGame, color32, LineTransformationArray, VDPCopySource} from "./lib-main";
+import { mat3 } from 'gl-matrix';
 
 const TextLayer = {
 	/**
@@ -72,4 +70,4 @@ function *main(vdp) {
 	}
 }
 
-loadVdp(document.querySelector("#glCanvas")).then(vdp => runProgram(vdp, main(vdp)));
+startGame('#glCanvas', vdp => main(vdp));

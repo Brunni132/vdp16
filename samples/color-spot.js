@@ -1,4 +1,4 @@
-import {color32, LineTransformationArray, LineColorArray, startGame} from "./lib-main";
+import {LineTransformationArray, LineColorArray, startGame} from "./lib-main";
 import {mat3} from "gl-matrix";
 
 /** @param vdp {VDP} */

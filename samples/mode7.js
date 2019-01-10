@@ -1,10 +1,9 @@
-import {loadVdp, runProgram} from "./vdp/runloop";
-import { mat3, mat4, vec3 } from 'gl-matrix-ts';
-import {SCREEN_HEIGHT, SCREEN_WIDTH} from "./vdp/shaders";
-import {LineTransformationArray} from "./vdp/vdp";
+import {LineTransformationArray, startGame, SCREEN_WIDTH, SCREEN_HEIGHT} from './lib-main';
+import { mat3, vec3 } from 'gl-matrix';
 
 // Just an attempt, doesn't quite work. Use reference instead: https://www.coranac.com/tonc/text/mode7.htm
 function *main(vdp) {
+	const lineTransform = new LineTransformationArray();
 	let loop = 0;
 
 	while (true) {
@@ -23,6 +22,13 @@ function *main(vdp) {
 			transformations.push(mat);
 		}
 
+		for (let i = 0; i < lineTransform.length; i++) {
+			lineTransform.setLine(i, transformations[i]);
+		}
+
+		vdp.drawBG('road', { lineTransform, winY: 0, wrap: true});
+
+		// (x, z)
 		function computeSpritePos(spritePos) {
 			// I'll leave the computation to someone better at math than me ;)
 			const mat = mat3.create();
@@ -45,14 +51,6 @@ function *main(vdp) {
 			vdp.drawObj(obj, result[0] - scale * obj.w / 2, line - scale * obj.h, { width: obj.w * scale, height: obj.h * scale, prio: 2 });
 		}
 
-		const lineTransform = new LineTransformationArray();
-		for (let i = 0; i < lineTransform.length; i++) {
-			lineTransform.setLine(i, transformations[i]);
-		}
-
-		vdp.drawBG('road', { lineTransform, winY: 0, wrap: true});
-
-		// (x, z)
 		computeSpritePos([512, 351]);
 
 		loop += 1;
@@ -60,4 +58,4 @@ function *main(vdp) {
 	}
 }
 
-loadVdp(document.querySelector("#glCanvas")).then(vdp => runProgram(vdp, main(vdp)));
+startGame('#glCanvas', vdp => main(vdp));
