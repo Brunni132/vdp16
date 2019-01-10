@@ -1,9 +1,8 @@
-import {LineTransformationArray, startGame} from "./lib-main";
-import {LineColorArray} from "./vdp/vdp";
+import {color32, LineTransformationArray, LineColorArray, startGame} from "./lib-main";
 import {mat3} from "gl-matrix";
 
-function makeRainbowColor() {
-
+function makeRainbowColor(angle) {
+	return color32.hslToRgb({ h: angle, l: 0.5, s: 0.2});
 }
 
 /** @param vdp {VDP} */
@@ -12,15 +11,14 @@ function *main(vdp) {
 	const mario = { x: 120, y: 128, w: 16, h: 16 };
 
 	const maskBgPalNo = vdp.palette('mask-bg').y;
-	const colorReplacement = new LineColorArray(0, maskBgPalNo);
-	colorReplacement.setAll(1, maskBgPalNo);
+	// Replace color 0 (outside of mask) with opaque color 1 (gray), and color 2 (central band) with transparent color 0
+	const colorReplacements = [ new LineColorArray(0, maskBgPalNo), new LineColorArray(2, maskBgPalNo) ];
+	colorReplacements[0].setAll(1, maskBgPalNo);
+	colorReplacements[1].setAll(0, maskBgPalNo);
 
 	while (true) {
+		mario.x = 120 + Math.cos(loop / 90) * 64;
 		mario.y = 120 + Math.sin(loop / 90) * 112;
-
-		//const pal = vdp.readPalette('mask-bg');
-		//pal.setElement(1, 0, )
-		//vdp.writePalette('mask-bg', pal);
 
 		const lineTransform = new LineTransformationArray();
 		for (let y = 0; y < lineTransform.length; y++) {
@@ -42,8 +40,8 @@ function *main(vdp) {
 			lineTransform.setLine(y, t);
 		}
 
-		vdp.configBGTransparency({ op: 'sub', blendDst: '#fff', blendSrc: '#fff' });
-		vdp.configColorSwap([colorReplacement]);
+		vdp.configBGTransparency({ op: 'add', blendDst: makeRainbowColor(loop / 200), blendSrc: '#000' });
+		vdp.configColorSwap(colorReplacements);
 
 		vdp.drawBG('level1');
 		vdp.drawBG('mask-bg', { wrap: false, transparent: true, lineTransform });
