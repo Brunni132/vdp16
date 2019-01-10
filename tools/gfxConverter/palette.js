@@ -22,7 +22,7 @@ function posterize(c, bitsPerComponent) {
 	} else if (bitsPerComponent === 5) {
 		const hiBits = (c >>> 5 & 0x07070707);
 		c = (c >>> 3 & 0x1f1f1f1f);
-		return c | c << 3 | hiBits;
+		return c << 3 | hiBits;
 	}
 	return c;
 }
