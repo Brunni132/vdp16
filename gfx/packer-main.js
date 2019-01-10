@@ -49,11 +49,8 @@ config({ compact: true, debug: true, hiColorMode: false }, () => {
 	});
 
 	palette('mask-bg', () => {
-		// TODO Florian -- why doesn't it work with 8x1?
-		tileset('mask-bg', blank(1, 1), 8, 8, () => {
-			map('mask-bg', 'gfx/mask-bg.png', m => {
-				console.log(`TEMP `, JSON.stringify(m.tileset));
-			});
+		tileset('mask-bg', blank(1, 1), 8, 1, () => {
+			map('mask-bg', 'gfx/mask-bg.png');
 		});
 	});
 });

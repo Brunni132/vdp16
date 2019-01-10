@@ -196,7 +196,7 @@ class Tileset {
 			let ptr = 0;
 
 			for (let j = 0; j < this.tileHeight; j++) {
-				for (let i = 0; i < this.tileHeight; i++) {
+				for (let i = 0; i < this.tileWidth; i++) {
 					destTexture.setPixel(xDest + x + i, yDest + y + j, this.tiles[k].pixelData[ptr++]);
 				}
 			}
@@ -236,12 +236,12 @@ class Tileset {
 
 	/** @returns {number} */
 	get usedHeight() {
-		return Math.ceil(this.tiles.length / this.tilesWide) * this.tileWidth;
+		return Math.ceil(this.tiles.length / this.tilesWide) * this.tileHeight;
 	}
 
 	/** @returns {number} */
 	get usedWidth() {
-		return Math.min(this.tiles.length, this.tilesWide) * this.tileHeight;
+		return Math.min(this.tiles.length, this.tilesWide) * this.tileWidth;
 	}
 }
 

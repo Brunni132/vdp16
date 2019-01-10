@@ -29,6 +29,7 @@ function *main(vdp) {
 			// Centered on the 4th pixel of the mask-bg horizontally
 			mat3.translate(t, t, [4, 0]);
 			mat3.scale(t, t, [1 / scale, 1 / scale]);
+			// This is a case where we want to use the row 0 all the time (the tilemap is only 8x1 pixels)
 			mat3.translate(t, t, [-center.x, 0]);
 			lineTransform.setLine(y, t);
 		}
