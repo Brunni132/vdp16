@@ -16,7 +16,6 @@ function *main(vdp) {
 		vdp.writePalette('level2', pal);
 
 		vdp.drawBG('level2', { scrollX: loop, scrollY: -32, winY: 32, winH: 192 });
-		//vdp.configBDColor(makeRainbowColor(loop / 200));
 		loop += 1;
 		yield 0;
 	}

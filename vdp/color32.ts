@@ -25,8 +25,20 @@ export class color32 {
 	 * @returns {number} resulting color
 	 */
 	static make(r: number|{r: number, g: number, b: number, a: number}, g: number = 0, b: number = 0, a: number = 0xff): number {
-		if (typeof r === 'number') return r | g << 8 | b << 16 | a << 24;
-		return r.r | r.g << 8 | r.b << 16 | r.a << 24;
+		if (typeof r === 'number') return Math.ceil(r) | Math.ceil(g) << 8 | Math.ceil(b) << 16 | Math.ceil(a) << 24;
+		return Math.ceil(r.r) | Math.ceil(r.g) << 8 | Math.ceil(r.b) << 16 | Math.ceil(r.a) << 24;
+	}
+
+	/**
+	 * Same but with colors components between 0 and 1.
+	 * @param r {number} red component (0 to 1)
+	 * @param g {number} green component (0 to 1)
+	 * @param b {number} blue component (0 to 1)
+	 * @param [a=1] {number} alpha component (not used, only required to make a valid color for your display adapter)
+	 * @returns {number}
+	 */
+	static makeFactor(r: number, g: number, b: number, a: number = 1): number {
+		return this.make(r * 255, g * 255, b * 255, a * 255);
 	}
 
 	/**

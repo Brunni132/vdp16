@@ -2,79 +2,94 @@ import {color32} from "./vdp/color32";
 import {VDPCopySource} from "./vdp/vdp";
 import {startGame} from "./lib-main";
 
-let fadeFactor = 0;
 let loopIt = 0;
 
-function fadeToWhiteGameBoyColor(colors) {
-	colors.forEach((c, ind) => {
-		let { r, g, b, a } = color32.extract(c);
-		if (loopIt === 0) r = Math.min(255, r + 16);
-		if (loopIt === 1) g = Math.min(255, g + 16);
-		if (loopIt === 2) b = Math.min(255, b + 16);
-		colors[ind] = color32.make(r, g, b, a);
+function fadeNaiveBlack(colorsSource, colorsDest) {
+	// Naive just multiplies colors by a factor. It doesn't work very well because colors will not all change at the same
+	// time, because of the limited resolution (e.g. r=0, g=0, b=2 will change only two times at big intervals, making for
+	// a very blocky-looking transition).
+	const factor = Math.max(0, 1 - 0.01 * loopIt);
+	const mulColor = color32.makeFactor(factor, factor, factor);
+	colorsSource.forEach((c, ind) => {
+		colorsDest[ind] = color32.mul(c, mulColor);
 	});
-	loopIt++;
+}
+
+function fadeToWhiteGameBoyColor(colors) {
+	// Color resolution is by 16 units (smaller units won't make a change to the screen).
+	// Because of that we operate only every 3 iterations (else the fade would be too fast); loopIt incremented in main loop
+	if (loopIt % 3 === 0) {
+		const component = (loopIt / 3) % 3;
+		colors.forEach((c, ind) => {
+			let {r, g, b, a} = color32.extract(c);
+			if (component === 0) r = Math.min(255, r + 16);
+			if (component === 1) g = Math.min(255, g + 16);
+			if (component === 2) b = Math.min(255, b + 16);
+			colors[ind] = color32.make(r, g, b, a);
+		});
+	}
 }
 
 function fadeToBlackGameBoyColor(colors) {
-	colors.forEach((c, ind) => {
-		let { r, g, b, a } = color32.extract(c);
-		if (loopIt === 0) r = Math.max(0, r - 16);
-		if (loopIt === 1) g = Math.max(0, g - 16);
-		if (loopIt === 2) b = Math.max(0, b - 16);
-		colors[ind] = color32.make(r, g, b, a);
-	});
-	loopIt++;
+	if (loopIt % 3 === 0) {
+		const component = (loopIt / 3) % 3;
+		colors.forEach((c, ind) => {
+			let {r, g, b, a} = color32.extract(c);
+			if (component === 0) r = Math.max(0, r - 16);
+			if (component === 1) g = Math.max(0, g - 16);
+			if (component === 2) b = Math.max(0, b - 16);
+			colors[ind] = color32.make(r, g, b, a);
+		});
+	}
 }
 
 function fadeToBlackSega(colors) {
-	colors.forEach((c, ind) => {
-		let { r, g, b, a } = color32.extract(c);
-		if (r > 0) r = Math.max(0, r - 16);
-		else if (g > 0) g = Math.max(0, g - 16);
-		else if (b > 0) b = Math.max(0, b - 16);
-		colors[ind] = color32.make(r, g, b, a);
-	});
+	if (loopIt % 3 === 0) {
+		colors.forEach((c, ind) => {
+			let {r, g, b, a} = color32.extract(c);
+			if (r > 0) r = Math.max(0, r - 16);
+			else if (g > 0) g = Math.max(0, g - 16);
+			else if (b > 0) b = Math.max(0, b - 16);
+			colors[ind] = color32.make(r, g, b, a);
+		});
+	}
 }
 
 function fadeToWhiteSega(colors) {
-	colors.forEach((c, ind) => {
-		let { r, g, b, a } = color32.extract(c);
-		if (r < 255) r = Math.min(255, r + 16);
-		else if (g < 255) g = Math.min(255, g + 16);
-		else if (b < 255) b = Math.min(255, b + 16);
-		colors[ind] = color32.make(r, g, b, a);
-	});
+	if (loopIt % 3 === 0) {
+		colors.forEach((c, ind) => {
+			let {r, g, b, a} = color32.extract(c);
+			if (r < 255) r = Math.min(255, r + 16);
+			else if (g < 255) g = Math.min(255, g + 16);
+			else if (b < 255) b = Math.min(255, b + 16);
+			colors[ind] = color32.make(r, g, b, a);
+		});
+	}
 }
 
 function resetPatrickBoyFade(vdp) {
-	fadeFactor = 0;
 	vdp.configFade('#000', 0);
 }
 
 function fadeToWhiteVDP(vdp) {
-	vdp.configFade('#fff', fadeFactor);
-	fadeFactor += 6;
+	vdp.configFade('#fff', loopIt * 2);
 }
 
 function fadeToGrayVDP(vdp) {
-	vdp.configFade('#888', fadeFactor);
-	fadeFactor += 6;
+	vdp.configFade('#888', loopIt * 2);
 }
 
 function fadeToBlackVDP(vdp) {
-	vdp.configFade('#000', fadeFactor);
-	fadeFactor += 6;
+	vdp.configFade('#000', loopIt * 2);
 }
 
 function fadeByDesaturating(colorsSource, colorsDest) {
-	const factor = Math.max(0, 1 - 0.02 * fadeFactor);
+	const factor = Math.max(0, 1 - 0.01 * loopIt);
 	colorsSource.forEach((c, ind) => {
 		let hsl = color32.toHsl(c);
 		hsl.s *= factor;
 		colorsDest[ind] = color32.makeFromHsl(hsl);
 	});
-	fadeFactor++;
 }
 
 const TextLayer = {
@@ -116,18 +131,18 @@ const TextLayer = {
  * @param vdp {VDP}
  */
 function *main(vdp) {
-	const FADE_SPEED = 3;
 	let fadeType = 0;
 	const palette1Original = vdp.readPalette('level1', VDPCopySource.rom);
 	const FADE_LIST = [
-		{ text: 'Game Boy Color white', fn: (colors, vdp) => fadeToWhiteGameBoyColor(colors) },
+		{ text: 'Naive', fn: (colors, vdp) => fadeNaiveBlack(palette1Original.buffer, colors) },
 		{ text: 'Common black', fn: (colors, vdp) => fadeToBlackGameBoyColor(colors) },
+		{ text: 'Game Boy Color white', fn: (colors, vdp) => fadeToWhiteGameBoyColor(colors) },
 		{ text: 'Sega black', fn: (colors, vdp) => fadeToBlackSega(colors) },
 		{ text: 'Sonic white', fn: (colors, vdp) => fadeToWhiteSega(colors) },
+		{ text: 'Desaturate', fn: (colors, vdp) => fadeByDesaturating(palette1Original.buffer, colors) },
 		{ text: 'VDP white', fn: (colors, vdp) => fadeToWhiteVDP(vdp) },
 		{ text: 'VDP gray', fn: (colors, vdp) => fadeToGrayVDP(vdp) },
 		{ text: 'VDP black', fn: (colors, vdp) => fadeToBlackVDP(vdp) },
-		{ text: 'Desaturate', fn: (colors, vdp) => fadeByDesaturating(palette1Original.buffer, colors) },
 	];
 
 	while (true) {
@@ -140,13 +155,14 @@ function *main(vdp) {
 		TextLayer.setup(vdp);
 		TextLayer.drawText(11, 14, 'FADE DEMO');
 		TextLayer.drawText(16 - Math.ceil(FADE_LIST[fadeType].text.length / 2), 16, FADE_LIST[fadeType].text);
+		loopIt = 0;
 
 		while (loop < 300) {
-			if (loop >= 100 && loop % FADE_SPEED === 0) {
+			if (loop >= 100) {
 				const colors = vdp.readPalette('level1');
 				FADE_LIST[fadeType].fn(colors.buffer, vdp);
 				vdp.writePalette('level1', colors);
-				loopIt = (loopIt + 1) % 3;
+				loopIt++;
 			}
 
 			vdp.drawBG('level1');
