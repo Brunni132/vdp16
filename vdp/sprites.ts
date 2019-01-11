@@ -128,13 +128,14 @@ export class ObjBuffer {
 
 		const originalXyzp = this.xyzp.slice();
 		const originalUv = this.uv.slice();
+		const firstSprite = this.firstSprite;
 		for (let i = 0; i < items.length; i++) {
 			this.xyzp.set(
 				originalXyzp.subarray(OBJ_BUFFER_STRIDE * 4 * items[i], OBJ_BUFFER_STRIDE * 4 * (items[i] + 1)),
-				OBJ_BUFFER_STRIDE * 4 * i);
+				OBJ_BUFFER_STRIDE * 4 * (i + firstSprite));
 			this.uv.set(
 				originalUv.subarray(OBJ_BUFFER_STRIDE * 2 * items[i], OBJ_BUFFER_STRIDE * 2 * (items[i] + 1)),
-				OBJ_BUFFER_STRIDE * 2 * i);
+				OBJ_BUFFER_STRIDE * 2 * (i + firstSprite));
 		}
 	}
 

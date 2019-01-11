@@ -25,7 +25,7 @@ function *main(vdp) {
 		mario.y += mario.vy;
 		mario.vy += 0.05; // gravity
 
-		while (mapCell(mario.x + mario.w / 2, mario.y + mario.h) >= 205) {
+		while (mapCell(mario.x + mario.w / 2, mario.y + mario.h) >= 202) {
 			mario.vy = 0;
 			mario.y = Math.floor(mario.y - 1);
 		}

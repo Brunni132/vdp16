@@ -263,7 +263,7 @@ export class VDP {
 	 * @param {LineColorArray[]} colorTable
 	 */
 	configColorSwap(colorTable: LineColorArray[]) {
-		if (colorTable.length >= 4) throw new Error('Can only swap up to 4 colors at a time');
+		if (colorTable.length > 4) throw new Error('Can only swap up to 4 colors at a time');
 		colorTable.forEach((t, i) => {
 			colorSwaps[i] = t.targetPaletteNumber << 8 | t.targetPaletteIndex;
 			writeToTextureFloat(this.gl, this.otherTexture, 0, i + OTHER_TEX_COLORSWAP_INDEX, t.buffer.length / 4, 1, t.buffer);

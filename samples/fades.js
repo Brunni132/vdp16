@@ -1,6 +1,4 @@
-import {color32} from "./vdp/color32";
-import {VDPCopySource} from "./vdp/vdp";
-import {startGame} from "./lib-main";
+import {startGame, VDPCopySource, color32} from "./lib-main";
 
 let loopIt = 0;
 
