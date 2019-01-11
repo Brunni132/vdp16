@@ -46,7 +46,7 @@ function *main(vdp) {
 	TextLayer.drawText(0, 0, `Hello world`);
 
 	const pal = vdp.readPalette('text');
-	pal[1] = color32.parse('#ff0');
+	pal[1] = color32.make('#ff0');
 	vdp.writePalette('text', pal);
 
 	let loop = 0;

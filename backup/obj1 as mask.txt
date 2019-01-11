@@ -66,7 +66,7 @@ VDP.ts:
             throw new Error(`Invalid operation ${opts.op}`);
         }
         this.objTransparency.operation = opts.op;
-        this.objTransparency.blendSrc = color32.parse(opts.blendSrc);
-        this.objTransparency.blendDst = color32.parse(opts.blendDst);
+        this.objTransparency.blendSrc = color32.make(opts.blendSrc);
+        this.objTransparency.blendDst = color32.make(opts.blendDst);
         this.obj1AsMask = opts.mask;
     }

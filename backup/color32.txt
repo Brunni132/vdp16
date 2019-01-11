@@ -10,3 +10,56 @@
 			r: c >>> 4 & 0xf,
 		};
 	}
+
+	/**
+	 * Same but with colors components between 0 and 1.
+	 * @param r {number} red component (0 to 1)
+	 * @param g {number} green component (0 to 1)
+	 * @param b {number} blue component (0 to 1)
+	 * @param [a=1] {number} alpha component (not used, only required to make a valid color for your display adapter)
+	 * @returns {number}
+	 */
+	static makeFactor(r: number, g: number, b: number, a: number = 1): number {
+		return this.make(r * 255, g * 255, b * 255, a * 255);
+	}
+
+	/**
+	 * Parses a color, always in 32-bit RGBA format.
+	 * @param col {number|string} either a 12-bit number (0xrgb0), a 32-bit number (0xaabbggrr)
+	 * or a string (#rgb, #rrggbb, #rrggbbaa).
+	 * @returns {number} the color in 32-bit RGBA format.
+	 */
+	static parse(col: string|number): number {
+		if (typeof col === 'string') {
+			if (col.charAt(0) !== '#') col = ''; // fail
+
+			// Invert byte order
+			switch (col.length) {
+			case 4:
+				col = parseInt(col.substring(1), 16);
+				return color32.extendColor12(col << 4 | 0xf);
+			case 5:
+				col = parseInt(col.substring(1), 16);
+				return color32.extendColor12(col);
+			case 7:
+				col = parseInt(col.substring(1), 16);
+				// Pass a RGBA with alpha=ff
+				return color32.reverseColor32(col << 8 | 0xff);
+			case 9:
+				col = parseInt(col.substring(1), 16);
+				return color32.reverseColor32(col);
+			default:
+				throw new Error(`Invalid color string ${col}`);
+			}
+		}
+
+		if (col >>> 16 === 0) {
+			// 16-bit to 32
+			return color32.extendColor12(col);
+		}
+		else if (col >>> 24 === 0) {
+			// 24-bit to 32
+			return col | 0xff << 24;
+		}
+		return col;
+	}

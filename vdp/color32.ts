@@ -7,12 +7,7 @@ export class color32 {
 	 */
 	static extract(c: number, bitsPerComponent: number = 8): { a: number; b: number; r: number; g: number } {
 		c = color32.posterize(c, bitsPerComponent);
-		return {
-			a: c >>> 24,
-			b: c >>> 16 & 0xff,
-			g: c >>> 8 & 0xff,
-			r: c & 0xff,
-		};
+		return { a: c >>> 24, b: c >>> 16 & 0xff, g: c >>> 8 & 0xff, r: c & 0xff };
 	}
 
 	/**
@@ -24,8 +19,32 @@ export class color32 {
 	 * @param [a=255] {number} alpha component (not used, only required to make a valid color for your display adapter)
 	 * @returns {number} resulting color
 	 */
-	static make(r: number|{r: number, g: number, b: number, a: number}, g: number = 0, b: number = 0, a: number = 0xff): number {
-		if (typeof r === 'number') return Math.ceil(r) | Math.ceil(g) << 8 | Math.ceil(b) << 16 | Math.ceil(a) << 24;
+	static make(r: number|{r: number, g: number, b: number, a: number}|string, g: number = 0, b: number = 0, a: number = 0xff): number {
+		if (typeof r === 'number') {
+			return Math.ceil(r) | Math.ceil(g) << 8 | Math.ceil(b) << 16 | Math.ceil(a) << 24;
+		}
+		if (typeof r === 'string') {
+			if (r.charAt(0) !== '#') r = ''; // fail
+
+			// Invert byte order
+			switch (r.length) {
+				case 4:
+					r = parseInt(r.substring(1), 16);
+					return this.extendColor12(r << 4 | 0xf);
+				case 5:
+					r = parseInt(r.substring(1), 16);
+					return this.extendColor12(r);
+				case 7:
+					r = parseInt(r.substring(1), 16);
+					// Pass a RGBA with alpha=ff
+					return this.reverseColor32(r << 8 | 0xff);
+				case 9:
+					r = parseInt(r.substring(1), 16);
+					return this.reverseColor32(r);
+				default:
+					throw new Error(`Invalid color string ${r}`);
+			}
+		}
 		return Math.ceil(r.r) | Math.ceil(r.g) << 8 | Math.ceil(r.b) << 16 | Math.ceil(r.a) << 24;
 	}
 
@@ -39,19 +58,6 @@ export class color32 {
 	 */
 	static makeFactor(r: number, g: number, b: number, a: number = 1): number {
 		return this.make(r * 255, g * 255, b * 255, a * 255);
-	}
-
-	/**
-	 * Extends a 16 bit RGBA color into a 32 bit RGBA color. Note that 0xRGBA will produce 0xAABBGGRR, reversing the byte
-	 * order as OpenGL expects it.
-	 * @param col {number}
-	 * @returns {number}
-	 */
-	static extendColor12(col: number): number {
-		return color32.reverseColor32((col & 0xf) | (col & 0xf) << 4 |
-			(col & 0xf0) << 4 | (col & 0xf0) << 8 |
-			(col & 0xf00) << 8 | (col & 0xf00) << 12 |
-			(col & 0xf000) << 12 | (col & 0xf000) << 16);
 	}
 
 	static makeFromHsl(col: {h: number, s: number, l: number}): number {
@@ -81,44 +87,16 @@ export class color32 {
 	}
 
 	/**
-	 * Parses a color, always in 32-bit RGBA format.
-	 * @param col {number|string} either a 12-bit number (0xrgb0), a 32-bit number (0xaabbggrr)
-	 * or a string (#rgb, #rrggbb, #rrggbbaa).
-	 * @returns {number} the color in 32-bit RGBA format.
+	 * Extends a 16 bit RGBA color into a 32 bit RGBA color. Note that 0xRGBA will produce 0xAABBGGRR, reversing the byte
+	 * order as OpenGL expects it.
+	 * @param col {number}
+	 * @returns {number}
 	 */
-	static parse(col: string|number): number {
-		if (typeof col === 'string') {
-			if (col.charAt(0) !== '#') col = ''; // fail
-
-			// Invert byte order
-			switch (col.length) {
-			case 4:
-				col = parseInt(col.substring(1), 16);
-				return color32.extendColor12(col << 4 | 0xf);
-			case 5:
-				col = parseInt(col.substring(1), 16);
-				return color32.extendColor12(col);
-			case 7:
-				col = parseInt(col.substring(1), 16);
-				// Pass a RGBA with alpha=ff
-				return color32.reverseColor32(col << 8 | 0xff);
-			case 9:
-				col = parseInt(col.substring(1), 16);
-				return color32.reverseColor32(col);
-			default:
-				throw new Error(`Invalid color string ${col}`);
-			}
-		}
-
-		if (col >>> 16 === 0) {
-			// 16-bit to 32
-			return color32.extendColor12(col);
-		}
-		else if (col >>> 24 === 0) {
-			// 24-bit to 32
-			return col | 0xff << 24;
-		}
-		return col;
+	static extendColor12(col: number): number {
+		return color32.reverseColor32((col & 0xf) | (col & 0xf) << 4 |
+			(col & 0xf0) << 4 | (col & 0xf0) << 8 |
+			(col & 0xf00) << 8 | (col & 0xf00) << 12 |
+			(col & 0xf000) << 12 | (col & 0xf000) << 16);
 	}
 
 	/**

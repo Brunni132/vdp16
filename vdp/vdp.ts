@@ -239,7 +239,7 @@ export class VDP {
 	 * @param color backdrop color
 	 */
 	configBDColor(color: number|string) {
-		this.shadowPaletteTex.buffer[0] = color32.parse(color);
+		this.shadowPaletteTex.buffer[0] = color32.make(color);
 	}
 
 	/**
@@ -254,8 +254,8 @@ export class VDP {
 			throw new Error(`Invalid operation ${opts.op}`);
 		}
 		this.bgTransparency.operation = opts.op;
-		this.bgTransparency.blendSrc = color32.parse(opts.blendSrc);
-		this.bgTransparency.blendDst = color32.parse(opts.blendDst);
+		this.bgTransparency.blendSrc = color32.make(opts.blendSrc);
+		this.bgTransparency.blendDst = color32.make(opts.blendDst);
 	}
 
 	/**
@@ -279,7 +279,7 @@ export class VDP {
 	 */
 	configFade(color: number|string, factor: number) {
 		factor = Math.min(255, Math.max(0, factor));
-		this.fadeColor = (color32.parse(color) & 0xffffff) | (factor << 24);
+		this.fadeColor = (color32.make(color) & 0xffffff) | (factor << 24);
 	}
 
 	/**
@@ -294,8 +294,8 @@ export class VDP {
 			throw new Error(`Invalid operation ${opts.op}`);
 		}
 		this.objTransparency.operation = opts.op;
-		this.objTransparency.blendSrc = color32.parse(opts.blendSrc);
-		this.objTransparency.blendDst = color32.parse(opts.blendDst);
+		this.objTransparency.blendSrc = color32.make(opts.blendSrc);
+		this.objTransparency.blendDst = color32.make(opts.blendDst);
 	}
 
 	/**
