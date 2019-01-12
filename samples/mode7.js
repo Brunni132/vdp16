@@ -46,7 +46,7 @@ function *main(vdp) {
 			if (line <= 0) return;
 
 			// The current (result[0], result[1]) are the positions of the (center, bottom) anchor of the sprite
-			const obj = vdp.sprite('mario').tile(0);
+			const obj = vdp.sprite('mario').tile(6);
 			scale = 1 / scale;
 			vdp.drawObj(obj, result[0] - scale * obj.w / 2, line - scale * obj.h, { width: obj.w * scale, height: obj.h * scale, prio: 2 });
 		}

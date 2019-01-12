@@ -1,4 +1,4 @@
-import {startGame, LineColorArray, color32, SCREEN_HEIGHT} from "./lib-main";
+import {startGame, SCREEN_HEIGHT} from "./lib-main";
 
 let mapData;
 
@@ -10,29 +10,26 @@ function mapCell(x, y) {
  * @param vdp {VDP}
  */
 function *main(vdp) {
-	let loop = 0;
 	const mario = {
 		x: 100, y: 0, w: 48, h: 48, vx: 0.5, vy: 0
 	};
 
 	// Take all background colors and make them 0 (transparent). Hack to be able to reuse the map.
-	const bgTransp = [ new LineColorArray(1, 2), new LineColorArray(11, 2), new LineColorArray(12, 2), new LineColorArray(15, 2) ];
-	bgTransp[0].setAll(0, 0);
-	bgTransp[1].setAll(0, 0);
-	bgTransp[2].setAll(0, 0);
-	bgTransp[3].setAll(0, 0);
-	vdp.configColorSwap(bgTransp);
+	const bgTileset = vdp.readSprite('level1');
+	bgTileset.buffer.forEach((pixel, index) => {
+		// Pixels are 4 bit per pixel, packed in a 8 bit integer. Therefore there are two inside; we need to extract them the old way
+		let pix1 = pixel & 0xf, pix2 = pixel >> 4;
+		if (pix1 === 1 || pix1 === 11 || pix1 === 12 || pix1 === 15)
+			pix1 = 0;
+		if (pix2 === 1 || pix2 === 11 || pix2 === 12 || pix2 === 15)
+			pix2 = 0;
 
-	// Make BG palette clearer
-	const bgPal = vdp.readPalette('level2');
-	const white = color32.make('#fff');
-	for (let i = 0; i < bgPal.width; i++)
-		bgPal.setElement(i, 0, color32.blend(bgPal.getElement(i, 0), white, 0.5));
-	vdp.writePalette('level2', bgPal);
+		// Make the final pixel
+		bgTileset.buffer[index] = pix1 | pix2 << 4;
+	});
+	vdp.writeSprite('level1', bgTileset);
 
-	// Use level2's background as backdrop color
-	vdp.configBDColor(bgPal.getElement(1, 0));
-
+	vdp.configBDColor('#000');
 	mapData = vdp.readMap('level1');
 
 	while (true) {
@@ -53,7 +50,7 @@ function *main(vdp) {
 
 		// Configure OBJ transparency as shadow
 		vdp.configOBJTransparency({ op: 'add', blendDst: '#888', blendSrc: '#000' });
-		vdp.drawBG('level2', { scrollX: cameraX / 2, scrollY: -24, wrap: false, prio: 0 });
+		vdp.drawBG('tmx', { scrollX: cameraX / 2, scrollY: -24, wrap: false, prio: 0 });
 		vdp.drawBG('level1', { scrollX: cameraX, wrap: false, prio: 1 });
 
 		// Draw sprite with two shadow sprites, a small one with high prio (for planes with prio=0 and 1), a large one with low prio (for plane with prio=0)
