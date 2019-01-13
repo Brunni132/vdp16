@@ -59,7 +59,7 @@ function *main(vdp) {
 		vdp.drawObj(marioTile, mario.x - cameraX + 2, mario.y + 2, { prio: 2, width: mario.w, height: mario.h, transparent: true });
 		vdp.drawObj(marioTile, mario.x - cameraX + 5, mario.y + 5, { prio: 1, width: mario.w, height: mario.h, transparent: true });
 
-		yield 0;
+		yield;
 	}
 }
 

@@ -11,7 +11,7 @@ import {
 import { DEBUG, VDP } from "./vdp";
 
 // How big (tall/wide) a sprite can be before it's broken down in smaller units of OBJ_CELL_SIZE^2
-const OBJ_CELL_SIZE = 32;
+const OBJ_CELL_SIZE = 16;
 
 const OBJ_BUFFER_STRIDE = 6;
 

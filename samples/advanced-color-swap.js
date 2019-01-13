@@ -41,7 +41,7 @@ function *main(vdp) {
 
 		vdp.configColorSwap(swaps);
 		loop += 1;
-		yield 0;
+		yield;
 	}
 }
 

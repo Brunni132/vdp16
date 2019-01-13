@@ -26,9 +26,9 @@ export const DEBUG = true;
 // Specs of the fantasy console, do not modify for now
 const BG_LIMIT = 3;
 const TBG_LIMIT = 1;
-const OBJ0_CELL_LIMIT = 256;
-const OBJ1_CELL_LIMIT = 64;
-const OBJ0_LIMIT = 256;
+const OBJ0_CELL_LIMIT = 512;
+const OBJ1_CELL_LIMIT = 256;
+const OBJ0_LIMIT = 512;
 const OBJ1_LIMIT = 32;
 
 type TransparencyConfigEffect = 'none' | 'color' | 'blend' | 'premult';

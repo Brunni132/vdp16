@@ -66,7 +66,7 @@ function *main(vdp) {
 		//vdp.drawObj('gradient', 0, 180, { prio: 2, width: 256, height: 16, transparent: true});
 
 		loop += 1;
-		yield 0;
+		yield;
 	}
 }
 

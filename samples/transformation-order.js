@@ -82,7 +82,7 @@ function *main(vdp) {
 
 	while (true) {
 		TextLayer.drawLayer();
-		yield 0;
+		yield;
 	}
 }
 

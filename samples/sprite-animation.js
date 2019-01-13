@@ -19,7 +19,7 @@ function *main(vdp) {
 		vdp.drawObj(marioSprite.tile(characterAnimation), 100, 120, { width: 64, height: 64 });
 
 		loop += 1;
-		yield 0;
+		yield;
 	}
 }
 

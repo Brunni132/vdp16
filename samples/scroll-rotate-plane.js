@@ -15,7 +15,7 @@ function *main(vdp) {
 
 		vdp.drawBG('level1', { scrollX: 0, lineTransform: array });
 		loop += 1;
-		yield 0;
+		yield;
 	}
 }
 

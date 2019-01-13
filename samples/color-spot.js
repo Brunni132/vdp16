@@ -46,7 +46,7 @@ function *main(vdp) {
 		vdp.drawObj(vdp.sprite('mario').tile(0), mario.x, mario.y);
 
 		loop += 1;
-		yield 0;
+		yield;
 	}
 }
 

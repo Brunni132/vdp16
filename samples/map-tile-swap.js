@@ -19,7 +19,7 @@ function *main(vdp) {
 
 		vdp.drawBG('level2', { scrollX: loop, scrollY: -32, winY: 32, winH: 192 });
 		loop += 1;
-		yield 0;
+		yield;
 	}
 }
 

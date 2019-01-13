@@ -58,7 +58,7 @@ function *main(vdp) {
 		drawSprite(vdp, transformations, 550, 400, vdp.sprite('mario').tile(2));
 
 		loop += 1;
-		yield 0;
+		yield;
 	}
 }
 

@@ -39,7 +39,7 @@ function *main(vdp) {
 		// Do not render below 248 since the map is smaller
 		vdp.drawBG('sonic1-bg', { lineTransform, winH: 248 });
 		loop += 1;
-		yield 0;
+		yield;
 	}
 }
 

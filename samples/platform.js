@@ -50,7 +50,7 @@ function *main(vdp) {
 
 		loop += 1;
 
-		yield 0;
+		yield;
 	}
 }
 

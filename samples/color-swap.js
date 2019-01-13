@@ -15,7 +15,7 @@ function *main(vdp) {
 		vdp.drawBG('tmx', { scrollX: loop / 2, scrollY: -loop });
 		vdp.configColorSwap([swaps]);
 		loop += 1;
-		yield 0;
+		yield;
 	}
 }
 
