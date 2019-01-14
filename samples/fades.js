@@ -82,6 +82,73 @@ function fadeToWhiteSega(colors) {
 	}
 }
 
+function fadeCustomBlack(colors, statusArray) {
+	// For this one, let's do like the SEGA fade, except that we cycle which color component we choose to affect.
+	// First time, we try to subtract red if there is, else we switch to green, etc. when a component can be subtracted
+	// (e.g. red), we keep in statusArray for that color index, that the next to be subtracted will be green. Next time
+	// we'll try to subtract green, and switch to blue if there is none, and so on.
+	// The result is good because one component is always subtracted every iteration.
+	if (loopIt % 3 === 0) {
+		colors.forEach((c, ind) => {
+			let {r, g, b, a} = color32.extract(c);
+			while (r >= 16 || g >= 16 || b >= 16) {
+				if (statusArray[ind] === 0 && r >= 16) {
+					r = Math.max(0, r - 16);
+					statusArray[ind] = 1;
+					colors[ind] = color32.make(r, g, b, a);
+					return;
+				}
+				else if (statusArray[ind] === 1 && g >= 16) {
+					g = Math.max(0, g - 16);
+					statusArray[ind] = 2;
+					colors[ind] = color32.make(r, g, b, a);
+					return;
+				}
+				else if (statusArray[ind] === 2 && b >= 16) {
+					b = Math.max(0, b - 16);
+					statusArray[ind] = 0;
+					colors[ind] = color32.make(r, g, b, a);
+					return;
+				}
+				else {
+					statusArray[ind] = (statusArray[ind] + 1) % 3;
+				}
+			}
+		});
+	}
+}
+
+function fadeCustomWhite(colors, statusArray) {
+	if (loopIt % 3 === 0) {
+		colors.forEach((c, ind) => {
+			let {r, g, b, a} = color32.extract(c);
+			while (r < 240 || g < 240 || b < 240) {
+				if (statusArray[ind] === 0 && r < 240) {
+					r = Math.min(240, r + 16);
+					statusArray[ind] = 1;
+					colors[ind] = color32.make(r, g, b, a);
+					return;
+				}
+				else if (statusArray[ind] === 1 && g < 240) {
+					g = Math.min(240, g + 16);
+					statusArray[ind] = 2;
+					colors[ind] = color32.make(r, g, b, a);
+					return;
+				}
+				else if (statusArray[ind] === 2 && b < 240) {
+					b = Math.min(240, b + 16);
+					statusArray[ind] = 0;
+					colors[ind] = color32.make(r, g, b, a);
+					return;
+				}
+				else {
+					statusArray[ind] = (statusArray[ind] + 1) % 3;
+				}
+			}
+		});
+	}
+}
+
 function resetPatrickBoyFade(vdp) {
 	vdp.configFade('#000', 0);
 }
@@ -145,6 +212,7 @@ const TextLayer = {
 function *main(vdp) {
 	let fadeType = 0;
 	const palette1Original = vdp.readPalette('level1', VDPCopySource.rom);
+	const fadeCustomStatus = new Array(palette1Original.buffer.length);
 	const FADE_LIST = [
 		{ text: 'Naive black', fn: (colors, vdp) => fadeNaiveBlack(palette1Original.buffer, colors) },
 		{ text: 'Naive white', fn: (colors, vdp) => fadeNaiveWhite(palette1Original.buffer, colors) },
@@ -152,6 +220,8 @@ function *main(vdp) {
 		{ text: 'Game Boy Color white', fn: (colors, vdp) => fadeToWhiteGameBoyColor(colors) },
 		{ text: 'Sega black', fn: (colors, vdp) => fadeToBlackSega(colors) },
 		{ text: 'Sega white', fn: (colors, vdp) => fadeToWhiteSega(colors) },
+		{ text: 'Custom black', fn: (colors, vdp) => fadeCustomBlack(colors, fadeCustomStatus) },
+		{ text: 'Custom white', fn: (colors, vdp) => fadeCustomWhite(colors, fadeCustomStatus) },
 		{ text: 'Desaturate', fn: (colors, vdp) => fadeByDesaturating(palette1Original.buffer, colors) },
 		{ text: 'VDP white', fn: (colors, vdp) => fadeToWhiteVDP(vdp) },
 		{ text: 'VDP gray', fn: (colors, vdp) => fadeToGrayVDP(vdp) },
@@ -164,6 +234,7 @@ function *main(vdp) {
 		// Restore colors
 		vdp.writePalette('level1', palette1Original);
 		resetPatrickBoyFade(vdp);
+		fadeCustomStatus.fill(0);
 
 		TextLayer.setup(vdp);
 		TextLayer.drawText(11, 14, 'FADE DEMO');
