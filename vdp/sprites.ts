@@ -171,7 +171,7 @@ void main(void) {
 	// Only scale the final matrix (we can always say that the VDP supports fixed point math inside for matrix multiplication)
 	gl_Position = uProjectionMatrix * vec4(floor(uModelViewMatrix * vec3(aXyzp.xy, aXyzp.z)), 1);
 	vPaletteNo = aXyzp.w;
-	vTextureCoord = floor(aUv);
+	vTextureCoord = aUv;
 }`;
 	const fsSource = `precision highp float;
 

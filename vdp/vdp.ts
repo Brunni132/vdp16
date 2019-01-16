@@ -32,7 +32,7 @@ import { mat3, mat4 } from 'gl-matrix';
 
 export const DEBUG = true;
 // Specs of the fantasy console, do not modify for now
-const MAX_TBGS = 1, MAX_BGS = 3, MAX_OBJS = 512, MAX_VRAM_WRITES = 4096, MAX_FRAME_SLOWDOWN = 10;
+const MAX_TBGS = 1, MAX_BGS = 3, MAX_OBJS = 512, MAX_VRAM_WRITES = 4096, MAX_FRAME_SLOWDOWN = 30;
 let BG_LIMIT: number, OBJ_CELL_LIMIT: number, OBJ0_LIMIT: number, OBJ1_LIMIT: number;
 
 type TransparencyConfigEffect = 'none' | 'color' | 'blend' | 'premult';
@@ -392,6 +392,8 @@ export class VDP {
 		const h = opts.hasOwnProperty('height') ? opts.height : sprite.h;
 		const prio = opts.prio || (opts.transparent ? 2 : 1);
 		const buffer = opts.transparent ? this.obj1Buffer: this.obj0Buffer;
+		const u = Math.floor(sprite.x);
+		const v = Math.floor(sprite.y);
 
 		if (prio < 0 || prio > 7) throw new Error('Unsupported object priority (0-7)');
 
@@ -400,20 +402,19 @@ export class VDP {
 			if (this.usedObjCells >= OBJ_CELL_LIMIT) return;
 			if (DEBUG) console.log('Using too many cells');
 
-			// Split the sprite (ugly, temporary)
-			for (let newW = w - w % OBJ_CELL_SIZE; newW > 0; newW -= OBJ_CELL_SIZE) {
-				const newCells = computeObjectCells(x, y, x + newW, y + h);
-				if (newCells + this.usedObjCells <= OBJ_CELL_LIMIT) {
-					enqueueObj(buffer, x, y, x + newW, y + h, sprite.x, sprite.y, sprite.x + sprite.w * newW / w, sprite.y + sprite.h, pal.y, sprite.hiColor, prio);
-					this.usedObjCells = OBJ_CELL_LIMIT;
-					return;
-				}
-			}
+			// Split the object horizontally to fit all cells
+			const cellsTall = computeObjectCells(0, y, OBJ_CELL_SIZE, y + h);
+			const remainingCells = OBJ_CELL_LIMIT - this.usedObjCells;
+			const newW = (remainingCells / cellsTall) * OBJ_CELL_SIZE;
+			enqueueObj(buffer, x, y, x + newW, y + h,
+				u, v, u + sprite.w * newW / w, v + Math.floor(sprite.h), pal.y, sprite.hiColor, prio);
+			this.usedObjCells = OBJ_CELL_LIMIT;
 			return;
 		}
 		this.usedObjCells += cells;
 
-		enqueueObj(buffer, x, y, x + w, y + h, sprite.x, sprite.y, sprite.x + sprite.w, sprite.y + sprite.h, pal.y, sprite.hiColor, prio);
+		enqueueObj(buffer, x, y, x + w, y + h,
+			u, v, u + Math.floor(sprite.w), v + Math.floor(sprite.h), pal.y, sprite.hiColor, prio);
 	}
 
 	map(name: string): VdpMap {
