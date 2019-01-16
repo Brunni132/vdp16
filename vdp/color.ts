@@ -1,25 +1,27 @@
 
-export class color32 {
+export class color {
 	/**
+	 * Extract a 32-bit color, made by color.make or as gotten by readPalette, into it's red, green, blue and alpha
+	 * sub-components.
 	 * @param c color (32 bits)
 	 * @param [bitsPerComponent=8] {number} can be 2, 3, 4, 5 to return a reduced color value (x bits per component)
 	 * @returns {{r: number, g: number, b: number, a: number}}
 	 */
 	static extract(c: number, bitsPerComponent: number = 8): { a: number; b: number; r: number; g: number } {
-		c = color32.posterize(c, bitsPerComponent);
+		c = color.posterize(c, bitsPerComponent);
 		return { a: c >>> 24, b: c >>> 16 & 0xff, g: c >>> 8 & 0xff, r: c & 0xff };
 	}
 
 	/**
-	 * Use make( { r: …, g: …, …} ) or make(r, g, b).
-	 * @param r {number|{r: number, g: number, b: number, a: number}} red component (0 to 255) or color as extracted with
-	 * color32.extract().
-	 * @param [g] {number} green component (0 to 255)
-	 * @param [b] {number} blue component (0 to 255)
-	 * @param [a=255] {number} alpha component (not used, only required to make a valid color for your display adapter)
-	 * @returns {number} resulting color
+	 * You can use make( { r: …, g: …, …} ), make(r, g, b) or make('#rgb'). Components are between 0 and 255.
+	 * @param r {number|{r: number, g: number, b: number, a: number}} red component or color as extracted with
+	 * color.extract().
+	 * @param [g] {number} green component
+	 * @param [b] {number} blue component
+	 * @param [a=255] {number} alpha component (not used, only required to make a conceptually valid color)
+	 * @returns {number} resulting color (a 32-bit number in the form of 0xaabbggrr)
 	 */
-	static make(r: number|{r: number, g: number, b: number, a: number}|string, g: number = 0, b: number = 0, a: number = 0xff): number {
+	static make(r: number|{r: number, g: number, b: number, a: number}|string, g: number = 0, b: number = 0, a: number = 255): number {
 		if (typeof r === 'number') {
 			return Math.ceil(r) | Math.ceil(g) << 8 | Math.ceil(b) << 16 | Math.ceil(a) << 24;
 		}
@@ -37,10 +39,10 @@ export class color32 {
 				case 7:
 					r = parseInt(r.substring(1), 16);
 					// Pass a RGBA with alpha=ff
-					return this.reverseColor32(r << 8 | 0xff);
+					return this.reversecolor(r << 8 | 0xff);
 				case 9:
 					r = parseInt(r.substring(1), 16);
-					return this.reverseColor32(r);
+					return this.reversecolor(r);
 				default:
 					throw new Error(`Invalid color string ${r}`);
 			}
@@ -49,14 +51,14 @@ export class color32 {
 	}
 
 	/**
-	 * Same but with colors components between 0 and 1.
-	 * @param r {number} red component (0 to 1)
-	 * @param g {number} green component (0 to 1)
-	 * @param b {number} blue component (0 to 1)
-	 * @param [a=1] {number} alpha component (not used, only required to make a valid color for your display adapter)
-	 * @returns {number}
+	 * Same as make but with colors components between 0 and 1 (floating point).
+	 * @param r {number} red component
+	 * @param g {number} green component
+	 * @param b {number} blue component
+	 * @param [a=1] {number} alpha component (not used, only required to make a conceptually valid color)
+	 * @returns {number} a color
 	 */
-	static makeFactor(r: number, g: number, b: number, a: number = 1): number {
+	static makeFromFloat(r: number, g: number, b: number, a: number = 1): number {
 		return this.make(r * 255, g * 255, b * 255, a * 255);
 	}
 
@@ -93,7 +95,7 @@ export class color32 {
 	 * @returns {number}
 	 */
 	static extendColor12(col: number): number {
-		return color32.reverseColor32((col & 0xf) | (col & 0xf) << 4 |
+		return color.reversecolor((col & 0xf) | (col & 0xf) << 4 |
 			(col & 0xf0) << 4 | (col & 0xf0) << 8 |
 			(col & 0xf00) << 8 | (col & 0xf00) << 12 |
 			(col & 0xf000) << 12 | (col & 0xf000) << 16);
@@ -129,7 +131,7 @@ export class color32 {
 	 * @param col {number}
 	 * @returns {number}
 	 */
-	static reverseColor32(col: number): number {
+	static reversecolor(col: number): number {
 		return (col & 0xff) << 24 | (col >>> 8 & 0xff) << 16 | (col >>> 16 & 0xff) << 8 | (col >>> 24 & 0xff);
 	}
 

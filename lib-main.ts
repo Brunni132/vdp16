@@ -1,6 +1,6 @@
 import { loadVdp, runProgram } from './vdp/runloop';
 import { VDP, LineTransformationArray, LineColorArray, VDPCopySource } from './vdp/vdp';
-import { color32 } from './vdp/color32';
+import { color } from './vdp/color';
 import { SCREEN_WIDTH, SCREEN_HEIGHT } from './vdp/shaders';
 
 export function startGame(canvasSelector: string, loadedCb: (vdp: VDP) => IterableIterator<void>) {
@@ -11,7 +11,7 @@ export function startGame(canvasSelector: string, loadedCb: (vdp: VDP) => Iterab
 export {
 	LineTransformationArray,
 	LineColorArray,
-	color32,
+	color,
 	VDPCopySource,
 	SCREEN_WIDTH,
 	SCREEN_HEIGHT

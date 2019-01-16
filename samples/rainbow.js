@@ -1,4 +1,4 @@
-import {startGame, color32, VDPCopySource} from "./lib-main";
+import {startGame, color, VDPCopySource} from "./lib-main";
 
 /** @param vdp {VDP} */
 function *main(vdp) {
@@ -8,10 +8,10 @@ function *main(vdp) {
 
 	while (true) {
 		const pal = vdp.readPalette('level2', VDPCopySource.rom);
-		pal.buffer.forEach((col, i) => {
-			const hsl = color32.toHsl(col);
+		pal.array.forEach((col, i) => {
+			const hsl = color.toHsl(col);
 			hsl.h += loop * 0.01;
-			pal.buffer[i] = color32.makeFromHsl(hsl);
+			pal.array[i] = color.makeFromHsl(hsl);
 		});
 		vdp.writePalette('level2', pal);
 

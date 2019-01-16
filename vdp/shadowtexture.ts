@@ -1,5 +1,5 @@
 import { LoadedTexture, readFromTexture32 } from "./utils";
-import { color32 } from './color32';
+import { color } from './color';
 
 /**
  * Typed buffer that represents a texture stored in RAM. Contrary to the OpenGL textures, the type doesn't need to be
@@ -104,7 +104,7 @@ export class ShadowTexture {
 
 		if (this.posterizeToBpp >= 1) {
 			for (let i = 0; i < tightlyPackedBuffer.length; i++) {
-				tightlyPackedBuffer[i] = color32.posterize(tightlyPackedBuffer[i], this.posterizeToBpp);
+				tightlyPackedBuffer[i] = color.posterize(tightlyPackedBuffer[i], this.posterizeToBpp);
 			}
 		}
 

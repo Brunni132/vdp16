@@ -1,4 +1,4 @@
-import {startGame, color32, LineTransformationArray, VDPCopySource} from "./lib-main";
+import {startGame, color, LineTransformationArray, VDPCopySource} from "./lib-main";
 import { mat3 } from 'gl-matrix';
 
 const TextLayer = {
@@ -46,7 +46,7 @@ function *main(vdp) {
 	TextLayer.drawText(0, 0, `Hello world`);
 
 	const pal = vdp.readPalette('text');
-	pal[1] = color32.make('#ff0');
+	pal[1] = color.make('#ff0');
 	vdp.writePalette('text', pal);
 
 	let loop = 0;

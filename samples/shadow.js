@@ -16,7 +16,7 @@ function *main(vdp) {
 
 	// Take all background colors and make them 0 (transparent). Hack to be able to reuse the map.
 	const bgTileset = vdp.readSprite('level1');
-	bgTileset.buffer.forEach((pixel, index) => {
+	bgTileset.array.forEach((pixel, index) => {
 		// Pixels are 4 bit per pixel, packed in a 8 bit integer. Therefore there are two inside; we need to extract them the old way
 		let pix1 = pixel & 0xf, pix2 = pixel >> 4;
 		if (pix1 === 1 || pix1 === 11 || pix1 === 12 || pix1 === 15)
@@ -25,7 +25,7 @@ function *main(vdp) {
 			pix2 = 0;
 
 		// Make the final pixel
-		bgTileset.buffer[index] = pix1 | pix2 << 4;
+		bgTileset.array[index] = pix1 | pix2 << 4;
 	});
 	vdp.writeSprite('level1', bgTileset);
 

@@ -1,4 +1,4 @@
-import {LineColorArray, VDPCopySource, startGame, color32} from "./lib-main";
+import {LineColorArray, VDPCopySource, startGame, color} from "./lib-main";
 
 /** @param vdp {VDP} */
 function *main(vdp) {
@@ -10,8 +10,8 @@ function *main(vdp) {
 
 	// Set up the 2 palettes with a gradient (32 and 33, make them far enough so that they're not used)
 	const gradientPalette = vdp.readPaletteMemory(0, 32, 16, 2, VDPCopySource.blank);
-	for (let i = 0; i < 16; i++) gradientPalette.setElement(i, 0, color32.make(0, i * 16, 128 + i * 8));
-	for (let i = 0; i < 16; i++) gradientPalette.setElement(i, 1, color32.make(i * 16, i * 16, i * 16));
+	for (let i = 0; i < 16; i++) gradientPalette.setElement(i, 0, color.make(0, i * 16, 128 + i * 8));
+	for (let i = 0; i < 16; i++) gradientPalette.setElement(i, 1, color.make(i * 16, i * 16, i * 16));
 	vdp.writePaletteMemory(0, 32, 16, 2, gradientPalette);
 
 	// Note that the color (0, 32) is not used, it's transparent so it will let the backdrop appear

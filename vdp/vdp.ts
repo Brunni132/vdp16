@@ -27,7 +27,7 @@ import {
 	makeShadowFromTexture8,
 	ShadowTexture
 } from "./shadowtexture";
-import { color32 } from "./color32";
+import { color } from "./color";
 import { mat3, mat4 } from 'gl-matrix';
 
 export const DEBUG = true;
@@ -65,8 +65,8 @@ class TransparencyConfig {
 			gl.enable(gl.BLEND);
 			gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 		} else if (effect === 'color') {
-			const dst = color32.extract(blendDst, vdp.paletteBpp);
-			const src = color32.extract(blendSrc, vdp.paletteBpp);
+			const dst = color.extract(blendDst, vdp.paletteBpp);
+			const src = color.extract(blendSrc, vdp.paletteBpp);
 			// Background blend factor
 			gl.blendColor(dst.r / 255, dst.g / 255, dst.b / 255, dst.a / 255);
 			// Source blend factor defined in shader
@@ -242,10 +242,10 @@ export class VDP {
 	 * Configures the backdrop (background color that is always present).
 	 * Note that the backdrop is exactly the first color of the first palette. You can therefore modify it by writing
 	 * to that palette color too. It can become handy when you are doing fades by modifying all colors.
-	 * @param color backdrop color
+	 * @param c backdrop color
 	 */
-	configBackdropColor(color: number|string) {
-		this.shadowPaletteTex.buffer[0] = color32.make(color);
+	configBackdropColor(c: number|string) {
+		this.shadowPaletteTex.buffer[0] = color.make(c);
 	}
 
 	/**
@@ -260,8 +260,8 @@ export class VDP {
 			throw new Error(`Invalid operation ${opts.op}`);
 		}
 		this.bgTransparency.operation = opts.op;
-		this.bgTransparency.blendSrc = color32.make(opts.blendSrc);
-		this.bgTransparency.blendDst = color32.make(opts.blendDst);
+		this.bgTransparency.blendSrc = color.make(opts.blendSrc);
+		this.bgTransparency.blendDst = color.make(opts.blendDst);
 	}
 
 	/**
@@ -294,13 +294,13 @@ export class VDP {
 
 	/**
 	 * Configures the fade.
-	 * @param color destination color (suggested black or white).
+	 * @param c destination color (suggested black or white).
 	 * @param factor between 0 and 255. 0 means disabled, 255 means fully covered. The fade is only visible in
 	 * increments of 16 (i.e. 1-15 is equivalent to 0).
 	 */
-	configFade(color: number|string, factor: number) {
+	configFade(c: number|string, factor: number) {
 		factor = Math.min(255, Math.max(0, factor));
-		this.fadeColor = (color32.make(color) & 0xffffff) | (factor << 24);
+		this.fadeColor = (color.make(c) & 0xffffff) | (factor << 24);
 	}
 
 	/**
@@ -315,8 +315,8 @@ export class VDP {
 			throw new Error(`Invalid operation ${opts.op}`);
 		}
 		this.objTransparency.operation = opts.op;
-		this.objTransparency.blendSrc = color32.make(opts.blendSrc);
-		this.objTransparency.blendDst = color32.make(opts.blendDst);
+		this.objTransparency.blendSrc = color.make(opts.blendSrc);
+		this.objTransparency.blendDst = color.make(opts.blendDst);
 	}
 
 	/**
@@ -506,7 +506,7 @@ export class VDP {
 	 */
 	writeMap(map: string|VdpMap, data: Array2D) {
 		const m = this._getMap(map);
-		this.shadowMapTex.writeTo(m.x, m.y, m.w, m.h, data.buffer);
+		this.shadowMapTex.writeTo(m.x, m.y, m.w, m.h, data.array);
 		this.shadowMapTex.syncToVramTexture(this.gl, this.mapTexture, m.x, m.y, m.w, m.h);
 		this.usedVramWrites += m.w * m.h;
 	}
@@ -529,7 +529,7 @@ export class VDP {
 	 * @param data {Array2D} color entries, encoded as 0xAABBGGRR
 	 */
 	writePaletteMemory(x: number, y: number, w: number, h: number, data: Array2D) {
-		this.shadowPaletteTex.writeTo(x, y, w, h, data.buffer);
+		this.shadowPaletteTex.writeTo(x, y, w, h, data.array);
 		this.shadowPaletteTex.syncToVramTexture(this.gl, this.paletteTexture, x, y, w, h);
 		this.usedVramWrites += w * h;
 	}
@@ -547,7 +547,7 @@ export class VDP {
 		const x = s.hiColor ? s.x : (s.x / 2);
 		const w = s.hiColor ? s.w : Math.ceil(s.w / 2);
 
-		this.shadowSpriteTex.writeTo(x, s.y, w, s.h, data.buffer);
+		this.shadowSpriteTex.writeTo(x, s.y, w, s.h, data.array);
 		this.shadowSpriteTex.syncToVramTexture(this.gl, this.spriteTexture, x, s.y, w, s.h);
 		this.usedVramWrites += s.w * s.h;
 	}
@@ -570,7 +570,7 @@ export class VDP {
 
 		// Only the first time per frame (allow multiple render per frames)
 		if (this.frameStarted) {
-			const clearColor = color32.extract(this.shadowPaletteTex.buffer[0], this.paletteBpp);
+			const clearColor = color.extract(this.shadowPaletteTex.buffer[0], this.paletteBpp);
 			gl.clearColor(clearColor.r / 255, clearColor.g / 255, clearColor.b / 255, 0);
 
 			if (USE_PRIORITIES) {
@@ -629,7 +629,7 @@ export class VDP {
 		// Draw fade
 		if (this.fadeColor >>> 24 >= 0x10) {
 			const gl = this.gl;
-			const {r, g, b, a} = color32.extract(this.fadeColor, this.paletteBpp);
+			const {r, g, b, a} = color.extract(this.fadeColor, this.paletteBpp);
 
 			STANDARD_TRANSPARENCY.apply(this);
 			gl.disable(gl.DEPTH_TEST);

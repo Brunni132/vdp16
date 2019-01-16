@@ -98,8 +98,8 @@ export class VdpSprite {
  * In the VDP16, memory is always addressed in 2D. It has the advantage of being easier to represent for users and be
  * much more flexible. However, underlying memory is still exposed as a one-dimensional array in the end, containing
  * [height] lines of [width] integers, each of which represents a pixel, a map element or a palette color. Therefore,
- * accessing to the buffer element (x, y) is done as such: Array2D.buffer[x + y * width]. Since it's heavily used all
- * around, we created this class to wrap up the data buffer and the width of each column.
+ * accessing to the buffer element (x, y) is done as such: <result>.array[x + y * width]. Since it's heavily used all
+ * around, we created this class to wrap up the data array and the width of each column.
  *
  * For reference, sprites use 8 bit data (Uint8Array), each element being one or two pixels depending on the hi-color
  * mode. Map elements use 16 bit data (Uint16Array), each element being a map element. Palettes use 32 bit data
@@ -107,32 +107,33 @@ export class VdpSprite {
  * and a=alpha, ignored unless you use the alpha-based blending modes).
  */
 export class Array2D {
-	buffer: Uint8Array|Uint16Array|Uint32Array;
+	/** @property array View as an array, where you can for example do array.forEach((value, index) => { ... }). */
+	public array: Uint8Array|Uint16Array|Uint32Array;
 	width: number;
 	height: number;
 
 	constructor(buffer: Uint8Array|Uint16Array|Uint32Array, width: number, height: number) {
-		this.buffer = buffer;
+		this.array = buffer;
 		this.width = width;
 		this.height = height;
 	}
 
 	getElement(x: number, y: number): number {
-		return this.buffer[this.width * y + x];
+		return this.array[this.width * y + x];
 	}
 
 	setElement(x: number, y: number, value: number) {
-		this.buffer[this.width * y + x] = value;
+		this.array[this.width * y + x] = value;
 	}
 }
 
 /**
  * Fills the memory with a given value.
  */
-export function memset(buffer: Uint8Array|Uint16Array|Uint32Array|Uint8ClampedArray|Float32Array, value: number, numEntries: number) {
-	buffer.fill(value, 0, numEntries);
-}
-
-export function memcpy(dst: Uint8Array|Uint16Array|Uint32Array|Uint8ClampedArray|Float32Array, src: Uint8Array|Uint16Array|Uint32Array|Uint8ClampedArray|Float32Array) {
-	dst.set(src);
-}
+// export function memset(buffer: Uint8Array|Uint16Array|Uint32Array|Uint8ClampedArray|Float32Array, value: number, numEntries: number) {
+// 	buffer.fill(value, 0, numEntries);
+// }
+//
+// export function memcpy(dst: Uint8Array|Uint16Array|Uint32Array|Uint8ClampedArray|Float32Array, src: Uint8Array|Uint16Array|Uint32Array|Uint8ClampedArray|Float32Array) {
+// 	dst.set(src);
+// }
