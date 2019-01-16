@@ -32,7 +32,7 @@ import { mat3, mat4 } from 'gl-matrix';
 
 export const DEBUG = true;
 // Specs of the fantasy console, do not modify for now
-const MAX_TBGS = 1, MAX_BGS = 3, MAX_OBJS = 512;
+const MAX_TBGS = 1, MAX_BGS = 3, MAX_OBJS = 512, MAX_VRAM_WRITES = 4096, MAX_FRAME_SLOWDOWN = 10;
 let BG_LIMIT: number, OBJ_CELL_LIMIT: number, OBJ0_LIMIT: number, OBJ1_LIMIT: number;
 
 type TransparencyConfigEffect = 'none' | 'color' | 'blend' | 'premult';
@@ -172,6 +172,7 @@ export class VDP {
 	private stats = {
 		peakOBJ: 0,
 		peakBG: 0,
+		peakVramWrites: 0
 	};
 	private frameStarted = true;
 	// 2 = 64 colors (SMS), 3 = 512 colors (Mega Drive), 4 = 4096 (System 16), 5 = 32k (SNES), 8 = unmodified (PC)
@@ -186,6 +187,7 @@ export class VDP {
 	private shadowMapTex: ShadowTexture;
 	private nextLinescrollBuffer = 0;
 	private usedObjCells = 0;
+	private usedVramWrites = 0;
 
 	constructor(canvas: HTMLCanvasElement, done: () => void) {
 		this._initContext(canvas);
@@ -403,7 +405,7 @@ export class VDP {
 				const newCells = computeObjectCells(x, y, x + newW, y + h);
 				if (newCells + this.usedObjCells <= OBJ_CELL_LIMIT) {
 					enqueueObj(buffer, x, y, x + newW, y + h, sprite.x, sprite.y, sprite.x + sprite.w * newW / w, sprite.y + sprite.h, pal.y, sprite.hiColor, prio);
-					this.usedObjCells += newCells;
+					this.usedObjCells = OBJ_CELL_LIMIT;
 					return;
 				}
 			}
@@ -412,18 +414,6 @@ export class VDP {
 		this.usedObjCells += cells;
 
 		enqueueObj(buffer, x, y, x + w, y + h, sprite.x, sprite.y, sprite.x + sprite.w, sprite.y + sprite.h, pal.y, sprite.hiColor, prio);
-	}
-
-	/**
-	 * Get and reset the VDP stats.
-	 */
-	getStats() {
-		const result = this.stats;
-		this.stats = {
-			peakOBJ: 0,
-			peakBG: 0
-		};
-		return result;
 	}
 
 	map(name: string): VdpMap {
@@ -517,6 +507,7 @@ export class VDP {
 		const m = this._getMap(map);
 		this.shadowMapTex.writeTo(m.x, m.y, m.w, m.h, data.buffer);
 		this.shadowMapTex.syncToVramTexture(this.gl, this.mapTexture, m.x, m.y, m.w, m.h);
+		this.usedVramWrites += m.w * m.h;
 	}
 
 	/**
@@ -539,6 +530,7 @@ export class VDP {
 	writePaletteMemory(x: number, y: number, w: number, h: number, data: Array2D) {
 		this.shadowPaletteTex.writeTo(x, y, w, h, data.buffer);
 		this.shadowPaletteTex.syncToVramTexture(this.gl, this.paletteTexture, x, y, w, h);
+		this.usedVramWrites += w * h;
 	}
 
 	/**
@@ -556,6 +548,7 @@ export class VDP {
 
 		this.shadowSpriteTex.writeTo(x, s.y, w, s.h, data.buffer);
 		this.shadowSpriteTex.syncToVramTexture(this.gl, this.spriteTexture, x, s.y, w, s.h);
+		this.usedVramWrites += s.w * s.h;
 	}
 
 	// --------------------- PRIVATE ---------------------
@@ -610,8 +603,7 @@ export class VDP {
 		this.objTransparency.apply(this);
 		this._drawObjectLayer(this.obj1Buffer);
 
-		this.nextLinescrollBuffer = 0;
-		this.usedObjCells = 0;
+		this.nextLinescrollBuffer = this.usedObjCells = 0;
 	}
 
 	/**
@@ -625,7 +617,12 @@ export class VDP {
 		mat3.identity(this.modelViewMatrix);
 	}
 
-	public _endFrame() {
+	/**
+	 * @returns {number} the frame "cost" (i.e. how many frames it takes to "render" based on the stats). 1 means normal,
+	 * 2 means that it will run 30 FPS, 3 = 20 FPS, etc.
+	 * @private
+	 */
+	public _endFrame(): number {
 		this._doRender();
 
 		// Draw fade
@@ -637,6 +634,12 @@ export class VDP {
 			gl.disable(gl.DEPTH_TEST);
 			drawOpaquePoly(this, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, r / 255, g / 255, b / 255, a / 255);
 		}
+
+		const cost = Math.min(MAX_FRAME_SLOWDOWN, Math.ceil(this.usedVramWrites / MAX_VRAM_WRITES));
+		if (DEBUG && cost > 1) console.log(`Overuse of VRAM writes for this frame (${this.usedVramWrites}/${MAX_VRAM_WRITES}), slowing down ${cost}x`);
+		this.stats.peakVramWrites = Math.max(this.stats.peakVramWrites, this.usedVramWrites);
+		this.usedVramWrites = 0;
+		return cost;
 	}
 
 	private _getMap(name: string|VdpMap): VdpMap {
@@ -652,6 +655,19 @@ export class VDP {
 	private _getSprite(name: string|VdpSprite): VdpSprite {
 		if (typeof name === 'string') return this.sprite(name);
 		return name;
+	}
+
+	/**
+	 * Get and reset the VDP stats.
+	 */
+	public _getStats() {
+		const result = this.stats;
+		this.stats = {
+			peakOBJ: 0,
+			peakBG: 0,
+			peakVramWrites: 0
+		};
+		return result;
 	}
 
 	private _initContext(canvas: HTMLCanvasElement) {

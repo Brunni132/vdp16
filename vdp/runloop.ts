@@ -19,7 +19,7 @@ export function runProgram(vdp: VDP, coroutine: IterableIterator<number>) {
 	let lastInt = 0;
 	const times = [];
 	const framerateAdj = new FramerateAdjuster();
-	let renderedFrames = 0, skippedFrames = 0;
+	let renderedFrames = 0, skippedFrames = 0, extraFrameCost = 1;
 
 	function step(timestamp) {
 		if (DEBUG) {
@@ -27,7 +27,7 @@ export function runProgram(vdp: VDP, coroutine: IterableIterator<number>) {
 			const timestampInt = Math.floor(timestamp / 1000);
 
 			if (timestampInt !== lastInt && times.length > 0) {
-				console.log(`Upd=${(times.reduce((a, b) => a + b) / times.length).toFixed(3)}ms; r=${renderedFrames}, s=${skippedFrames}, u=${times.length}; ${framerateAdj.getFramerate().toFixed(2)}Hz`, vdp.getStats());
+				console.log(`Upd=${(times.reduce((a, b) => a + b) / times.length).toFixed(3)}ms; r=${renderedFrames}, s=${skippedFrames}, u=${times.length}; ${framerateAdj.getFramerate().toFixed(2)}Hz`, vdp._getStats());
 				times.length = 0;
 				renderedFrames = skippedFrames = 0;
 			}
@@ -46,10 +46,11 @@ export function runProgram(vdp: VDP, coroutine: IterableIterator<number>) {
 
 		// Render the expected number of frames
 		for (let i = 0; i < toRender; i++) {
+			if (extraFrameCost-- > 1) continue;
 			const before = window.performance.now();
 			vdp._startFrame();
 			coroutine.next();
-			vdp._endFrame();
+			extraFrameCost = vdp._endFrame();
 			times.push(window.performance.now() - before);
 		}
 
