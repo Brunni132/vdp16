@@ -25,7 +25,7 @@ function drawSprite(vdp, transformations, x, z, obj) {
 	// Once found, we transform the object using the scale level at that line.
 	// The current (result[0], result[1]) are the positions of the (center, bottom) anchor of the sprite
 	scale = 1 / scale;
-	vdp.drawObj(obj, result[0] - scale * obj.w / 2, line - scale * obj.h, { width: obj.w * scale, height: obj.h * scale, prio: 2 });
+	vdp.drawObject(obj, result[0] - scale * obj.w / 2, line - scale * obj.h, { width: obj.w * scale, height: obj.h * scale, prio: 2 });
 }
 
 // Just a quick attempt. Use reference instead: https://www.coranac.com/tonc/text/mode7.htm
@@ -53,7 +53,7 @@ function *main(vdp) {
 			lineTransform.setLine(i, transformations[i]);
 		}
 
-		vdp.drawBG('road', { lineTransform, winY: 0, wrap: true});
+		vdp.drawBackgroundMap('road', { lineTransform, winY: 0, wrap: true});
 		drawSprite(vdp, transformations, 512, 351, vdp.sprite('mario').tile(6));
 		drawSprite(vdp, transformations, 550, 400, vdp.sprite('mario').tile(2));
 

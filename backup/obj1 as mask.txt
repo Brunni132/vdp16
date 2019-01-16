@@ -36,10 +36,10 @@ VDP.ts:
         if (this.obj1AsMask) {
             // Draw BG, transparent OBJ in reverse order, then normal OBJ
             this.obj1Buffer.sort();
-            this._drawObjLayer(this.obj1Buffer, this.objTransparency, OBJ1_CELL_LIMIT);
+            this._drawObjectLayer(this.obj1Buffer, this.objTransparency, OBJ1_CELL_LIMIT);
         }
 
-        this._drawObjLayer(this.obj0Buffer, NO_TRANSPARENCY, obj0Limit);
+        this._drawObjectLayer(this.obj0Buffer, NO_TRANSPARENCY, obj0Limit);
 
         this.bgTransparency.apply(this);
         gl.depthMask(false);
@@ -49,7 +49,7 @@ VDP.ts:
         if (!this.obj1AsMask) {
             // Draw in reverse order
             this.obj1Buffer.sort();
-            this._drawObjLayer(this.obj1Buffer, this.objTransparency, OBJ1_CELL_LIMIT);
+            this._drawObjectLayer(this.obj1Buffer, this.objTransparency, OBJ1_CELL_LIMIT);
         }
     }
 
@@ -61,7 +61,7 @@ VDP.ts:
      * @param opts.blendDst destination tint (quantity of color to take from the backbuffer when mixing)
      * @param opts.mask whether to use mask
      */
-    configOBJTransparency(opts: {op: TransparencyConfigOperation, blendSrc: number|string, blendDst: number|string, mask?: boolean}) {
+    configObjectTransparency(opts: {op: TransparencyConfigOperation, blendSrc: number|string, blendDst: number|string, mask?: boolean}) {
         if (opts.op !== 'add' && opts.op !== 'sub') {
             throw new Error(`Invalid operation ${opts.op}`);
         }

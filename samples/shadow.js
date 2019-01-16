@@ -29,7 +29,7 @@ function *main(vdp) {
 	});
 	vdp.writeSprite('level1', bgTileset);
 
-	vdp.configBDColor('#000');
+	vdp.configBackdropColor('#000');
 	mapData = vdp.readMap('level1');
 
 	while (true) {
@@ -49,15 +49,15 @@ function *main(vdp) {
 		const cameraX = Math.max(0, mario.x - 96);
 
 		// Configure OBJ transparency as shadow
-		vdp.configOBJTransparency({ op: 'add', blendDst: '#888', blendSrc: '#000' });
-		vdp.drawBG('tmx', { scrollX: cameraX / 2, scrollY: -24, wrap: false, prio: 0 });
-		vdp.drawBG('level1', { scrollX: cameraX, wrap: false, prio: 1 });
+		vdp.configObjectTransparency({ op: 'add', blendDst: '#888', blendSrc: '#000' });
+		vdp.drawBackgroundMap('tmx', { scrollX: cameraX / 2, scrollY: -24, wrap: false, prio: 0 });
+		vdp.drawBackgroundMap('level1', { scrollX: cameraX, wrap: false, prio: 1 });
 
 		// Draw sprite with two shadow sprites, a small one with high prio (for planes with prio=0 and 1), a large one with low prio (for plane with prio=0)
 		const marioTile = vdp.sprite('mario').tile(2);
-		vdp.drawObj(marioTile, mario.x - cameraX, mario.y, { prio: 2, width: mario.w, height: mario.h });
-		vdp.drawObj(marioTile, mario.x - cameraX + 2, mario.y + 2, { prio: 2, width: mario.w, height: mario.h, transparent: true });
-		vdp.drawObj(marioTile, mario.x - cameraX + 5, mario.y + 5, { prio: 1, width: mario.w, height: mario.h, transparent: true });
+		vdp.drawObject(marioTile, mario.x - cameraX, mario.y, { prio: 2, width: mario.w, height: mario.h });
+		vdp.drawObject(marioTile, mario.x - cameraX + 2, mario.y + 2, { prio: 2, width: mario.w, height: mario.h, transparent: true });
+		vdp.drawObject(marioTile, mario.x - cameraX + 5, mario.y + 5, { prio: 1, width: mario.w, height: mario.h, transparent: true });
 
 		yield;
 	}

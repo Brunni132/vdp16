@@ -6,12 +6,12 @@ import {
 	envColor,
 	makeOutputColor,
 	PALETTE_HICOLOR_FLAG,
-	PALETTE_TEX_H
+	PALETTE_TEX_H, SCREEN_HEIGHT, SCREEN_WIDTH
 } from "./shaders";
 import { DEBUG, VDP } from "./vdp";
 
 // How big (tall/wide) a sprite can be before it's broken down in smaller units of OBJ_CELL_SIZE^2
-const OBJ_CELL_SIZE = 16;
+export const OBJ_CELL_SIZE = 16;
 
 const OBJ_BUFFER_STRIDE = 6;
 
@@ -37,16 +37,16 @@ export class ObjBuffer {
 	/**
 	 * Returns the number of cells used.
 	 */
-	computeUsedObjects(first: number = -1, count: number = -1): number {
-		let result = 0;
-		if (first < 0) first = this.firstSprite;
-		if (count < 0) count = this.usedSprites;
-
-		for (let i = first; i < first + count; i++) {
-			result += this.computeObjectCells(this.getSizeOfObject(i));
-		}
-		return result;
-	}
+	// computeUsedObjects(first: number = -1, count: number = -1): number {
+	// 	let result = 0;
+	// 	if (first < 0) first = this.firstSprite;
+	// 	if (count < 0) count = this.usedSprites;
+	//
+	// 	for (let i = first; i < first + count; i++) {
+	// 		result += this.computeObjectCells(this.getSizeOfObject(i));
+	// 	}
+	// 	return result;
+	// }
 
 	get firstSprite(): number {
 		return this.firstVertice / OBJ_BUFFER_STRIDE;
@@ -73,42 +73,42 @@ export class ObjBuffer {
 	/**
 	 * Returns the size of an object at the index-th position.
 	 */
-	getSizeOfObject(objectIndex: number): {w: number, h: number} {
-		// (left,top) in row 0.xy, (right,bottom) in row 2.xy
-		const vert = OBJ_BUFFER_STRIDE * 4 * objectIndex;
-		return {
-			w: Math.abs(this.xyzp[vert + 4 * 2] - this.xyzp[vert]),
-			h: Math.abs(this.xyzp[vert + 4 * 2 + 1] - this.xyzp[vert + 1])
-		};
-	}
+	// getSizeOfObject(objectIndex: number): {w: number, h: number} {
+	// 	// (left,top) in row 0.xy, (right,bottom) in row 2.xy
+	// 	const vert = OBJ_BUFFER_STRIDE * 4 * objectIndex;
+	// 	return {
+	// 		w: Math.abs(this.xyzp[vert + 4 * 2] - this.xyzp[vert]),
+	// 		h: Math.abs(this.xyzp[vert + 4 * 2 + 1] - this.xyzp[vert + 1])
+	// 	};
+	// }
 
 	/**
 	 * Modifies the OBJ list to fit within the number of cells. Use the return value to know how many sprites to draw.
 	 * @param maxCells {number} maximum allowed number of cells
 	 * @returns {number} sprites fully drawable for this list
 	 */
-	limitObjList(maxCells: number): number {
-		let cells = 0;
-		const endOfList = this.firstSprite + this.usedSprites;
-		for (let i = this.firstSprite; i < endOfList; i++) {
-			const size = this.getSizeOfObject(i);
-			const current = this.computeObjectCells(size);
-
-			if (cells + current > maxCells) {
-
-				// TODO Florian -- Limit the width of this sprite -- Doesn't work because we need to scale the UV too with floating point UV rendering
-				//const cellsTall = Math.ceil(size.h * layerTransform.scaling[1] / OBJ_CELL_SIZE);
-				//const allowedCellsWide = (maxCells - cells) / cellsTall;
-				//this.setWidthOfObject(i, allowedCellsWide * OBJ_CELL_SIZE);
-				//return i - this.firstSprite + 1;
-
-				if (DEBUG) console.log('Too many OBJ cells on ${this.name} (discarded ${endOfList - i}/${this.usedSprites} entries)');
-				return i - this.firstSprite;
-			}
-			cells += current;
-		}
-		return this.usedSprites;
-	}
+	// limitObjList(maxCells: number): number {
+	// 	let cells = 0;
+	// 	const endOfList = this.firstSprite + this.usedSprites;
+	// 	for (let i = this.firstSprite; i < endOfList; i++) {
+	// 		const size = this.getSizeOfObject(i);
+	// 		const current = this.computeObjectCells(size);
+	//
+	// 		if (cells + current > maxCells) {
+	//
+	// 			// TODO Florian -- Limit the width of this sprite -- Doesn't work because we need to scale the UV too with floating point UV rendering
+	// 			//const cellsTall = Math.ceil(size.h * layerTransform.scaling[1] / OBJ_CELL_SIZE);
+	// 			//const allowedCellsWide = (maxCells - cells) / cellsTall;
+	// 			//this.setWidthOfObject(i, allowedCellsWide * OBJ_CELL_SIZE);
+	// 			//return i - this.firstSprite + 1;
+	//
+	// 			if (DEBUG) console.log('Too many OBJ cells on ${this.name} (discarded ${endOfList - i}/${this.usedSprites} entries)');
+	// 			return i - this.firstSprite;
+	// 		}
+	// 		cells += current;
+	// 	}
+	// 	return this.usedSprites;
+	// }
 
 	// Limit the width of an object (usually as a result of going outside of the sprite limit).
 	// setWidthOfObject(objectIndex: number, width: number) {
@@ -147,9 +147,9 @@ export class ObjBuffer {
 	 * Computes the number of pixels that an object uses with the transform. Note that even offscreen pixels count toward
 	 * the limit!
 	 */
-	private computeObjectCells(size: {w: number, h: number}): number {
-		return Math.max(1, Math.ceil(size.w / OBJ_CELL_SIZE) * Math.ceil(size.h / OBJ_CELL_SIZE));
-	}
+	// private computeObjectCells(size: {w: number, h: number}): number {
+	// 	return Math.max(1, Math.ceil(size.w / OBJ_CELL_SIZE) * Math.ceil(size.h / OBJ_CELL_SIZE));
+	// }
 }
 
 export function initObjShaders(vdp: VDP) {
@@ -224,14 +224,27 @@ void main(void) {
 }
 
 /**
+ * Compute the number of cells that an object located at (x0, y0) filling the screen until (x1, y1) takes.
+ * @param {number} x0
+ * @param {number} y0
+ * @param {number} x1
+ * @param {number} y1
+ * @returns {number} the number of cells (e.g. 1 for a 16x16 square, 2 for a 17x16, etc.)
+ */
+export function computeObjectCells(x0: number, y0: number, x1: number, y1: number): number {
+	if (x0 > x1) [x1, x0] = [x0, x1];
+	if (y0 > y1) [y1, y0] = [y0, y1];
+	const w = Math.min(SCREEN_WIDTH, x1) - Math.max(0, x0);
+	const h = Math.min(SCREEN_HEIGHT, y1) - Math.max(0, y0);
+	return Math.max(1, Math.ceil(w / OBJ_CELL_SIZE) * Math.ceil(h / OBJ_CELL_SIZE));
+}
+
+/**
  * @param vdp {VDP}
  * @param objBuffer {ObjBuffer}
- * @param objLimit {number} max number of cells drawable
  */
-export function drawPendingObj(vdp: VDP, objBuffer: ObjBuffer, objLimit: number = 0) {
-	let numObjectsToDraw = objBuffer.usedSprites;
-	if (objLimit > 0) numObjectsToDraw = objBuffer.limitObjList(objLimit);
-	if (numObjectsToDraw <= 0) return;
+export function drawPendingObj(vdp: VDP, objBuffer: ObjBuffer) {
+	if (objBuffer.usedSprites <= 0) return;
 
 	const prog = vdp.spriteProgram;
 	const gl = vdp.gl;
@@ -282,7 +295,7 @@ export function drawPendingObj(vdp: VDP, objBuffer: ObjBuffer, objLimit: number 
 	gl.uniform4f(prog.uniformLocations.envColor, envColor[0], envColor[1], envColor[2], envColor[3]);
 	gl.uniform4f(prog.uniformLocations.colorSwaps, colorSwaps[0], colorSwaps[1], colorSwaps[2], colorSwaps[3]);
 
-	gl.drawArrays(gl.TRIANGLES, 0, numObjectsToDraw * OBJ_BUFFER_STRIDE);
+	gl.drawArrays(gl.TRIANGLES, 0, objBuffer.usedSprites * OBJ_BUFFER_STRIDE);
 
 	objBuffer.usedVertices = 0;
 }

@@ -1,5 +1,13 @@
 import { createDataTextureFloat, loadTexture, writeToTextureFloat } from "./utils";
-import { drawPendingObj, enqueueObj, initObjShaders, makeObjBuffer, ObjBuffer } from "./sprites";
+import {
+	computeObjectCells,
+	drawPendingObj,
+	enqueueObj,
+	initObjShaders,
+	makeObjBuffer,
+	OBJ_CELL_SIZE,
+	ObjBuffer
+} from "./sprites";
 import { drawPendingMap, enqueueMap, initMapShaders, makeMapBuffer } from "./maps";
 import {
 	colorSwaps,
@@ -24,12 +32,8 @@ import { mat3, mat4 } from 'gl-matrix';
 
 export const DEBUG = true;
 // Specs of the fantasy console, do not modify for now
-const BG_LIMIT = 3;
-const TBG_LIMIT = 1;
-const OBJ0_CELL_LIMIT = 512;
-const OBJ1_CELL_LIMIT = 256;
-const OBJ0_LIMIT = 512;
-const OBJ1_LIMIT = 32;
+const MAX_TBGS = 1, MAX_BGS = 3, MAX_OBJS = 512;
+let BG_LIMIT: number, OBJ_CELL_LIMIT: number, OBJ0_LIMIT: number, OBJ1_LIMIT: number;
 
 type TransparencyConfigEffect = 'none' | 'color' | 'blend' | 'premult';
 type TransparencyConfigOperation = 'add' | 'sub';
@@ -161,15 +165,13 @@ export class VDP {
 	private fadeColor = 0x00000000;
 	private bgTransparency = new TransparencyConfig('color', 'add', 0x888888, 0x888888);
 	private objTransparency = new TransparencyConfig('color', 'add', 0x888888, 0x888888);
-	private bgBuffer = makeMapBuffer('Opaque BG [BG]', BG_LIMIT);
-	private tbgBuffer = makeMapBuffer('Transparent BG [TBG]', TBG_LIMIT);
-	private obj0Buffer = makeObjBuffer('Opaque sprites [OBJ0]', OBJ0_LIMIT);
-	private obj1Buffer = makeObjBuffer('Transparent sprites [OBJ1]', OBJ1_LIMIT);
+	private bgBuffer = makeMapBuffer('Opaque BG [BG]', MAX_BGS);
+	private tbgBuffer = makeMapBuffer('Transparent BG [TBG]', MAX_TBGS);
+	private obj0Buffer = makeObjBuffer('Opaque sprites [OBJ0]', MAX_OBJS);
+	private obj1Buffer = makeObjBuffer('Transparent sprites [OBJ1]', MAX_OBJS);
 	private stats = {
-		peakOBJ0: 0,
-		peakOBJ1: 0,
+		peakOBJ: 0,
 		peakBG: 0,
-		OBJ0Limit: OBJ0_CELL_LIMIT
 	};
 	private frameStarted = true;
 	// 2 = 64 colors (SMS), 3 = 512 colors (Mega Drive), 4 = 4096 (System 16), 5 = 32k (SNES), 8 = unmodified (PC)
@@ -182,7 +184,8 @@ export class VDP {
 	private shadowPaletteTex: ShadowTexture;
 	private romMapTex: ShadowTexture;
 	private shadowMapTex: ShadowTexture;
-	private nextLinescrollBuffer: number = 0;
+	private nextLinescrollBuffer = 0;
+	private usedObjCells = 0;
 
 	constructor(canvas: HTMLCanvasElement, done: () => void) {
 		this._initContext(canvas);
@@ -220,7 +223,8 @@ export class VDP {
 
 						this.otherTexture = createDataTextureFloat(gl, OTHER_TEX_W, OTHER_TEX_H);
 						// Startup color
-						this.configBDColor('#008');
+						this.configBackdropColor('#008');
+						this.configDisplay({ extraLayer: false });
 
 						initMapShaders(this);
 						initObjShaders(this);
@@ -238,7 +242,7 @@ export class VDP {
 	 * to that palette color too. It can become handy when you are doing fades by modifying all colors.
 	 * @param color backdrop color
 	 */
-	configBDColor(color: number|string) {
+	configBackdropColor(color: number|string) {
 		this.shadowPaletteTex.buffer[0] = color32.make(color);
 	}
 
@@ -249,7 +253,7 @@ export class VDP {
 	 * @param opts.blendSrc source tint (quantity of color to take from the blending object)
 	 * @param opts.blendDst destination tint (quantity of color to take from the backbuffer when mixing)
 	 */
-	configBGTransparency(opts: {op: TransparencyConfigOperation, blendSrc: number|string, blendDst: number|string}) {
+	configBackgroundTransparency(opts: {op: TransparencyConfigOperation, blendSrc: number|string, blendDst: number|string}) {
 		if (opts.op !== 'add' && opts.op !== 'sub') {
 			throw new Error(`Invalid operation ${opts.op}`);
 		}
@@ -272,6 +276,21 @@ export class VDP {
 	}
 
 	/**
+	 * Configures the display options. Can only be called at the beginning of the program or after a frame has been
+	 * rendered, not in the middle.
+	 * @param [opts] {Object}
+	 * @param [opts.extraLayer] {boolean} whether to enable an extra 3rd layer. This will eat in the object budget (256
+	 * cells / entries instead of 512, covering one screen). You can still have only one transparent BG.
+	 */
+	configDisplay(opts: { extraLayer?: boolean } = {}) {
+		if (this.obj0Buffer.usedSprites > 0 || this.obj1Buffer.usedSprites > 0 || this.bgBuffer.usedLayers > 0) {
+			throw new Error('configDisplay must come at the beginning of your program/frame');
+		}
+		BG_LIMIT = opts.extraLayer ? 3 : 2;
+		OBJ0_LIMIT = OBJ1_LIMIT = OBJ_CELL_LIMIT = opts.extraLayer ? 256 : 512;
+	}
+
+	/**
 	 * Configures the fade.
 	 * @param color destination color (suggested black or white).
 	 * @param factor between 0 and 255. 0 means disabled, 255 means fully covered. The fade is only visible in
@@ -289,7 +308,7 @@ export class VDP {
 	 * @param opts.blendSrc source tint (quantity of color to take from the blending object)
 	 * @param opts.blendDst destination tint (quantity of color to take from the backbuffer when mixing)
 	 */
-	configOBJTransparency(opts: {op: TransparencyConfigOperation, blendSrc: number|string, blendDst: number|string}) {
+	configObjectTransparency(opts: {op: TransparencyConfigOperation, blendSrc: number|string, blendDst: number|string}) {
 		if (opts.op !== 'add' && opts.op !== 'sub') {
 			throw new Error(`Invalid operation ${opts.op}`);
 		}
@@ -314,7 +333,7 @@ export class VDP {
 	 * @param opts.transparent
 	 * @param opts.prio z-order
 	 */
-	drawBG(map, opts: {palette?: string|VdpPalette, scrollX?: number, scrollY?: number, winX?: number, winY?: number, winW?: number, winH?: number, lineTransform?: LineTransformationArray, wrap?: boolean, tileset?: string|VdpSprite, transparent?: boolean, prio?: number} = {}) {
+	drawBackgroundMap(map, opts: {palette?: string|VdpPalette, scrollX?: number, scrollY?: number, winX?: number, winY?: number, winW?: number, winH?: number, lineTransform?: LineTransformationArray, wrap?: boolean, tileset?: string|VdpSprite, transparent?: boolean, prio?: number} = {}) {
 		if (typeof map === 'string') map = this.map(map);
 		// TODO Florian -- no need for such a param, since the user can modify map.designPalette himself…
 		// Maybe the other options could be in the map too… (just beware that they are strings, not actual links to the palette/tileset… but we could typecheck too)
@@ -331,15 +350,15 @@ export class VDP {
 		const buffer = opts.transparent ? this.tbgBuffer : this.bgBuffer;
 
 		if (this.bgBuffer.usedLayers + this.tbgBuffer.usedLayers >= BG_LIMIT) {
-			if (DEBUG) console.log(`Too many BGs (${this.bgBuffer.usedLayers} opaque, ${this.tbgBuffer.usedLayers} transparent), ignoring drawBG`);
+			if (DEBUG) console.log(`Too many BGs (${this.bgBuffer.usedLayers} opaque, ${this.tbgBuffer.usedLayers} transparent), ignoring drawBackgroundMap`);
 			return;
 		}
 
 		// To avoid drawing too big quads and them counting toward the BG pixel budget
-		winX = Math.min(SCREEN_WIDTH, Math.max(0, winX));
-		winY = Math.min(SCREEN_HEIGHT, Math.max(0, winY));
-		winW = Math.min(SCREEN_WIDTH - winX, Math.max(0, winW));
-		winH = Math.min(SCREEN_HEIGHT - winY, Math.max(0, winH));
+		// winX = Math.min(SCREEN_WIDTH, Math.max(0, winX));
+		// winY = Math.min(SCREEN_HEIGHT, Math.max(0, winY));
+		// winW = Math.min(SCREEN_WIDTH - winX, Math.max(0, winW));
+		// winH = Math.min(SCREEN_HEIGHT - winY, Math.max(0, winH));
 
 		let linescrollBuffer = -1;
 		if (opts.lineTransform) {
@@ -363,7 +382,7 @@ export class VDP {
 	 * background planes.
 	 * @param opts.transparent whether this is a OBJ1 type sprite (with color effects)
 	 */
-	drawObj(sprite, x, y, opts: {palette?: string|VdpPalette, width?: number, height?: number, prio?: number, transparent?: boolean} = {}) {
+	drawObject(sprite, x, y, opts: {palette?: string|VdpPalette, width?: number, height?: number, prio?: number, transparent?: boolean} = {}) {
 		if (typeof sprite === 'string') sprite = this.sprite(sprite);
 		// TODO Florian -- no need for such a param, since the user can modify sprite.designPalette himself…
 		const pal = this._getPalette(opts.hasOwnProperty('palette') ? opts.palette : sprite.designPalette);
@@ -371,6 +390,26 @@ export class VDP {
 		const h = opts.hasOwnProperty('height') ? opts.height : sprite.h;
 		const prio = opts.prio || (opts.transparent ? 2 : 1);
 		const buffer = opts.transparent ? this.obj1Buffer: this.obj0Buffer;
+
+		if (prio < 0 || prio > 7) throw new Error('Unsupported object priority (0-7)');
+
+		const cells = computeObjectCells(x, y, x + w, y + h);
+		if (cells + this.usedObjCells > OBJ_CELL_LIMIT) {
+			if (this.usedObjCells >= OBJ_CELL_LIMIT) return;
+			if (DEBUG) console.log('Using too many cells');
+
+			// Split the sprite (ugly, temporary)
+			for (let newW = w - w % OBJ_CELL_SIZE; newW > 0; newW -= OBJ_CELL_SIZE) {
+				const newCells = computeObjectCells(x, y, x + newW, y + h);
+				if (newCells + this.usedObjCells <= OBJ_CELL_LIMIT) {
+					enqueueObj(buffer, x, y, x + newW, y + h, sprite.x, sprite.y, sprite.x + sprite.w * newW / w, sprite.y + sprite.h, pal.y, sprite.hiColor, prio);
+					this.usedObjCells += newCells;
+					return;
+				}
+			}
+			return;
+		}
+		this.usedObjCells += cells;
 
 		enqueueObj(buffer, x, y, x + w, y + h, sprite.x, sprite.y, sprite.x + sprite.w, sprite.y + sprite.h, pal.y, sprite.hiColor, prio);
 	}
@@ -381,10 +420,8 @@ export class VDP {
 	getStats() {
 		const result = this.stats;
 		this.stats = {
-			peakOBJ0: 0,
-			peakOBJ1: 0,
-			peakBG: 0,
-			OBJ0Limit: OBJ0_CELL_LIMIT
+			peakOBJ: 0,
+			peakBG: 0
 		};
 		return result;
 	}
@@ -524,11 +561,9 @@ export class VDP {
 	// --------------------- PRIVATE ---------------------
 
 	// Take one frame in account for the stats. Read with _readStats.
-	private _computeStats(obj0Limit: number) {
+	private _computeStats() {
 		this.stats.peakBG = Math.max(this.stats.peakBG, this.bgBuffer.usedLayers + this.tbgBuffer.usedLayers);
-		this.stats.peakOBJ0 = Math.max(this.stats.peakOBJ0, this._totalUsedOBJ0());
-		this.stats.peakOBJ1 = Math.max(this.stats.peakOBJ1, this._totalUsedOBJ1());
-		this.stats.OBJ0Limit = Math.min(this.stats.OBJ0Limit, obj0Limit);
+		this.stats.peakOBJ = Math.max(this.stats.peakOBJ, this.usedObjCells);
 	}
 
 	/**
@@ -537,7 +572,7 @@ export class VDP {
 	private _doRender() {
 		const gl = this.gl;
 		// Do before drawing stuff since it flushes the buffer
-		if (DEBUG) this._computeStats(OBJ0_CELL_LIMIT);
+		if (DEBUG) this._computeStats();
 
 		// Only the first time per frame (allow multiple render per frames)
 		if (this.frameStarted) {
@@ -562,7 +597,7 @@ export class VDP {
 		NO_TRANSPARENCY.apply(this);
 		mat3.identity(this.modelViewMatrix);
 		drawPendingMap(this, this.bgBuffer);
-		this._drawObjLayer(this.obj0Buffer, OBJ0_CELL_LIMIT);
+		this._drawObjectLayer(this.obj0Buffer);
 
 		// TBG then OBJ1
 		this.bgTransparency.apply(this);
@@ -573,20 +608,20 @@ export class VDP {
 		// Draw in reverse order
 		this.obj1Buffer.sort();
 		this.objTransparency.apply(this);
-		this._drawObjLayer(this.obj1Buffer, OBJ1_CELL_LIMIT);
+		this._drawObjectLayer(this.obj1Buffer);
 
 		this.nextLinescrollBuffer = 0;
+		this.usedObjCells = 0;
 	}
 
 	/**
 	 * @param objBuffer {ObjBuffer}
-	 * @param objLimit {number} max number of cells drawable
 	 * @private
 	 */
-	private _drawObjLayer(objBuffer: ObjBuffer, objLimit: number = 0) {
+	private _drawObjectLayer(objBuffer: ObjBuffer) {
 		// Use config only for that poly list
 		mat3.identity(this.modelViewMatrix);
-		drawPendingObj(this, objBuffer, objLimit);
+		drawPendingObj(this, objBuffer);
 		mat3.identity(this.modelViewMatrix);
 	}
 
@@ -642,13 +677,5 @@ export class VDP {
 
 	public _startFrame() {
 		this.frameStarted = true;
-	}
-
-	private _totalUsedOBJ0(): number {
-		return this.obj0Buffer.computeUsedObjects();
-	}
-
-	private _totalUsedOBJ1(): number {
-		return this.obj1Buffer.computeUsedObjects();
 	}
 }

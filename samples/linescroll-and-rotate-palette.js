@@ -7,7 +7,7 @@ function *main(vdp) {
 	const lineTransform = new LineTransformationArray();
 
 	// Black has been made transparent to spare one color
-	vdp.configBDColor('#20a');
+	vdp.configBackdropColor('#20a');
 
 	while (true) {
 		for (let i = 0; i < lineTransform.length; i++) {
@@ -37,7 +37,7 @@ function *main(vdp) {
 		}
 
 		// Do not render below 248 since the map is smaller
-		vdp.drawBG('sonic1-bg', { lineTransform, winH: 248 });
+		vdp.drawBackgroundMap('sonic1-bg', { lineTransform, winH: 248 });
 		loop += 1;
 		yield;
 	}

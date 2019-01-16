@@ -9,10 +9,10 @@ function *main(vdp) {
 	const swaps = new LineColorArray(10, 3);
 	for (let i = 0; i < swaps.length; i++)
 		swaps.setLine(i, 16 * i / swaps.length, 4);
-	vdp.configBDColor('#333');
+	vdp.configBackdropColor('#333');
 
 	while (true) {
-		vdp.drawBG('tmx', { scrollX: loop / 2, scrollY: -loop });
+		vdp.drawBackgroundMap('tmx', { scrollX: loop / 2, scrollY: -loop });
 		vdp.configColorSwap([swaps]);
 		loop += 1;
 		yield;

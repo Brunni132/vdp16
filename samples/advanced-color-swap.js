@@ -15,7 +15,7 @@ function *main(vdp) {
 	vdp.writePaletteMemory(0, 32, 16, 2, gradientPalette);
 
 	// Note that the color (0, 32) is not used, it's transparent so it will let the backdrop appear
-	vdp.configBDColor('#008');
+	vdp.configBackdropColor('#008');
 
 	// Set up another gradient for Mario's costume. Note that where the color 0 is used, the sprite will be transparent.
 	for (let i = 0; i < swaps[1].length; i++) {
@@ -36,8 +36,8 @@ function *main(vdp) {
 			swaps[0].setLine(i, targetColorIndex, 32);
 		}
 
-		vdp.drawBG('tmx', { scrollX: 32, scrollY: 0 });
-		vdp.drawObj(vdp.sprite('mario').tile(0), 96, 96 + Math.sin(loop / 90) * 96, { width: 64, height: 64 });
+		vdp.drawBackgroundMap('tmx', { scrollX: 32, scrollY: 0 });
+		vdp.drawObject(vdp.sprite('mario').tile(0), 96, 96 + Math.sin(loop / 90) * 96, { width: 64, height: 64 });
 
 		vdp.configColorSwap(swaps);
 		loop += 1;

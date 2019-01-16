@@ -4,7 +4,7 @@ import {startGame, color32, VDPCopySource} from "./lib-main";
 function *main(vdp) {
 	let loop = 0;
 
-	vdp.configBDColor('#000');
+	vdp.configBackdropColor('#000');
 
 	while (true) {
 		const pal = vdp.readPalette('level2', VDPCopySource.rom);
@@ -15,7 +15,7 @@ function *main(vdp) {
 		});
 		vdp.writePalette('level2', pal);
 
-		vdp.drawBG('level2', { scrollX: loop, scrollY: -32, winY: 32, winH: 192 });
+		vdp.drawBackgroundMap('level2', { scrollX: loop, scrollY: -32, winY: 32, winH: 192 });
 		loop += 1;
 		yield;
 	}

@@ -9,14 +9,14 @@ function *main(vdp) {
 	let characterAnimation = 0;
 
 	while (true) {
-		vdp.configBGTransparency({ op: 'add', blendSrc: '#444', blendDst: '#000' });
-		vdp.drawBG('level1', { transparent: true });
+		vdp.configBackgroundTransparency({ op: 'add', blendSrc: '#444', blendDst: '#000' });
+		vdp.drawBackgroundMap('level1', { transparent: true });
 
 		const marioSprite = vdp.sprite('mario');
 		if (loop % 10 === 0) {
 			characterAnimation = (characterAnimation + 1) % marioSprite.tiles;
 		}
-		vdp.drawObj(marioSprite.tile(characterAnimation), 100, 120, { width: 64, height: 64 });
+		vdp.drawObject(marioSprite.tile(characterAnimation), 100, 120, { width: 64, height: 64 });
 
 		loop += 1;
 		yield;

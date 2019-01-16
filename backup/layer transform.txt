@@ -94,7 +94,7 @@ VDP.ts:
 		return Math.max(1, Math.ceil(size.w * scaling[0] / OBJ_CELL_SIZE) * Math.ceil(size.h * scaling[1] / OBJ_CELL_SIZE));
 	}
 
-	private _drawObjLayer(objBuffer: ObjBuffer, transparencyConfig: TransparencyConfig, layerTransform: LayerTransform, objLimit = 0) {
+	private _drawObjectLayer(objBuffer: ObjBuffer, transparencyConfig: TransparencyConfig, layerTransform: LayerTransform, objLimit = 0) {
 		// Use config only for that poly list
 		layerTransform.getInvertedMatrixIn(this.modelViewMatrix);
 		transparencyConfig.apply(this);

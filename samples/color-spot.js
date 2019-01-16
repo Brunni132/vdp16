@@ -37,13 +37,13 @@ function *main(vdp) {
 			lineTransform.setLine(y, t);
 		}
 
-		vdp.configBGTransparency({ op: 'sub', blendDst: '#fff', blendSrc: '#fff' });
+		vdp.configBackgroundTransparency({ op: 'sub', blendDst: '#fff', blendSrc: '#fff' });
 		vdp.configColorSwap(colorReplacements);
 
-		vdp.drawBG('level1');
-		vdp.drawBG('mask-bg', { wrap: false, transparent: true, lineTransform });
+		vdp.drawBackgroundMap('level1');
+		vdp.drawBackgroundMap('mask-bg', { wrap: false, transparent: true, lineTransform });
 
-		vdp.drawObj(vdp.sprite('mario').tile(0), mario.x, mario.y);
+		vdp.drawObject(vdp.sprite('mario').tile(0), mario.x, mario.y);
 
 		loop += 1;
 		yield;

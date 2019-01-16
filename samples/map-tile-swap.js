@@ -6,7 +6,7 @@ function *main(vdp) {
 	let loop = 0, animStep = 0;
 
 	// Black has been made transparent to spare one color
-	vdp.configBDColor('#000');
+	vdp.configBackdropColor('#000');
 
 	while (true) {
 		// By opening level2.tmx with Tiled, we know that the bush tile has ID 97, periodically swap with another bush tile (109)
@@ -17,7 +17,7 @@ function *main(vdp) {
 			animStep = animStep + 1;
 		}
 
-		vdp.drawBG('level2', { scrollX: loop, scrollY: -32, winY: 32, winH: 192 });
+		vdp.drawBackgroundMap('level2', { scrollX: loop, scrollY: -32, winY: 32, winH: 192 });
 		loop += 1;
 		yield;
 	}

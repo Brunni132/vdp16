@@ -42,11 +42,11 @@ function *main(vdp) {
 		// 	vdp.writePalette('level1', colors);
 		// }
 
-		vdp.drawBG('level1');
-		vdp.configOBJTransparency({ op: 'sub', blendSrc: '#fff', blendDst: '#fff' });
-		vdp.drawObj('gradient', 0, 190, { transparent: true, prio: 1, height: 32 });
+		vdp.drawBackgroundMap('level1');
+		vdp.configObjectTransparency({ op: 'sub', blendSrc: '#fff', blendDst: '#fff' });
+		vdp.drawObject('gradient', 0, 190, { transparent: true, prio: 1, height: 32 });
 
-		vdp.drawObj(vdp.sprite('mario').tile(6), mario.x, mario.y);
+		vdp.drawObject(vdp.sprite('mario').tile(6), mario.x, mario.y);
 
 		loop += 1;
 

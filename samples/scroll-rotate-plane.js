@@ -13,7 +13,7 @@ function *main(vdp) {
 		mat3.translate(mat, mat, [-SCREEN_WIDTH / 2, -SCREEN_HEIGHT / 2]);
 		array.setAll(mat);
 
-		vdp.drawBG('level1', { scrollX: 0, lineTransform: array });
+		vdp.drawBackgroundMap('level1', { scrollX: 0, lineTransform: array });
 		loop += 1;
 		yield;
 	}

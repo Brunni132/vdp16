@@ -356,7 +356,7 @@ export function enqueueMap(mapBuffer: MapBuffer, uMap: number, vMap: number, uTi
 	if (hiColor) palNo |= PALETTE_HICOLOR_FLAG;
 
 	if (mapBuffer.usedVertices >= mapBuffer.maxVertices) {
-		if (DEBUG) console.log(`${mapBuffer.name} overuse (max ${mapBuffer.maxVertices / BG_BUFFER_STRIDE}), ignoring drawBG`);
+		if (DEBUG) console.log(`${mapBuffer.name} overuse (max ${mapBuffer.maxVertices / BG_BUFFER_STRIDE}), ignoring drawBackgroundMap`);
 		return;
 	}
 	mapBuffer.usedVertices += BG_BUFFER_STRIDE;
