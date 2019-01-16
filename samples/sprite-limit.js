@@ -24,7 +24,7 @@ function *main(vdp) {
 		vdp.drawObject(marioTile, 64, verticalPos, { width: 128, height: 128, prio: 2 });
 
 		loop++;
-		yield 0;
+		yield;
 	}
 }
 

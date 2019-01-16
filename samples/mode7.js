@@ -44,7 +44,6 @@ function *main(vdp) {
 			mat3.translate(mat, mat, viewerPos);
 			mat3.rotate(mat, mat, viewerAngle);
 			mat3.scale(mat, mat, [scale, scale]);
-			//mat3.scale(mat, mat, [0.5, 0.5]);
 			mat3.translate(mat, mat, [-128, -256 + line]);
 			transformations.push(mat);
 		}

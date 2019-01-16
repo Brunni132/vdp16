@@ -3,7 +3,7 @@ import { VDP, LineTransformationArray, LineColorArray, VDPCopySource } from './v
 import { color32 } from './vdp/color32';
 import { SCREEN_WIDTH, SCREEN_HEIGHT } from './vdp/shaders';
 
-export function startGame(canvasSelector: string, loadedCb: (vdp: VDP) => IterableIterator<number>) {
+export function startGame(canvasSelector: string, loadedCb: (vdp: VDP) => IterableIterator<void>) {
 	loadVdp(document.querySelector(canvasSelector))
 		.then(vdp => runProgram(vdp, loadedCb(vdp)));
 }

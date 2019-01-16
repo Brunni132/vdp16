@@ -14,7 +14,7 @@ export function loadVdp(canvas: HTMLCanvasElement): Promise<VDP> {
 	});
 }
 
-export function runProgram(vdp: VDP, coroutine: IterableIterator<number>) {
+export function runProgram(vdp: VDP, coroutine: IterableIterator<void>) {
 	// All in seconds except last
 	let lastInt = 0;
 	const times = [];

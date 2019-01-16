@@ -2,7 +2,7 @@ import {loadVdp, runProgram} from "./vdp/runloop";
 
 /**
  * @param vdp {VDP}
- * @returns {IterableIterator<number>}
+ * @returns {IterableIterator<void>}
  */
 function *main(vdp) {
 	let loop = 0;

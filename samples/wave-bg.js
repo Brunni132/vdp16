@@ -61,10 +61,6 @@ function *main(vdp) {
 		vdp.drawBackgroundMap('level1', { lineTransform: buffer, scrollX: 0 });
 		TextLayer.drawLayer();
 
-		const chars = Math.min(loop, 255).toString(16);
-		//vdp.configObjectTransparency({ op: 'add', blendDst: '#000', blendSrc: `#${chars}${chars}${chars}`});
-		//vdp.drawObject('gradient', 0, 180, { prio: 2, width: 256, height: 16, transparent: true});
-
 		loop += 1;
 		yield;
 	}
