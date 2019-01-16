@@ -627,9 +627,9 @@ export class VDP {
 		this._doRender();
 
 		// Draw fade
-		if (this.fadeColor >>> 24 >= 0x10) {
+		const {r, g, b, a} = color.extract(this.fadeColor, this.paletteBpp);
+		if (a > 0) {
 			const gl = this.gl;
-			const {r, g, b, a} = color.extract(this.fadeColor, this.paletteBpp);
 
 			STANDARD_TRANSPARENCY.apply(this);
 			gl.disable(gl.DEPTH_TEST);
