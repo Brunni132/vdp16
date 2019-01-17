@@ -1,6 +1,7 @@
 import { setParams } from "./shaders";
 import { DEBUG, VDP } from "./vdp";
 import { FramerateAdjuster, NOMINAL_FRAMERATE } from "./FramerateAdjuster";
+import { Input } from './input';
 
 export function loadVdp(canvas: HTMLCanvasElement): Promise<VDP> {
 	//canvas.style.width = `${canvas.width * 2}px`;
@@ -9,6 +10,7 @@ export function loadVdp(canvas: HTMLCanvasElement): Promise<VDP> {
 	return new Promise(function (resolve) {
 		const vdp = new VDP(canvas, () => {
 			vdp._startFrame();
+			vdp.input = new Input();
 			resolve(vdp);
 		});
 	});
@@ -59,6 +61,9 @@ export function runProgram(vdp: VDP, coroutine: IterableIterator<void>) {
 			if (toRender > 1) skippedFrames += toRender - 1;
 		}
 		window.requestAnimationFrame(step);
+
+		// Do not do every frame, but only every drawn frame to let the user time to react
+		vdp.input._process();
 	}
 
 	window.requestAnimationFrame(step);

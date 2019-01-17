@@ -2,6 +2,7 @@ import { loadVdp, runProgram } from './vdp/runloop';
 import { VDP, LineTransformationArray, LineColorArray, VDPCopySource } from './vdp/vdp';
 import { color } from './vdp/color';
 import { SCREEN_WIDTH, SCREEN_HEIGHT } from './vdp/shaders';
+import { InputKey } from './vdp/input';
 
 export function startGame(canvasSelector: string, loadedCb: (vdp: VDP) => IterableIterator<void>) {
 	loadVdp(document.querySelector(canvasSelector))
@@ -14,5 +15,6 @@ export {
 	color,
 	VDPCopySource,
 	SCREEN_WIDTH,
-	SCREEN_HEIGHT
+	SCREEN_HEIGHT,
+	InputKey
 };

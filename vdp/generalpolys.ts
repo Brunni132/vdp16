@@ -1,4 +1,4 @@
-import {initShaderProgram, makeBuffer} from "./utils";
+import { initShaderProgram, makeBuffer } from "./utils";
 import { VDP } from './vdp';
 
 // For debugging only

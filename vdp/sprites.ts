@@ -1,4 +1,4 @@
-import {getScalingFactorOfMatrix, initShaderProgram, makeBuffer, makeRangeArray, TEMP_MakeDualTriangle} from "./utils";
+import { initShaderProgram, makeBuffer, makeRangeArray, TEMP_MakeDualTriangle } from "./utils";
 import {
 	colorSwaps,
 	declareReadPalette,
@@ -6,7 +6,9 @@ import {
 	envColor,
 	makeOutputColor,
 	PALETTE_HICOLOR_FLAG,
-	PALETTE_TEX_H, SCREEN_HEIGHT, SCREEN_WIDTH
+	PALETTE_TEX_H,
+	SCREEN_HEIGHT,
+	SCREEN_WIDTH
 } from "./shaders";
 import { DEBUG, VDP } from "./vdp";
 

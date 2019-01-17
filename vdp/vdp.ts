@@ -11,8 +11,12 @@ import {
 import { drawPendingMap, enqueueMap, initMapShaders, makeMapBuffer } from "./maps";
 import {
 	colorSwaps,
-	envColor, OTHER_TEX_COLORSWAP_INDEX, OTHER_TEX_H,
-	OTHER_TEX_W, PALETTE_TEX_H, PALETTE_TEX_W,
+	envColor,
+	OTHER_TEX_COLORSWAP_INDEX,
+	OTHER_TEX_H,
+	OTHER_TEX_W,
+	PALETTE_TEX_H,
+	PALETTE_TEX_W,
 	SCREEN_HEIGHT,
 	SCREEN_WIDTH,
 	SEMITRANSPARENT_CANVAS,
@@ -29,6 +33,7 @@ import {
 } from "./shadowtexture";
 import { color } from "./color";
 import { mat3, mat4 } from 'gl-matrix';
+import { Input } from './input';
 
 export const DEBUG = true;
 // Specs of the fantasy console, do not modify for now
@@ -160,6 +165,8 @@ export class VDP {
 	paletteTexture: WebGLTexture;
 	spriteTexture: WebGLTexture;
 	otherTexture: WebGLTexture;
+	// 2 = 64 colors (SMS), 3 = 512 colors (Mega Drive), 4 = 4096 (System 16), 5 = 32k (SNES), 8 = unmodified (PC)
+	paletteBpp;
 
 	// Fade color (factor is the upper 8 bits).
 	private fadeColor = 0x00000000;
@@ -175,8 +182,6 @@ export class VDP {
 		peakVramWrites: 0
 	};
 	private frameStarted = true;
-	// 2 = 64 colors (SMS), 3 = 512 colors (Mega Drive), 4 = 4096 (System 16), 5 = 32k (SNES), 8 = unmodified (PC)
-	public paletteBpp;
 	// Original data (ROM) for sprites
 	private romSpriteTex: ShadowTexture;
 	// Copy of the VRAM data for fast read access from the program
@@ -188,6 +193,8 @@ export class VDP {
 	private nextLinescrollBuffer = 0;
 	private usedObjCells = 0;
 	private usedVramWrites = 0;
+
+	public input: Input;
 
 	constructor(canvas: HTMLCanvasElement, done: () => void) {
 		this._initContext(canvas);
@@ -348,9 +355,10 @@ export class VDP {
 		let winW = opts.hasOwnProperty('winW') ? opts.winW : (SCREEN_WIDTH - winX);
 		let winH = opts.hasOwnProperty('winH') ? opts.winH : (SCREEN_HEIGHT - winY);
 		const wrap = opts.hasOwnProperty('wrap') ? opts.wrap : true;
-		const prio = opts.prio || (opts.transparent ? 1 : 0);
+		const prio = Math.floor(opts.prio || (opts.transparent ? 1 : 0));
 		const buffer = opts.transparent ? this.tbgBuffer : this.bgBuffer;
 
+		if (prio < 0 || prio > 15) throw new Error('Unsupported BG priority (0-15)');
 		if (this.bgBuffer.usedLayers + this.tbgBuffer.usedLayers >= BG_LIMIT) {
 			if (DEBUG) console.log(`Too many BGs (${this.bgBuffer.usedLayers} opaque, ${this.tbgBuffer.usedLayers} transparent), ignoring drawBackgroundMap`);
 			return;
@@ -390,12 +398,12 @@ export class VDP {
 		const pal = this._getPalette(opts.hasOwnProperty('palette') ? opts.palette : sprite.designPalette);
 		const w = opts.hasOwnProperty('width') ? opts.width : sprite.w;
 		const h = opts.hasOwnProperty('height') ? opts.height : sprite.h;
-		const prio = opts.prio || (opts.transparent ? 2 : 1);
+		const prio = Math.floor(opts.prio || (opts.transparent ? 2 : 1));
 		const buffer = opts.transparent ? this.obj1Buffer: this.obj0Buffer;
 		const u = Math.floor(sprite.x);
 		const v = Math.floor(sprite.y);
 
-		if (prio < 0 || prio > 7) throw new Error('Unsupported object priority (0-7)');
+		if (prio < 0 || prio > 15) throw new Error('Unsupported object priority (0-15)');
 
 		const cells = computeObjectCells(x, y, x + w, y + h);
 		if (cells + this.usedObjCells > OBJ_CELL_LIMIT) {

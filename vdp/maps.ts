@@ -1,4 +1,4 @@
-import {initShaderProgram, makeBuffer, TEMP_MakeDualTriangle} from "./utils";
+import { initShaderProgram, makeBuffer, TEMP_MakeDualTriangle } from "./utils";
 import {
 	colorSwaps,
 	declareReadPalette,
@@ -10,8 +10,7 @@ import {
 	OTHER_TEX_H,
 	OTHER_TEX_W,
 	PALETTE_HICOLOR_FLAG,
-	PALETTE_TEX_H,
-	PALETTE_TEX_W
+	PALETTE_TEX_H
 } from "./shaders";
 import { DEBUG, VDP } from "./vdp";
 
