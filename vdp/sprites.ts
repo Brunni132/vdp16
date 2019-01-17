@@ -302,7 +302,7 @@ export function drawPendingObj(vdp: VDP, objBuffer: ObjBuffer) {
 	objBuffer.usedVertices = 0;
 }
 
-export function enqueueObj(objBuffer: ObjBuffer, xStart: number, yStart: number, xEnd: number, yEnd: number, uStart: number, vStart: number, uEnd: number, vEnd: number, palNo: number, hiColor: boolean, z: number = 0) {
+export function enqueueObj(objBuffer: ObjBuffer, xStart: number, yStart: number, xEnd: number, yEnd: number, uStart: number, vStart: number, uEnd: number, vEnd: number, palNo: number, hiColor: boolean, z = 0, flipH = false, flipV = false) {
 	if (hiColor) palNo |= PALETTE_HICOLOR_FLAG;
 
 	if (objBuffer.usedVertices >= objBuffer.maxVertices) {
@@ -313,6 +313,9 @@ export function enqueueObj(objBuffer: ObjBuffer, xStart: number, yStart: number,
 	// Start from the end
 	objBuffer.usedVertices += OBJ_BUFFER_STRIDE;
 	const firstVertice = objBuffer.firstVertice;
+
+	if (flipH) [uStart, uEnd] = [uEnd, uStart];
+	if (flipV) [vStart, vEnd] = [vEnd, vStart];
 
 	objBuffer.xyzp.set(TEMP_MakeDualTriangle([
 		xStart, yStart, z, palNo,

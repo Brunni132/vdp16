@@ -392,7 +392,7 @@ export class VDP {
 	 * background planes.
 	 * @param opts.transparent whether this is a OBJ1 type sprite (with color effects)
 	 */
-	drawObject(sprite, x, y, opts: {palette?: string|VdpPalette, width?: number, height?: number, prio?: number, transparent?: boolean} = {}) {
+	drawObject(sprite, x, y, opts: {palette?: string|VdpPalette, width?: number, height?: number, prio?: number, transparent?: boolean, flipH?: boolean, flipV?: boolean} = {}) {
 		if (typeof sprite === 'string') sprite = this.sprite(sprite);
 		// TODO Florian -- no need for such a param, since the user can modify sprite.designPalette himself…
 		const pal = this._getPalette(opts.hasOwnProperty('palette') ? opts.palette : sprite.designPalette);
@@ -415,14 +415,14 @@ export class VDP {
 			const remainingCells = OBJ_CELL_LIMIT - this.usedObjCells;
 			const newW = (remainingCells / cellsTall) * OBJ_CELL_SIZE;
 			enqueueObj(buffer, x, y, x + newW, y + h,
-				u, v, u + sprite.w * newW / w, v + Math.floor(sprite.h), pal.y, sprite.hiColor, prio);
+				u, v, u + sprite.w * newW / w, v + Math.floor(sprite.h), pal.y, sprite.hiColor, prio, opts.flipH, opts.flipV);
 			this.usedObjCells = OBJ_CELL_LIMIT;
 			return;
 		}
 		this.usedObjCells += cells;
 
 		enqueueObj(buffer, x, y, x + w, y + h,
-			u, v, u + Math.floor(sprite.w), v + Math.floor(sprite.h), pal.y, sprite.hiColor, prio);
+			u, v, u + Math.floor(sprite.w), v + Math.floor(sprite.h), pal.y, sprite.hiColor, prio, opts.flipH, opts.flipV);
 	}
 
 	map(name: string): VdpMap {

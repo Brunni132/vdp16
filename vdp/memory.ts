@@ -119,11 +119,11 @@ export class Array2D {
 	}
 
 	getElement(x: number, y: number): number {
-		return this.array[this.width * y + x];
+		return this.array[this.width * Math.floor(y) + Math.floor(x)];
 	}
 
 	setElement(x: number, y: number, value: number) {
-		this.array[this.width * y + x] = value;
+		this.array[this.width * Math.floor(y) + Math.floor(x)] = value;
 	}
 }
 
