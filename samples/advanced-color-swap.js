@@ -10,7 +10,7 @@ function *main(vdp) {
 
 	// Set up the 2 palettes with a gradient (32 and 33, make them far enough so that they're not used)
 	const gradientPalette = vdp.readPaletteMemory(0, 32, 16, 2, VDPCopySource.blank);
-	for (let i = 0; i < 16; i++) gradientPalette.setElement(i, 0, color.make(0, i * 16, 128 + i * 8));
+	for (let i = 0; i < 16; i++) gradientPalette.setElement(i, 0, color.make(i * 16, 0, 128));
 	for (let i = 0; i < 16; i++) gradientPalette.setElement(i, 1, color.make(i * 16, i * 16, i * 16));
 	vdp.writePaletteMemory(0, 32, 16, 2, gradientPalette);
 
@@ -26,12 +26,10 @@ function *main(vdp) {
 		for (let i = 0; i < swaps[0].length; i++) {
 			const intensity = 16 * i / swaps[0].length;
 			const floatingPart = intensity - Math.floor(intensity);
-			const blink = loop % 2 ? 1 : 0;
-			const mesh = i % 2 ? blink : 0;
+			const blinkActive = loop % 2 ? 1 : 0, blinkInactive = 1 - blinkActive;
+			const mesh = i % 2 ? blinkActive : blinkInactive;
 			let targetColorIndex;
-			if (floatingPart <= 0.25 && i > 0) targetColorIndex = intensity - blink - mesh;
-			else if (floatingPart <= 0.5) targetColorIndex = intensity - blink;
-			else if (floatingPart <= 0.75) targetColorIndex = intensity - mesh;
+			if (floatingPart <= 0.5) targetColorIndex = intensity - mesh;
 			else targetColorIndex = intensity;
 			swaps[0].setLine(i, targetColorIndex, 32);
 		}

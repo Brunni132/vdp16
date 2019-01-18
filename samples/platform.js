@@ -170,7 +170,7 @@ class Mario {
 	}
 
 	_isSolidBlock(block) {
-		return [39, 11, 12, 18, 19, 24, 25, 16, 13].indexOf(block) >= 0;
+		return [38, 11, 12, 18, 19, 24, 25, 16, 13].indexOf(block) >= 0;
 	}
 
 	_mapBlockAtPosition(x, y) {
