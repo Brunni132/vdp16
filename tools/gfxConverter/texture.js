@@ -104,6 +104,7 @@ class Texture {
 	 * @returns {number}
 	 */
 	getPixel(x, y) {
+		if (x < 0 || y < 0 || x >= this.width || y >= this.height) return 0;
 		return this.pixelData[y * this.width + x];
 	}
 
