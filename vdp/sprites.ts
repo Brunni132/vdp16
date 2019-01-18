@@ -171,7 +171,7 @@ uniform sampler2D uSamplerSprites, uSamplerPalettes;
 
 void main(void) {
 	// Only scale the final matrix (we can always say that the VDP supports fixed point math inside for matrix multiplication)
-	gl_Position = uProjectionMatrix * vec4(floor(uModelViewMatrix * vec3(aXyzp.xy, aXyzp.z)), 1);
+	gl_Position = uProjectionMatrix * vec4(uModelViewMatrix * vec3(aXyzp.xy, aXyzp.z), 1);
 	vPaletteNo = aXyzp.w;
 	vTextureCoord = aUv;
 }`;
@@ -316,6 +316,14 @@ export function enqueueObj(objBuffer: ObjBuffer, xStart: number, yStart: number,
 
 	if (flipH) [uStart, uEnd] = [uEnd, uStart];
 	if (flipV) [vStart, vEnd] = [vEnd, vStart];
+	xStart = Math.floor(xStart);
+	yStart = Math.floor(yStart);
+	xEnd = Math.floor(xEnd);
+	yEnd = Math.floor(yEnd);
+	uStart = Math.floor(uStart);
+	uEnd = Math.floor(uEnd);
+	vStart = Math.floor(vStart);
+	vEnd = Math.floor(vEnd);
 
 	objBuffer.xyzp.set(TEMP_MakeDualTriangle([
 		xStart, yStart, z, palNo,

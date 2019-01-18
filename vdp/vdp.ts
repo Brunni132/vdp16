@@ -301,13 +301,14 @@ export class VDP {
 
 	/**
 	 * Configures the fade.
-	 * @param c destination color (suggested black or white).
-	 * @param factor between 0 and 255. 0 means disabled, 255 means fully covered. The fade is only visible in
+	 * @params opts {Object}
+	 * @param opts.color destination color (suggested black or white).
+	 * @param opts.factor between 0 and 255. 0 means disabled, 255 means fully covered. The fade is only visible in
 	 * increments of 16 (i.e. 1-15 is equivalent to 0).
 	 */
-	configFade(c: number|string, factor: number) {
-		factor = Math.min(255, Math.max(0, factor));
-		this.fadeColor = (color.make(c) & 0xffffff) | (factor << 24);
+	configFade(opts: { color: number|string, factor: number }) {
+		opts.factor = Math.min(255, Math.max(0, opts.factor));
+		this.fadeColor = (color.make(opts.color) & 0xffffff) | (opts.factor << 24);
 	}
 
 	/**
@@ -400,8 +401,8 @@ export class VDP {
 		const h = opts.hasOwnProperty('height') ? opts.height : sprite.h;
 		const prio = Math.floor(opts.prio || (opts.transparent ? 2 : 1));
 		const buffer = opts.transparent ? this.obj1Buffer: this.obj0Buffer;
-		const u = Math.floor(sprite.x);
-		const v = Math.floor(sprite.y);
+		const u = sprite.x;
+		const v = sprite.y;
 
 		if (prio < 0 || prio > 15) throw new Error('Unsupported object priority (0-15)');
 
@@ -415,14 +416,14 @@ export class VDP {
 			const remainingCells = OBJ_CELL_LIMIT - this.usedObjCells;
 			const newW = (remainingCells / cellsTall) * OBJ_CELL_SIZE;
 			enqueueObj(buffer, x, y, x + newW, y + h,
-				u, v, u + sprite.w * newW / w, v + Math.floor(sprite.h), pal.y, sprite.hiColor, prio, opts.flipH, opts.flipV);
+				u, v, u + sprite.w * newW / w, v + sprite.h, pal.y, sprite.hiColor, prio, opts.flipH, opts.flipV);
 			this.usedObjCells = OBJ_CELL_LIMIT;
 			return;
 		}
 		this.usedObjCells += cells;
 
 		enqueueObj(buffer, x, y, x + w, y + h,
-			u, v, u + Math.floor(sprite.w), v + Math.floor(sprite.h), pal.y, sprite.hiColor, prio, opts.flipH, opts.flipV);
+			u, v, u + sprite.w, v + sprite.h, pal.y, sprite.hiColor, prio, opts.flipH, opts.flipV);
 	}
 
 	map(name: string): VdpMap {

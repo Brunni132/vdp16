@@ -1,4 +1,8 @@
-import {InputKey, startGame} from "./lib-main";
+import {InputKey, startGame, color} from "./lib-main";
+
+const GRAVITY = 0.4;
+const TILE_SIZE = 16;
+const SHINING_BLOCK_COLORS = [color.make('#f93'), color.make('#f93'), color.make('#c50'), color.make('#810'), color.make('#810'), color.make('#c50')];
 
 class Camera {
 	constructor() {
@@ -22,145 +26,192 @@ class Mario {
 		this.velocityX = 0;
 		this.velocityY = 0;
 		this.direction = 'right';
-
+		// tileNo refer to the tile number in the image of the tileset Mario (image number from the left), see packer-main.js
+		this.animations = {
+			'standing': [{tileNo: 6, untilFrame: Infinity}],
+			'walking': [{tileNo: 0, untilFrame: 8}, {tileNo: 1, untilFrame: 16}, {tileNo: 2, untilFrame: 24}],
+			'running': [{tileNo: 0, untilFrame: 4}, {tileNo: 1, untilFrame: 8}, {tileNo: 2, untilFrame: 12}],
+			'turning': [{tileNo: 3, untilFrame: Infinity}],
+			'jumping': [{tileNo: 4, untilFrame: Infinity}],
+		};
+		this.currentAnimation = this.animations['standing'];
+		this.currentAnimationDuration = 0;
+		// Constants
 		this.accelerationX = 0.2;
 		this.decelerationX = 0.95;
 		this.maxVelocityX = 2;
-		this.jumpImpulse = -4.5;
+		this.maxVelocityWhenRunningX = 3;
+		this.jumpImpulse = -4;
 	}
 
 	// Draw the Mario sprite as an object for one frame
 	draw(vdp) {
-		const tile = vdp.sprite('mario').tile(6);
+		const tileNo = this._getMarioTileFromAnimation();
+		const sprite = vdp.sprite('mario').tile(tileNo);
 		const needsFlip = this.direction === 'left';
-		vdp.drawObject(tile, this.left - camera.x, this.top, { flipH: needsFlip });
+		vdp.drawObject(sprite, this.left - camera.x, this.top, { flipH: needsFlip });
 	}
 
-	get right() {
-		return this.left + this.width;
-	}
+	get right() { return this.left + this.width; }
 
-	get bottom() {
-		return this.top + this.height;
-	}
+	get bottom() { return this.top + this.height; }
 
 	// Integrate the physics for one frame and handle controls
 	update(input) {
 		// Gravity is constantly affecting the vertical velocity (acceleration)
 		this.velocityY += GRAVITY;
 
+		// Pressing A accelerates the character
+		const maxVelocity = input.isDown(InputKey.A) ? this.maxVelocityWhenRunningX : this.maxVelocityX;
+		let padDirection = 0;
+
 		// Pressing the key affects the lateral (X) velocity
-		if (input.isDown(InputKey.Left)) {
-			this.velocityX -= this.accelerationX;
-			// Do not go beyond -maxVelocityX (always greater than that, hence the max)
-			this.velocityX = Math.max(-this.maxVelocityX, this.velocityX);
-			if (this.velocityX < -this.accelerationX) this.direction = 'left';
-		}
-		else if (input.isDown(InputKey.Right)) {
-			this.velocityX += this.accelerationX;
-			this.velocityX = Math.min(this.maxVelocityX, this.velocityX);
-			if (this.velocityX > this.accelerationX) this.direction = 'right';
-		}
+		if (input.isDown(InputKey.Right)) padDirection = 1;
+		else if (input.isDown(InputKey.Left)) padDirection = -1;
 		else {
+			// If nothing is pressed, brake
 			this.velocityX *= this.decelerationX;
+			if (Math.abs(this.velocityX) < 0.8) this.velocityX = 0;
 		}
 
-		// Jump: just give an inpulse
-		if (input.hasToggledDown(InputKey.B)) {
-			this.velocityY = this.jumpImpulse;
+		// padDirection is 1 for right, -1 for left, or 0 if nothing is pressed. Use as a multiplier for direction.
+		this.velocityX += this.accelerationX * padDirection;
+		// Make sure these stay in range
+		if (this.velocityX >= maxVelocity) this.velocityX = maxVelocity;
+		if (this.velocityX <= -maxVelocity) this.velocityX = -maxVelocity;
+		// Keep track of the direction for flipping the sprite
+		if (this.velocityX > this.accelerationX && this._isGrounded()) this.direction = 'right';
+		if (this.velocityX < -this.accelerationX && this._isGrounded()) this.direction = 'left';
+
+		// Determine the animation step (these are overriden in special cases below)
+		if (this._isGrounded()) {
+			if (padDirection !== 0 && padDirection !== Math.sign(this.velocityX)) {
+				this._setAnimation('turning');
+			} else if (Math.abs(this.velocityX) > this.maxVelocityX) {
+				this._setAnimation('running');
+			} else if (Math.abs(this.velocityX) >= 1) {
+				this._setAnimation('walking');
+			} else {
+				this._setAnimation('standing');
+			}
 		}
-		else if (input.isDown(InputKey.B)) {
+
+		// Jump: just give an inpulse (can only be done if we're resting on the ground)
+		if (input.hasToggledDown(InputKey.B) && this._isGrounded()) {
+			this.velocityY = this.jumpImpulse - Math.abs(this.velocityX / 6);
+			this._setAnimation('jumping');
+		}
+		else if (input.isDown(InputKey.B) && this.velocityY < 0) {
+			// Can extend the jump by leaving the button pressed
 			this.velocityY -= GRAVITY * 0.6;
 		}
 
 		// Integrate the velocity to the position
 		let moveH = this.velocityX, moveV = this.velocityY;
-		while (Math.abs(moveH) >= 0.01 || Math.abs(moveV) >= 0.01) {
-			// Move a max of one unit horizontally and vertically each time
+		while (Math.abs(moveH) >= 0.001 || Math.abs(moveV) >= 0.001) {
+			// Move a max of one unit horizontally and vertically each time.
+			// Original games didn't do that because it's inefficient, but it will save you a lot of headache.
 			const unitH = Math.min(1, Math.abs(moveH)) * Math.sign(moveH);
 			const unitV = Math.min(1, Math.abs(moveV)) * Math.sign(moveV);
-			this.left += unitH;
-			this.top += unitV;
 			moveH -= unitH;
 			moveV -= unitV;
-
-			this._checkCollisions();
+			this.top += unitV;
+			this._checkCollisionsVertical();
+			this.left += unitH;
+			this._checkCollisionsLateral();
 		}
 
 		// Do not allow going off the camera
 		this.left = Math.max(this.left, camera.x);
+
+		// For animations
+		this.currentAnimationDuration += 1;
 	}
 
-	_checkCollisions() {
-		this._hitTestLeft(this.top + 1);
-		this._hitTestLeft(this.bottom - 1);
-		this._hitTestRight(this.top + 1);
-		this._hitTestRight(this.bottom - 1);
-		this._hitTestTop(this.left + 1);
-		this._hitTestTop(this.right - 1);
-		this._hitTestBottom(this.left + 1);
-		this._hitTestBottom(this.right - 1);
+	_checkCollisionsLateral() {
+		// Left (check at bottom and top)
+		if (this._collidesAt(this.left, this.top + 1) || this._collidesAt(this.left, this.bottom - 1)) {
+			this.left += 1;
+			this.velocityX = 0;
+		}
+
+		if (this._collidesAt(this.right, this.top + 1) || this._collidesAt(this.right, this.bottom - 1)) {
+			this.left -= 1;
+			this.velocityX = 0;
+		}
+	}
+
+	_checkCollisionsVertical() {
+		if (this._collidesAt(this.left + 1, this.top) || this._collidesAt(this.right - 1, this.top)) {
+			this.top += 1;
+			this.velocityY = 0;
+		}
+
+		if (this._collidesAt(this.left + 1, this.bottom) || this._collidesAt(this.right - 1, this.bottom)) {
+			this.top -= 1;
+			this.velocityY = 0;
+		}
 	}
 
 	_collidesAt(x, y) {
 		return this._isSolidBlock(this._mapBlockAtPosition(x, y));
 	}
 
+	_getMarioTileFromAnimation() {
+		const animTotalDuration = this.currentAnimation[this.currentAnimation.length - 1].untilFrame;
+		const currentMarioFrameInLoop = this.currentAnimationDuration % animTotalDuration;
+		const animStep = this.currentAnimation.find(animStep => currentMarioFrameInLoop < animStep.untilFrame);
+		return animStep.tileNo;
+	}
+
+	_isGrounded() {
+		// We're on the ground if there's something one pixel below us
+		return this._collidesAt(this.left + 1, this.bottom + 1) || this._collidesAt(this.right - 1, this.bottom + 1);
+	}
+
 	_isSolidBlock(block) {
-		return [39, 15, 102, 50, 51, 65, 66, 32, 18, 95, 96, 54, 55, 67, 68].indexOf(block) >= 0;
+		return [39, 11, 12, 18, 19, 24, 25, 16, 13].indexOf(block) >= 0;
 	}
 
 	_mapBlockAtPosition(x, y) {
 		return mapData.getElement(x / TILE_SIZE, y / TILE_SIZE);
 	}
 
-	_hitTestTop(x) {
-		if (this._collidesAt(x, this.top)) {
-			this.top = Math.floor(this.top) + 1;
-			this.velocityY = 0;
-		}
-	}
-
-	_hitTestLeft(y) {
-		if (this._collidesAt(this.left, y)) {
-			this.left = Math.floor(this.left) + 1;
-			this.velocityX = 0;
-		}
-	}
-
-	_hitTestRight(y) {
-		if (this._collidesAt(this.right, y)) {
-			this.left = Math.floor(this.left) - 1;
-			this.velocityX = 0;
-		}
-	}
-
-	_hitTestBottom(x) {
-		// If there's a block under us, it means that our bottom (lower part) is in the ground
-		if (this._collidesAt(x, this.bottom)) {
-			this.top = Math.floor(this.top) - 1;
-			this.velocityY = 0;
-		}
+	_setAnimation(animationName) {
+		if (this.currentAnimation === this.animations[animationName]) return;
+		// Reset the animation counters when the animation changes
+		this.currentAnimation = this.animations[animationName];
+		this.currentAnimationDuration = 0;
 	}
 }
 
-const GRAVITY = 0.4;
-const TILE_SIZE = 16;
+function animateLevel1(vdp) {
+	const pal = vdp.readPalette('level1');
+	// Rotate the shining block color from the choices above, every 12 frames
+	const colorIndex = Math.floor(frameNo / 12) % SHINING_BLOCK_COLORS.length;
+	pal.array[8] = SHINING_BLOCK_COLORS[colorIndex];
+	vdp.writePalette('level1', pal);
+}
+
 let camera = new Camera();
 let mapData;
+let frameNo = 0;
 
 /** @param vdp {VDP} */
 function *main(vdp) {
 	const mario = new Mario();
 	mapData = vdp.readMap('level1');
+	vdp.configBackdropColor('#000');
 
 	while (true) {
 		mario.update(vdp.input);
 		camera.update(mario);
 
-		vdp.drawBackgroundMap('level1', { scrollX: camera.x });
+		vdp.drawBackgroundMap('level1', { scrollX: camera.x, wrap: false });
 		mario.draw(vdp);
 
+		animateLevel1(vdp);
+		frameNo += 1;
 		yield;
 	}
 }

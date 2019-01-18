@@ -12,12 +12,11 @@ config({ compact: true, debug: true, hiColorMode: false }, () => {
 	});
 
 	palette('level1', () => {
-		addColors('gfx/mario-1-1-pal.png');
 		tiledMap('level1', 'gfx/mario-1-1', { tileWidth: 16, tileHeight: 16, tilesetWidth: 16, tilesetHeight: 16 });
 	});
 
 	multiPalette('tmx', image('gfx/testTmx-pal.png'), () => {
-		tiledMap('tmx', 'gfx/testTmx', { tileWidth: 8, tileHeight: 8, tilesetWidth: 64, tilesetHeight: 32 });
+		tiledMap('tmx', 'gfx/testTmx', { tileWidth: 8, tileHeight: 8, tilesetWidth: 160, tilesetHeight: 32 });
 	});
 
 	palette('text', () => {
@@ -27,7 +26,7 @@ config({ compact: true, debug: true, hiColorMode: false }, () => {
 	});
 
 	palette('road', () => {
-		tiledMap('road', 'gfx/road', { tolerance: 200, tileWidth: 16, tileHeight: 16, tilesetWidth: 64, tilesetHeight: 16 });
+		tiledMap('road', 'gfx/road', { tolerance: 200, tileWidth: 16, tileHeight: 16, tilesetWidth: 32, tilesetHeight: 32 });
 	});
 
 	palette('level2', () => {
