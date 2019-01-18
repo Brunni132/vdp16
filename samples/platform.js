@@ -26,7 +26,17 @@ class Mario {
 		this.velocityX = 0;
 		this.velocityY = 0;
 		this.direction = 'right';
-
+		// tileNo refer to the tile number in the image of the tileset Mario (image number from the left), see packer-main.js
+		this.animations = {
+			'standing': [{tileNo: 6, untilFrame: Infinity}],
+			'walking': [{tileNo: 0, untilFrame: 8}, {tileNo: 1, untilFrame: 16}, {tileNo: 2, untilFrame: 24}],
+			'running': [{tileNo: 0, untilFrame: 4}, {tileNo: 1, untilFrame: 8}, {tileNo: 2, untilFrame: 12}],
+			'turning': [{tileNo: 3, untilFrame: Infinity}],
+			'jumping': [{tileNo: 4, untilFrame: Infinity}],
+		};
+		this.currentAnimation = this.animations['standing'];
+		this.currentAnimationDuration = 0;
+		// Constants
 		this.accelerationX = 0.2;
 		this.decelerationX = 0.95;
 		this.maxVelocityX = 2;
@@ -36,18 +46,15 @@ class Mario {
 
 	// Draw the Mario sprite as an object for one frame
 	draw(vdp) {
-		const tile = vdp.sprite('mario').tile(6);
+		const tileNo = this._getMarioTileFromAnimation();
+		const sprite = vdp.sprite('mario').tile(tileNo);
 		const needsFlip = this.direction === 'left';
-		vdp.drawObject(tile, this.left - camera.x, this.top, { flipH: needsFlip });
+		vdp.drawObject(sprite, this.left - camera.x, this.top, { flipH: needsFlip });
 	}
 
-	get right() {
-		return this.left + this.width;
-	}
+	get right() { return this.left + this.width; }
 
-	get bottom() {
-		return this.top + this.height;
-	}
+	get bottom() { return this.top + this.height; }
 
 	// Integrate the physics for one frame and handle controls
 	update(input) {
@@ -56,26 +63,43 @@ class Mario {
 
 		// Pressing A accelerates the character
 		const maxVelocity = input.isDown(InputKey.A) ? this.maxVelocityWhenRunningX : this.maxVelocityX;
+		let padDirection = 0;
 
 		// Pressing the key affects the lateral (X) velocity
-		if (input.isDown(InputKey.Right)) {
-			this.velocityX += this.accelerationX;
-			// Do not go beyond maxVelocity (always smaller than that, hence the Math.min)
-			this.velocityX = Math.min(maxVelocity, this.velocityX);
-			if (this.velocityX > this.accelerationX) this.direction = 'right';
-		}
-		else if (input.isDown(InputKey.Left)) {
-			this.velocityX -= this.accelerationX;
-			this.velocityX = Math.max(-maxVelocity, this.velocityX);
-			if (this.velocityX < -this.accelerationX) this.direction = 'left';
-		}
+		if (input.isDown(InputKey.Right)) padDirection = 1;
+		else if (input.isDown(InputKey.Left)) padDirection = -1;
 		else {
+			// If nothing is pressed, brake
 			this.velocityX *= this.decelerationX;
+			if (Math.abs(this.velocityX) < 0.8) this.velocityX = 0;
+		}
+
+		// padDirection is 1 for right, -1 for left, or 0 if nothing is pressed. Use as a multiplier for direction.
+		this.velocityX += this.accelerationX * padDirection;
+		// Make sure these stay in range
+		if (this.velocityX >= maxVelocity) this.velocityX = maxVelocity;
+		if (this.velocityX <= -maxVelocity) this.velocityX = -maxVelocity;
+		// Keep track of the direction for flipping the sprite
+		if (this.velocityX > this.accelerationX && this._isGrounded()) this.direction = 'right';
+		if (this.velocityX < -this.accelerationX && this._isGrounded()) this.direction = 'left';
+
+		// Determine the animation step (these are overriden in special cases below)
+		if (this._isGrounded()) {
+			if (padDirection !== 0 && padDirection !== Math.sign(this.velocityX)) {
+				this._setAnimation('turning');
+			} else if (Math.abs(this.velocityX) > this.maxVelocityX) {
+				this._setAnimation('running');
+			} else if (Math.abs(this.velocityX) >= 1) {
+				this._setAnimation('walking');
+			} else {
+				this._setAnimation('standing');
+			}
 		}
 
 		// Jump: just give an inpulse (can only be done if we're resting on the ground)
 		if (input.hasToggledDown(InputKey.B) && this._isGrounded()) {
 			this.velocityY = this.jumpImpulse - Math.abs(this.velocityX / 6);
+			this._setAnimation('jumping');
 		}
 		else if (input.isDown(InputKey.B) && this.velocityY < 0) {
 			// Can extend the jump by leaving the button pressed
@@ -99,6 +123,9 @@ class Mario {
 
 		// Do not allow going off the camera
 		this.left = Math.max(this.left, camera.x);
+
+		// For animations
+		this.currentAnimationDuration += 1;
 	}
 
 	_checkCollisionsLateral() {
@@ -130,6 +157,13 @@ class Mario {
 		return this._isSolidBlock(this._mapBlockAtPosition(x, y));
 	}
 
+	_getMarioTileFromAnimation() {
+		const animTotalDuration = this.currentAnimation[this.currentAnimation.length - 1].untilFrame;
+		const currentMarioFrameInLoop = this.currentAnimationDuration % animTotalDuration;
+		const animStep = this.currentAnimation.find(animStep => currentMarioFrameInLoop < animStep.untilFrame);
+		return animStep.tileNo;
+	}
+
 	_isGrounded() {
 		// We're on the ground if there's something one pixel below us
 		return this._collidesAt(this.left + 1, this.bottom + 1) || this._collidesAt(this.right - 1, this.bottom + 1);
@@ -142,13 +176,20 @@ class Mario {
 	_mapBlockAtPosition(x, y) {
 		return mapData.getElement(x / TILE_SIZE, y / TILE_SIZE);
 	}
+
+	_setAnimation(animationName) {
+		if (this.currentAnimation === this.animations[animationName]) return;
+		// Reset the animation counters when the animation changes
+		this.currentAnimation = this.animations[animationName];
+		this.currentAnimationDuration = 0;
+	}
 }
 
 function animateLevel1(vdp) {
 	const pal = vdp.readPalette('level1');
 	// Rotate the shining block color from the choices above, every 12 frames
 	const colorIndex = Math.floor(frameNo / 12) % SHINING_BLOCK_COLORS.length;
-	pal.array[7] = SHINING_BLOCK_COLORS[colorIndex];
+	pal.array[8] = SHINING_BLOCK_COLORS[colorIndex];
 	vdp.writePalette('level1', pal);
 }
 
