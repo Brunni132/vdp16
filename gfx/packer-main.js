@@ -25,6 +25,12 @@ config({ compact: true, debug: true }, () => {
 		});
 	});
 
+	palette('text2', () => {
+		tileset('text2', 'gfx/defaultFont.png', 6, 10, () => {
+			map('text2', blank(Math.ceil(SCREEN_WIDTH / 6), Math.ceil(SCREEN_HEIGHT / 10)));
+		});
+	});
+
 	palette('road', () => {
 		tiledMap('road', 'gfx/road', { tolerance: 200, tileWidth: 16, tileHeight: 16, tilesetWidth: 32, tilesetHeight: 32 });
 	});
