@@ -70,7 +70,7 @@ const TextLayer = {
 
 		// Update and draw
 		this.vdp.writeMap('text', this.map);
-		this.vdp.drawBackgroundMap('text', { linescrollBuffer: buffer });
+		this.vdp.drawBackgroundTilemap('text', { linescrollBuffer: buffer });
 	}
 };
 

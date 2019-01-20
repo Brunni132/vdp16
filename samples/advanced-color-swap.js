@@ -34,7 +34,7 @@ function *main(vdp) {
 			swaps[0].setLine(i, targetColorIndex, 32);
 		}
 
-		vdp.drawBackgroundMap('tmx', { scrollX: 32, scrollY: 0 });
+		vdp.drawBackgroundTilemap('tmx', { scrollX: 32, scrollY: 0 });
 		vdp.drawObject(vdp.sprite('mario').tile(0), 96, 96 + Math.sin(loop / 90) * 96, { width: 64, height: 64 });
 
 		vdp.configColorSwap(swaps);

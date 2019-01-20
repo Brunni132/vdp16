@@ -12,7 +12,7 @@ function *main(vdp) {
 	vdp.configBackdropColor('#333');
 
 	while (true) {
-		vdp.drawBackgroundMap('tmx', { scrollX: loop / 2, scrollY: -loop });
+		vdp.drawBackgroundTilemap('tmx', { scrollX: loop / 2, scrollY: -loop });
 		vdp.configColorSwap([swaps]);
 		loop += 1;
 		yield;

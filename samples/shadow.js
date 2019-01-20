@@ -32,8 +32,8 @@ function *main(vdp) {
 
 		// Configure OBJ transparency as shadow
 		vdp.configObjectTransparency({ op: 'add', blendDst: '#888', blendSrc: '#000' });
-		vdp.drawBackgroundMap('tmx', { scrollX: cameraX / 2, scrollY: -24, wrap: false, prio: 0 });
-		vdp.drawBackgroundMap('level1', { scrollX: cameraX, wrap: false, prio: 1 });
+		vdp.drawBackgroundTilemap('tmx', { scrollX: cameraX / 2, scrollY: -24, wrap: false, prio: 0 });
+		vdp.drawBackgroundTilemap('level1', { scrollX: cameraX, wrap: false, prio: 1 });
 
 		// Draw sprite with two shadow sprites, a small one with high prio (for planes with prio=0 and 1), a large one with low prio (for plane with prio=0)
 		const marioTile = vdp.sprite('mario').tile(2);

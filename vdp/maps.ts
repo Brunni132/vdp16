@@ -44,9 +44,9 @@ export class MapBuffer {
 		return 	this.maxVertices - this.usedVertices;
 	}
 
-	get usedLayers(): number {
-		return this.usedVertices / BG_BUFFER_STRIDE;
-	}
+	// get usedLayers(): number {
+	// 	return this.usedVertices / BG_BUFFER_STRIDE;
+	// }
 }
 
 export function initMapShaders(vdp: VDP) {
@@ -355,7 +355,7 @@ export function enqueueMap(mapBuffer: MapBuffer, uMap: number, vMap: number, uTi
 	if (hiColor) palNo |= PALETTE_HICOLOR_FLAG;
 
 	if (mapBuffer.usedVertices >= mapBuffer.maxVertices) {
-		if (DEBUG) console.log(`${mapBuffer.name} overuse (max ${mapBuffer.maxVertices / BG_BUFFER_STRIDE}), ignoring drawBackgroundMap`);
+		if (DEBUG) console.log(`${mapBuffer.name} overuse (max ${mapBuffer.maxVertices / BG_BUFFER_STRIDE}), ignoring drawBackgroundTilemap`);
 		return;
 	}
 	mapBuffer.usedVertices += BG_BUFFER_STRIDE;

@@ -14,7 +14,7 @@
 	private splitBGOffset = 0;
 	private usedBGs = 0;
 
-drawBackgroundMap
+drawBackgroundTilemap
 		const minWinX = this.isInSplitBGMode === 1 ? this.splitBGOffset : 0;
 		const minWinY = this.isInSplitBGMode === 2 ? this.splitBGOffset : 0;
 		let winX = opts.hasOwnProperty('winX') ? opts.winX : minWinX;

@@ -29,8 +29,8 @@ function *main(vdp) {
 		const blendDst = color.make(255 - crossFadeFactor, 255 - crossFadeFactor, 255 - crossFadeFactor);
 		vdp.configBackgroundTransparency({ op: 'add', blendSrc, blendDst });
 
-		vdp.drawBackgroundMap('level1', { scrollX: loop * 0.25 });
-		vdp.drawBackgroundMap('tmx', { scrollX: loop * 0.5, transparent: true });
+		vdp.drawBackgroundTilemap('level1', { scrollX: loop * 0.25 });
+		vdp.drawBackgroundTilemap('tmx', { scrollX: loop * 0.5, transparent: true });
 
 		loop += 1;
 		yield;

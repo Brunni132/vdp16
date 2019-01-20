@@ -207,7 +207,7 @@ function *main(vdp) {
 		mario.update(vdp.input);
 		camera.update(mario);
 
-		vdp.drawBackgroundMap('level1', { scrollX: camera.x, wrap: false });
+		vdp.drawBackgroundTilemap('level1', { scrollX: camera.x, wrap: false });
 		mario.draw(vdp);
 
 		animateLevel1(vdp);

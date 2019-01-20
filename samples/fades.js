@@ -202,7 +202,7 @@ const TextLayer = {
 	drawLayer: function(opacity) {
 		this.vdp.writeMap('text', this.map);
 		this.vdp.configBackgroundTransparency({ op: 'add', blendDst: '#fff', blendSrc: color.make(opacity, opacity, opacity) });
-		this.vdp.drawBackgroundMap('text', { transparent: true });
+		this.vdp.drawBackgroundTilemap('text', { transparent: true });
 	}
 };
 
@@ -249,7 +249,7 @@ function *main(vdp) {
 				loopIt++;
 			}
 
-			vdp.drawBackgroundMap('level1');
+			vdp.drawBackgroundTilemap('level1');
 			// Fade out the layer (255 from loop=0 to 80, then 255..0 until 100)
 			TextLayer.drawLayer(Math.floor(Math.max(0, Math.min(255, 1275 - loop * 12.75))));
 			loop += 1;

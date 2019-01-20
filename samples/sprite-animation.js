@@ -10,7 +10,7 @@ function *main(vdp) {
 
 	while (true) {
 		vdp.configBackgroundTransparency({ op: 'add', blendSrc: '#444', blendDst: '#000' });
-		vdp.drawBackgroundMap('level1', { transparent: true });
+		vdp.drawBackgroundTilemap('level1', { transparent: true });
 
 		const marioSprite = vdp.sprite('mario');
 		if (loop % 10 === 0) {

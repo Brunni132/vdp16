@@ -191,6 +191,8 @@ export class VDP {
 	private romMapTex: ShadowTexture;
 	private shadowMapTex: ShadowTexture;
 	private nextLinescrollBuffer = 0;
+	private usedBGs = 0;
+	private usedTBGs = 0;
 	private usedObjCells = 0;
 	private usedVramWrites = 0;
 
@@ -292,7 +294,7 @@ export class VDP {
 	 * (which can be transparent), but allow 512 sprite cells/entries instead of 256, covering up to two times the screen.
 	 */
 	configDisplay(opts: { extraSprites?: boolean } = {}) {
-		if (this.obj0Buffer.usedSprites > 0 || this.obj1Buffer.usedSprites > 0 || this.bgBuffer.usedLayers > 0) {
+		if (this.obj0Buffer.usedSprites > 0 || this.obj1Buffer.usedSprites > 0 || this.usedBGs > 0 || this.usedTBGs > 0) {
 			throw new Error('configDisplay must come at the beginning of your program/frame');
 		}
 		BG_LIMIT = opts.extraSprites ? 1 : 2;
@@ -343,7 +345,7 @@ export class VDP {
 	 * @param opts.transparent
 	 * @param opts.prio z-order
 	 */
-	drawBackgroundMap(map, opts: {palette?: string|VdpPalette, scrollX?: number, scrollY?: number, winX?: number, winY?: number, winW?: number, winH?: number, lineTransform?: LineTransformationArray, wrap?: boolean, tileset?: string|VdpSprite, transparent?: boolean, prio?: number} = {}) {
+	drawBackgroundTilemap(map, opts: {palette?: string|VdpPalette, scrollX?: number, scrollY?: number, winX?: number, winY?: number, winW?: number, winH?: number, lineTransform?: LineTransformationArray, wrap?: boolean, tileset?: string|VdpSprite, transparent?: boolean, prio?: number} = {}) {
 		if (typeof map === 'string') map = this.map(map);
 		// TODO Florian -- no need for such a param, since the user can modify map.designPalette himself…
 		// Maybe the other options could be in the map too… (just beware that they are strings, not actual links to the palette/tileset… but we could typecheck too)
@@ -360,10 +362,12 @@ export class VDP {
 		const buffer = opts.transparent ? this.tbgBuffer : this.bgBuffer;
 
 		if (prio < 0 || prio > 15) throw new Error('Unsupported BG priority (0-15)');
-		if (this.bgBuffer.usedLayers + this.tbgBuffer.usedLayers >= BG_LIMIT) {
-			if (DEBUG) console.log(`Too many BGs (${this.bgBuffer.usedLayers} opaque, ${this.tbgBuffer.usedLayers} transparent), ignoring drawBackgroundMap`);
+		if (this.usedBGs + this.usedTBGs >= BG_LIMIT || this.usedTBGs >= MAX_TBGS) {
+			if (DEBUG) console.log(`Too many BGs (${this.usedBGs} opaque, ${this.usedTBGs} transparent), ignoring drawBackgroundTilemap`);
 			return;
 		}
+		if (opts.transparent) this.usedTBGs += 1;
+		else this.usedBGs += 1;
 
 		// To avoid drawing too big quads and them counting toward the BG pixel budget
 		// winX = Math.min(SCREEN_WIDTH, Math.max(0, winX));
@@ -565,7 +569,7 @@ export class VDP {
 
 	// Take one frame in account for the stats. Read with _readStats.
 	private _computeStats() {
-		this.stats.peakBG = Math.max(this.stats.peakBG, this.bgBuffer.usedLayers + this.tbgBuffer.usedLayers);
+		this.stats.peakBG = Math.max(this.stats.peakBG, this.usedBGs + this.usedTBGs);
 		this.stats.peakOBJ = Math.max(this.stats.peakOBJ, this.usedObjCells);
 	}
 
@@ -613,7 +617,7 @@ export class VDP {
 		this.objTransparency.apply(this);
 		this._drawObjectLayer(this.obj1Buffer);
 
-		this.nextLinescrollBuffer = this.usedObjCells = 0;
+		this.nextLinescrollBuffer = this.usedObjCells = this.usedBGs = this.usedTBGs = 0;
 	}
 
 	/**

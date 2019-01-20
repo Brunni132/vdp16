@@ -17,7 +17,7 @@ function *main(vdp) {
 			animStep = animStep + 1;
 		}
 
-		vdp.drawBackgroundMap('level2', { scrollX: loop, scrollY: -32, winY: 32, winH: 192 });
+		vdp.drawBackgroundTilemap('level2', { scrollX: loop, scrollY: -32, winY: 32, winH: 192 });
 		loop += 1;
 		yield;
 	}

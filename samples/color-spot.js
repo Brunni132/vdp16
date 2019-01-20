@@ -40,8 +40,8 @@ function *main(vdp) {
 		vdp.configBackgroundTransparency({ op: 'sub', blendDst: '#fff', blendSrc: '#fff' });
 		vdp.configColorSwap(colorReplacements);
 
-		vdp.drawBackgroundMap('level1');
-		vdp.drawBackgroundMap('mask-bg', { wrap: false, transparent: true, lineTransform });
+		vdp.drawBackgroundTilemap('level1');
+		vdp.drawBackgroundTilemap('mask-bg', { wrap: false, transparent: true, lineTransform });
 
 		vdp.drawObject(vdp.sprite('mario').tile(0), mario.x, mario.y);
 

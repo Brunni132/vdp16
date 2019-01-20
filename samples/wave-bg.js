@@ -14,7 +14,7 @@ function *main(vdp) {
 			transformationArray.setLine(line, transformationMatrix);
 		}
 
-		vdp.drawBackgroundMap('level2', { scrollX: 700, lineTransform: transformationArray });
+		vdp.drawBackgroundTilemap('level2', { scrollX: 700, lineTransform: transformationArray });
 		loop += 1;
 		yield;
 	}

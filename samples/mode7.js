@@ -52,7 +52,7 @@ function *main(vdp) {
 			lineTransform.setLine(i, transformations[i]);
 		}
 
-		vdp.drawBackgroundMap('road', { lineTransform, winY: 0, wrap: true});
+		vdp.drawBackgroundTilemap('road', { lineTransform, winY: 0, wrap: true});
 		drawSprite(vdp, transformations, 512, 351, vdp.sprite('mario').tile(6));
 		drawSprite(vdp, transformations, 550, 400, vdp.sprite('mario').tile(2));
 
