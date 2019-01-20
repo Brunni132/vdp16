@@ -195,6 +195,7 @@ export class VDP {
 	private usedTBGs = 0;
 	private usedObjCells = 0;
 	private usedVramWrites = 0;
+	private previousBgSettings: { linescrollBuffer: number; winY: number; winX: number; winH: number; winW: number, transparent: boolean };
 
 	public input: Input;
 
@@ -304,13 +305,14 @@ export class VDP {
 	/**
 	 * Configures the fade.
 	 * @params opts {Object}
-	 * @param opts.color destination color (suggested black or white).
+	 * @param [opts.color] destination color (suggested black or white).
 	 * @param opts.factor between 0 and 255. 0 means disabled, 255 means fully covered. The fade is only visible in
 	 * increments of 16 (i.e. 1-15 is equivalent to 0).
 	 */
-	configFade(opts: { color: number|string, factor: number }) {
+	configFade(opts: { color?: number|string, factor: number }) {
+		const c = opts.color || 0;
 		opts.factor = Math.min(255, Math.max(0, opts.factor));
-		this.fadeColor = (color.make(opts.color) & 0xffffff) | (opts.factor << 24);
+		this.fadeColor = (color.make(c) & 0xffffff) | (opts.factor << 24);
 	}
 
 	/**
@@ -345,7 +347,7 @@ export class VDP {
 	 * @param opts.transparent
 	 * @param opts.prio z-order
 	 */
-	drawBackgroundTilemap(map, opts: {palette?: string|VdpPalette, scrollX?: number, scrollY?: number, winX?: number, winY?: number, winW?: number, winH?: number, lineTransform?: LineTransformationArray, wrap?: boolean, tileset?: string|VdpSprite, transparent?: boolean, prio?: number} = {}) {
+	drawBackgroundTilemap(map: VdpMap|string, opts: {palette?: string|VdpPalette, scrollX?: number, scrollY?: number, winX?: number, winY?: number, winW?: number, winH?: number, lineTransform?: LineTransformationArray, wrap?: boolean, tileset?: string|VdpSprite, transparent?: boolean, prio?: number} = {}) {
 		if (typeof map === 'string') map = this.map(map);
 		// TODO Florian -- no need for such a param, since the user can modify map.designPalette himself…
 		// Maybe the other options could be in the map too… (just beware that they are strings, not actual links to the palette/tileset… but we could typecheck too)
@@ -358,15 +360,16 @@ export class VDP {
 		let winW = opts.hasOwnProperty('winW') ? opts.winW : (SCREEN_WIDTH - winX);
 		let winH = opts.hasOwnProperty('winH') ? opts.winH : (SCREEN_HEIGHT - winY);
 		const wrap = opts.hasOwnProperty('wrap') ? opts.wrap : true;
-		const prio = Math.floor(opts.prio || (opts.transparent ? 1 : 0));
-		const buffer = opts.transparent ? this.tbgBuffer : this.bgBuffer;
+		const transparent = !!opts.transparent;
+		const prio = Math.floor(opts.prio || (transparent ? 1 : 0));
+		const buffer = transparent ? this.tbgBuffer : this.bgBuffer;
 
 		if (prio < 0 || prio > 15) throw new Error('Unsupported BG priority (0-15)');
 		if (this.usedBGs + this.usedTBGs >= BG_LIMIT || this.usedTBGs >= MAX_TBGS) {
 			if (DEBUG) console.log(`Too many BGs (${this.usedBGs} opaque, ${this.usedTBGs} transparent), ignoring drawBackgroundTilemap`);
 			return;
 		}
-		if (opts.transparent) this.usedTBGs += 1;
+		if (transparent) this.usedTBGs += 1;
 		else this.usedBGs += 1;
 
 		// To avoid drawing too big quads and them counting toward the BG pixel budget
@@ -381,6 +384,7 @@ export class VDP {
 			writeToTextureFloat(this.gl, this.otherTexture, 0, this.nextLinescrollBuffer++, opts.lineTransform.buffer.length / 4, 1, opts.lineTransform.buffer);
 		}
 
+		this.previousBgSettings = { winX, winY, winW, winH, linescrollBuffer, transparent };
 		enqueueMap(buffer, map.x, map.y, til.x, til.y, map.w, map.h, til.w, til.tw, til.th, winX, winY, winW, winH, scrollX, scrollY, pal.y, til.hiColor, linescrollBuffer, wrap ? 1 : 0, prio);
 	}
 
@@ -428,6 +432,40 @@ export class VDP {
 
 		enqueueObj(buffer, x, y, x + w, y + h,
 			u, v, u + Math.floor(sprite.w), v + Math.floor(sprite.h), pal.y, sprite.hiColor, prio, opts.flipH, opts.flipV);
+	}
+
+	drawWindowTilemap(position: 'top' | 'right' | 'bottom' | 'left', map: VdpMap|string, opts: {palette?: string|VdpPalette, scrollX?: number, scrollY?: number, wrap?: boolean, tileset?: string|VdpSprite, prio?: number} = {}) {
+		if (!this.previousBgSettings) throw new Error('drawWindowTilemap needs to be called after drawBackgroundTilemap');
+		if (typeof map === 'string') map = this.map(map);
+
+		const { winX, winY, winH, winW, transparent, linescrollBuffer } = this.previousBgSettings;
+		const pal = this._getPalette(opts.hasOwnProperty('palette') ? opts.palette : map.designPalette);
+		const til = this._getSprite(opts.hasOwnProperty('tileset') ? opts.tileset : map.designTileset);
+		const scrollX = opts.hasOwnProperty('scrollX') ? opts.scrollX : 0;
+		const scrollY = opts.hasOwnProperty('scrollY') ? opts.scrollY : 0;
+		const wrap = opts.hasOwnProperty('wrap') ? opts.wrap : true;
+		const prio = Math.floor(opts.prio || (transparent ? 1 : 0));
+		const buffer = transparent ? this.tbgBuffer : this.bgBuffer;
+
+		if (prio < 0 || prio > 15) throw new Error('Unsupported BG priority (0-15)');
+
+		let finalWinX = 0;
+		let finalWinY = 0;
+		let finalWinW = SCREEN_WIDTH;
+		let finalWinH = SCREEN_HEIGHT;
+		if (position === 'top') finalWinH = winY;
+		else if (position === 'left') finalWinW = winX;
+		else if (position === 'right') {
+			finalWinX = winW;
+			finalWinW = SCREEN_WIDTH - winW;
+		}
+		else if (position === 'bottom') {
+			finalWinY = winH;
+			finalWinH = SCREEN_HEIGHT - winH;
+		}
+
+		enqueueMap(buffer, map.x, map.y, til.x, til.y, map.w, map.h, til.w, til.tw, til.th, finalWinX, finalWinY, finalWinW, finalWinH, scrollX, scrollY, pal.y, til.hiColor, linescrollBuffer, wrap ? 1 : 0, prio);
+		this.previousBgSettings = null;
 	}
 
 	map(name: string): VdpMap {
@@ -618,6 +656,7 @@ export class VDP {
 		this._drawObjectLayer(this.obj1Buffer);
 
 		this.nextLinescrollBuffer = this.usedObjCells = this.usedBGs = this.usedTBGs = 0;
+		this.previousBgSettings = null;
 	}
 
 	/**
