@@ -21,9 +21,14 @@ export class color {
 	 * @param [a=255] {number} alpha component (not used, only required to make a conceptually valid color)
 	 * @returns {number} resulting color (a 32-bit number in the form of 0xaabbggrr)
 	 */
-	static make(r: number|{r: number, g: number, b: number, a: number}|string, g: number = 0, b: number = 0, a: number = 255): number {
+	static make(r: number|{r: number, g: number, b: number, a: number}|string, g?: number, b?: number, a?: number): number {
 		if (typeof r === 'number') {
-			return Math.ceil(r) | Math.ceil(g) << 8 | Math.ceil(b) << 16 | Math.ceil(a) << 24;
+			if (typeof a !== 'number') a = 255;  // Default alpha
+			if (typeof b !== 'number') return r; // Already a well formed color
+			return Math.ceil(Math.max(0, Math.min(255, r))) |
+				Math.ceil(Math.max(0, Math.min(255, g))) << 8 |
+				Math.ceil(Math.max(0, Math.min(255, b))) << 16 |
+				Math.ceil(Math.max(0, Math.min(255, a))) << 24;
 		}
 		if (typeof r === 'string') {
 			if (r.charAt(0) !== '#') r = ''; // fail
@@ -47,7 +52,7 @@ export class color {
 					throw new Error(`Invalid color string ${r}`);
 			}
 		}
-		return Math.ceil(r.r) | Math.ceil(r.g) << 8 | Math.ceil(r.b) << 16 | Math.ceil(r.a) << 24;
+		return this.make(r.r, r.g, r.b, r.a);
 	}
 
 	/**

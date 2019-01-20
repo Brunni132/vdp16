@@ -37,7 +37,7 @@ import { Input } from './input';
 
 export const DEBUG = true;
 // Specs of the fantasy console, do not modify for now
-const MAX_TBGS = 1, MAX_BGS = 3, MAX_OBJS = 512, MAX_VRAM_WRITES = 4096, MAX_FRAME_SLOWDOWN = 30;
+const MAX_TBGS = 1, MAX_BGS = 2, MAX_OBJS = 512, MAX_VRAM_WRITES = 4096, MAX_FRAME_SLOWDOWN = 30;
 let BG_LIMIT: number, OBJ_CELL_LIMIT: number, OBJ0_LIMIT: number, OBJ1_LIMIT: number;
 
 type TransparencyConfigEffect = 'none' | 'color' | 'blend' | 'premult';
@@ -172,8 +172,8 @@ export class VDP {
 	private fadeColor = 0x00000000;
 	private bgTransparency = new TransparencyConfig('color', 'add', 0x888888, 0x888888);
 	private objTransparency = new TransparencyConfig('color', 'add', 0x888888, 0x888888);
-	private bgBuffer = makeMapBuffer('Opaque BG [BG]', MAX_BGS);
-	private tbgBuffer = makeMapBuffer('Transparent BG [TBG]', MAX_TBGS);
+	private bgBuffer = makeMapBuffer('Opaque BG [BG]', 512);
+	private tbgBuffer = makeMapBuffer('Transparent BG [TBG]', 512);
 	private obj0Buffer = makeObjBuffer('Opaque sprites [OBJ0]', MAX_OBJS);
 	private obj1Buffer = makeObjBuffer('Transparent sprites [OBJ1]', MAX_OBJS);
 	private stats = {
@@ -233,7 +233,7 @@ export class VDP {
 						this.otherTexture = createDataTextureFloat(gl, OTHER_TEX_W, OTHER_TEX_H);
 						// Startup color
 						this.configBackdropColor('#008');
-						this.configDisplay({ extraLayer: false });
+						this.configDisplay({ extraSprites: false });
 
 						initMapShaders(this);
 						initObjShaders(this);
@@ -288,15 +288,15 @@ export class VDP {
 	 * Configures the display options. Can only be called at the beginning of the program or after a frame has been
 	 * rendered, not in the middle.
 	 * @param [opts] {Object}
-	 * @param [opts.extraLayer] {boolean} whether to enable an extra 3rd layer. This will eat in the object budget (256
-	 * cells / entries instead of 512, covering one screen). You can still have only one transparent BG.
+	 * @param [opts.extraSprites] {boolean} whether to enable the extra sprite mode. This will limit to only one BG layer
+	 * (which can be transparent), but allow 512 sprite cells/entries instead of 256, covering up to two times the screen.
 	 */
-	configDisplay(opts: { extraLayer?: boolean } = {}) {
+	configDisplay(opts: { extraSprites?: boolean } = {}) {
 		if (this.obj0Buffer.usedSprites > 0 || this.obj1Buffer.usedSprites > 0 || this.bgBuffer.usedLayers > 0) {
 			throw new Error('configDisplay must come at the beginning of your program/frame');
 		}
-		BG_LIMIT = opts.extraLayer ? 3 : 2;
-		OBJ0_LIMIT = OBJ1_LIMIT = OBJ_CELL_LIMIT = opts.extraLayer ? 256 : 512;
+		BG_LIMIT = opts.extraSprites ? 1 : 2;
+		OBJ0_LIMIT = OBJ1_LIMIT = OBJ_CELL_LIMIT = opts.extraSprites ? 512 : 256;
 	}
 
 	/**
@@ -401,8 +401,8 @@ export class VDP {
 		const h = opts.hasOwnProperty('height') ? opts.height : sprite.h;
 		const prio = Math.floor(opts.prio || (opts.transparent ? 2 : 1));
 		const buffer = opts.transparent ? this.obj1Buffer: this.obj0Buffer;
-		const u = sprite.x;
-		const v = sprite.y;
+		const u = Math.floor(sprite.x);
+		const v = Math.floor(sprite.y);
 
 		if (prio < 0 || prio > 15) throw new Error('Unsupported object priority (0-15)');
 
@@ -416,14 +416,14 @@ export class VDP {
 			const remainingCells = OBJ_CELL_LIMIT - this.usedObjCells;
 			const newW = (remainingCells / cellsTall) * OBJ_CELL_SIZE;
 			enqueueObj(buffer, x, y, x + newW, y + h,
-				u, v, u + sprite.w * newW / w, v + sprite.h, pal.y, sprite.hiColor, prio, opts.flipH, opts.flipV);
+				u, v, u + sprite.w * newW / w, v + Math.floor(sprite.h), pal.y, sprite.hiColor, prio, opts.flipH, opts.flipV);
 			this.usedObjCells = OBJ_CELL_LIMIT;
 			return;
 		}
 		this.usedObjCells += cells;
 
 		enqueueObj(buffer, x, y, x + w, y + h,
-			u, v, u + sprite.w, v + sprite.h, pal.y, sprite.hiColor, prio, opts.flipH, opts.flipV);
+			u, v, u + Math.floor(sprite.w), v + Math.floor(sprite.h), pal.y, sprite.hiColor, prio, opts.flipH, opts.flipV);
 	}
 
 	map(name: string): VdpMap {

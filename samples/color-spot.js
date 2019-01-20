@@ -50,4 +50,4 @@ function *main(vdp) {
 	}
 }
 
-startGame("#glCanvas", vdp => main(vdp));
+startGame('#glCanvas', vdp => main(vdp));

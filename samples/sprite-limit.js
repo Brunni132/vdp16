@@ -7,7 +7,7 @@ function *main(vdp) {
 	let loop = 0;
 
 	// Brings the limit to 256 sprites instead of 512 for easier demo
-	vdp.configDisplay({ extraLayer: true });
+	vdp.configDisplay({ extraSprites: false });
 	// Darken BG
 	vdp.configObjectTransparency({ op: 'add', blendDst: '#000', blendSrc: '#444' });
 	vdp.configBackdropColor('#000');
@@ -28,4 +28,4 @@ function *main(vdp) {
 	}
 }
 
-startGame("#glCanvas", vdp => main(vdp));
+startGame('#glCanvas', vdp => main(vdp));

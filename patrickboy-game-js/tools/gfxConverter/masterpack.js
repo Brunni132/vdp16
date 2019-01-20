@@ -220,10 +220,6 @@ class MasterPack {
 		//console.log(masterSpriteList.spriteEntries.map(e => ({ x: e.x, y: e.y, w: e.width, h: e.height, pal: e.designPalette.name })));
 		console.log(`Palette usage: ${(100 * (this.palettes.length / this.paletteTex.height)).toFixed(2)}%`.formatAs(utils.BRIGHT, utils.FG_CYAN));
 		console.log(`Map usage: ${(100 * mapBaker.memoryUsage()).toFixed(2)}%`.formatAs(utils.BRIGHT, utils.FG_CYAN));
-		if (writeSample) {
-			console.log('Writing sample.png…');
-			this.writeSampleImage(resultJson, 'sample.png');
-		}
 
 		// Write all textures
 		console.log('Writing game data…');
@@ -236,6 +232,10 @@ class MasterPack {
 		this.mapTex.writeToPng('build/maps.png');
 		this.spriteTex.writeToPng('build/sprites.png');
 		this.paletteTex.writeToPng('build/palettes.png');
+		if (writeSample) {
+			console.log('Writing sample.png (optional & long, you can update the game page already)');
+			this.writeSampleImage(resultJson, 'sample.png');
+		}
 	}
 
 	/**

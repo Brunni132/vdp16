@@ -5,7 +5,7 @@ const utils = require('./utils');
 const g_config = {};
 const ALLOW_MORE_COLORS = true;
 
-// TODO Florian -- merge with color32 module
+// TODO Florian -- merge with color module
 function posterize(c, bitsPerComponent) {
 	if (bitsPerComponent === 2) {
 		let hiBits = (c >>> 6 & 0x01010101) | (c >>> 7 & 0x01010101);
@@ -22,7 +22,7 @@ function posterize(c, bitsPerComponent) {
 	} else if (bitsPerComponent === 5) {
 		const hiBits = (c >>> 5 & 0x07070707);
 		c = (c >>> 3 & 0x1f1f1f1f);
-		return c | c << 3 | hiBits;
+		return c << 3 | hiBits;
 	}
 	return c;
 }

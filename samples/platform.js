@@ -49,7 +49,7 @@ class Mario {
 		const tileNo = this._getMarioTileFromAnimation();
 		const sprite = vdp.sprite('mario').tile(tileNo);
 		const needsFlip = this.direction === 'left';
-		vdp.drawObject(sprite, this.left - camera.x, this.top, { flipH: needsFlip });
+		vdp.drawObject(sprite, Math.floor(this.left - camera.x), this.top, { flipH: needsFlip });
 	}
 
 	get right() { return this.left + this.width; }
@@ -110,7 +110,7 @@ class Mario {
 		let moveH = this.velocityX, moveV = this.velocityY;
 		while (Math.abs(moveH) >= 0.001 || Math.abs(moveV) >= 0.001) {
 			// Move a max of one unit horizontally and vertically each time.
-			// Original games didn't do that because it's inefficient, but it will save you a lot of headache.
+			// Original games didn't do that because it's inefficient, but it saves a lot of headache.
 			const unitH = Math.min(1, Math.abs(moveH)) * Math.sign(moveH);
 			const unitV = Math.min(1, Math.abs(moveV)) * Math.sign(moveV);
 			moveH -= unitH;
@@ -166,7 +166,7 @@ class Mario {
 
 	_isGrounded() {
 		// We're on the ground if there's something one pixel below us
-		return this._collidesAt(this.left + 1, this.bottom + 1) || this._collidesAt(this.right - 1, this.bottom + 1);
+		return this._collidesAt(this.left + 1, this.bottom + 2) || this._collidesAt(this.right - 1, this.bottom + 2);
 	}
 
 	_isSolidBlock(block) {
@@ -186,9 +186,9 @@ class Mario {
 }
 
 function animateLevel1(vdp) {
-	const pal = vdp.readPalette('level1');
 	// Rotate the shining block color from the choices above, every 12 frames
 	const colorIndex = Math.floor(frameNo / 12) % SHINING_BLOCK_COLORS.length;
+	const pal = vdp.readPalette('level1');
 	pal.array[8] = SHINING_BLOCK_COLORS[colorIndex];
 	vdp.writePalette('level1', pal);
 }
@@ -216,4 +216,4 @@ function *main(vdp) {
 	}
 }
 
-startGame("#glCanvas", vdp => main(vdp));
+startGame('#glCanvas', vdp => main(vdp));

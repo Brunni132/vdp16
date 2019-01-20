@@ -37,10 +37,10 @@ function *main(vdp) {
 		}
 
 		// Do not render below 248 since the map is smaller
-		vdp.drawBackgroundMap('sonic1-bg', { lineTransform, winH: 248 });
+		vdp.drawBackgroundMap('sonic1-bg', { lineTransform });
 		loop += 1;
 		yield;
 	}
 }
 
-startGame("#glCanvas", vdp => main(vdp));
+startGame('#glCanvas', vdp => main(vdp));

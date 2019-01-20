@@ -2,7 +2,7 @@ const { addColors, blank, config, image,	map,	multiPalette,	palette,	sprite,	til
 
 const SCREEN_WIDTH = 256, SCREEN_HEIGHT = 256;
 
-config({ compact: true, debug: true, hiColorMode: false }, () => {
+config({ compact: true, debug: true }, () => {
 	palette('Default', () => {
 		sprite('gradient', 'gfx/gradient.png');
 	});

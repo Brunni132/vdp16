@@ -1,0 +1,25 @@
+	beginSplittedBackground(direction: 'horizontal' | 'vertical') {
+		if (direction === 'horizontal') this.isInSplitBGMode = 1;
+		else if (direction === 'vertical') this.isInSplitBGMode = 2;
+		else throw new Error('Unrecognized splitted BG mode');
+		this.splitBGOffset = 0;
+		if (++this.usedBGs > MAX_BGS) throw new Error(`Exceeded limit of ${MAX_BGS} in current mode`);
+	}
+
+	endSplittedBackground() {
+		this.isInSplitBGMode = 0;
+	}
+
+	private isInSplitBGMode = 0; // 0 = none, 1 = horizontal, 2 = vertical
+	private splitBGOffset = 0;
+	private usedBGs = 0;
+
+drawBackgroundMap
+		const minWinX = this.isInSplitBGMode === 1 ? this.splitBGOffset : 0;
+		const minWinY = this.isInSplitBGMode === 2 ? this.splitBGOffset : 0;
+		let winX = opts.hasOwnProperty('winX') ? opts.winX : minWinX;
+		let winY = opts.hasOwnProperty('winY') ? opts.winY : minWinY;
+		if (winX < minWinX || winY < minWinY) throw new Error('Split BG x/y cannot overlap existing part or be < 0');
+
+_doRender
+		this.nextLinescrollBuffer = this.usedObjCells = this.usedBGs = this.isInSplitBGMode = 0;

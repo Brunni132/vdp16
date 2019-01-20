@@ -30,13 +30,13 @@ function readTmx(fileNameBase, name, palette) {
 		//console.dir(json.tileset[0]);
 		const mapWidth = parseInt(json['$'].width);
 		const mapHeight = parseInt(json['$'].height);
-		const tilesetName = json.tileset[0]['$'].name;
+		//const tilesetName = json.tileset[0]['$'].name;
 		const tileWidth = parseInt(json.tileset[0]['$'].tilewidth);
 		const tileHeight = parseInt(json.tileset[0]['$'].tileheight);
 		const jsonImage = json.tileset[0].image[0]['$'];
 		const layer = findMainLayer(json.layer);
 		const imagePath = path.join(path.dirname(fileNameBase), jsonImage.source);
-		const tileset = Tileset.fromImage(tilesetName, Texture.fromPng32(imagePath), tileWidth, tileHeight, palette);
+		const tileset = Tileset.fromImage(name, Texture.fromPng32(imagePath), tileWidth, tileHeight, palette);
 		resultMap = Map.blank(name, mapWidth, mapHeight, tileset);
 
 		assert(layer.data[0]['$'].encoding === 'csv', `Only CSV encoding is supported (map ${name})`);
