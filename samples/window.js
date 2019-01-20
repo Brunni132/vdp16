@@ -51,7 +51,7 @@ function *main(vdp) {
 		}
 
 		TextLayer.drawText(16, 12, 'from right ');
-		for (let loop = 0; loop < SCREEN_HEIGHT; loop++) {
+		for (let loop = 0; loop < SCREEN_WIDTH; loop++) {
 			vdp.drawBackgroundTilemap('level1', {winW: 255 - loop});
 			vdp.drawWindowTilemap('level2');
 			TextLayer.drawLayer(vdp);
