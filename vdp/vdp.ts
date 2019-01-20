@@ -434,7 +434,7 @@ export class VDP {
 			u, v, u + Math.floor(sprite.w), v + Math.floor(sprite.h), pal.y, sprite.hiColor, prio, opts.flipH, opts.flipV);
 	}
 
-	drawWindowTilemap(position: 'top' | 'right' | 'bottom' | 'left', map: VdpMap|string, opts: {palette?: string|VdpPalette, scrollX?: number, scrollY?: number, wrap?: boolean, tileset?: string|VdpSprite, prio?: number} = {}) {
+	drawWindowTilemap(map: VdpMap|string, opts: {palette?: string|VdpPalette, scrollX?: number, scrollY?: number, wrap?: boolean, tileset?: string|VdpSprite, prio?: number} = {}) {
 		if (!this.previousBgSettings) throw new Error('drawWindowTilemap needs to be called after drawBackgroundTilemap');
 		if (typeof map === 'string') map = this.map(map);
 
@@ -453,15 +453,19 @@ export class VDP {
 		let finalWinY = 0;
 		let finalWinW = SCREEN_WIDTH;
 		let finalWinH = SCREEN_HEIGHT;
-		if (position === 'top') finalWinH = winY;
-		else if (position === 'left') finalWinW = winX;
-		else if (position === 'right') {
+		if (winY > 0) finalWinH = winY;
+		else if (winX > 0) finalWinW = winX;
+		else if (winW < SCREEN_WIDTH) {
 			finalWinX = winW;
 			finalWinW = SCREEN_WIDTH - winW;
 		}
-		else if (position === 'bottom') {
+		else if (winH < SCREEN_HEIGHT) {
 			finalWinY = winH;
 			finalWinH = SCREEN_HEIGHT - winH;
+		}
+		else {
+			if (DEBUG) console.log('No remaining space for a window');
+			return;
 		}
 
 		enqueueMap(buffer, map.x, map.y, til.x, til.y, map.w, map.h, til.w, til.tw, til.th, finalWinX, finalWinY, finalWinW, finalWinH, scrollX, scrollY, pal.y, til.hiColor, linescrollBuffer, wrap ? 1 : 0, prio);
