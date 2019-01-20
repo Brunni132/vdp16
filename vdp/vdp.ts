@@ -172,8 +172,8 @@ export class VDP {
 	private fadeColor = 0x00000000;
 	private bgTransparency = new TransparencyConfig('color', 'add', 0x888888, 0x888888);
 	private objTransparency = new TransparencyConfig('color', 'add', 0x888888, 0x888888);
-	private bgBuffer = makeMapBuffer('Opaque BG [BG]', 512);
-	private tbgBuffer = makeMapBuffer('Transparent BG [TBG]', 512);
+	private bgBuffer = makeMapBuffer('Opaque BG [BG]', MAX_BGS * 2); // x2 because of window
+	private tbgBuffer = makeMapBuffer('Transparent BG [TBG]', MAX_TBGS * 2);
 	private obj0Buffer = makeObjBuffer('Opaque sprites [OBJ0]', MAX_OBJS);
 	private obj1Buffer = makeObjBuffer('Transparent sprites [OBJ1]', MAX_OBJS);
 	private stats = {

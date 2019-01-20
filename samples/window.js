@@ -26,7 +26,7 @@ function *main(vdp) {
 	TextLayer.drawText(16, 10, 'Window demo');
 
 	while (true) {
-		TextLayer.drawText(16, 12, ' From top  ');
+		TextLayer.drawText(16, 12, ' from top  ');
 		for (let loop = 0; loop < SCREEN_HEIGHT; loop++) {
 			vdp.drawBackgroundTilemap('level2', {winY: loop});
 			vdp.drawWindowTilemap('level1');
@@ -34,7 +34,7 @@ function *main(vdp) {
 			yield;
 		}
 
-		TextLayer.drawText(16, 12, 'From bottom');
+		TextLayer.drawText(16, 12, 'from bottom');
 		for (let loop = 0; loop < SCREEN_HEIGHT; loop++) {
 			vdp.drawBackgroundTilemap('level1', {winH: 255 - loop});
 			vdp.drawWindowTilemap('level2');
@@ -42,7 +42,7 @@ function *main(vdp) {
 			yield;
 		}
 
-		TextLayer.drawText(16, 12, ' From left ');
+		TextLayer.drawText(16, 12, ' from left ');
 		for (let loop = 0; loop < SCREEN_WIDTH; loop++) {
 			vdp.drawBackgroundTilemap('level2', {winX: loop});
 			vdp.drawWindowTilemap('level1');
@@ -50,7 +50,7 @@ function *main(vdp) {
 			yield;
 		}
 
-		TextLayer.drawText(16, 12, 'From right ');
+		TextLayer.drawText(16, 12, 'from right ');
 		for (let loop = 0; loop < SCREEN_HEIGHT; loop++) {
 			vdp.drawBackgroundTilemap('level1', {winW: 255 - loop});
 			vdp.drawWindowTilemap('level2');
