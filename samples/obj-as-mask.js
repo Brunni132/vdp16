@@ -15,15 +15,26 @@ class TextLayer {
 function *main(vdp) {
 	const textLayer = new TextLayer(vdp);
 	let loop = 0;
+	let windowHeight = 0, windowTargetHeight = 0;
 
 	textLayer.drawText(0, 0, 'You can still place a window on top of a darkened BG');
 	vdp.configBackdropColor('#888');
 
 	while (true) {
+		// Show a window for a short moment
+		if (loop >= 120 && loop <= 360) windowTargetHeight = 16;
+		else windowTargetHeight = 0;
+
+		// Animate the window
+		if (windowHeight < windowTargetHeight) windowHeight += 1;
+		if (windowHeight > windowTargetHeight) windowHeight -= 1;
+
 		// Scrolling background
-		vdp.drawBackgroundTilemap('tmx', { scrollX: loop, scrollY: -16, winY: 16, prio: 0 });
+		vdp.drawBackgroundTilemap('tmx', { scrollX: loop, winY: windowHeight, prio: 0 });
 		// Window with top priority, for the text to appear even above the transparent layer and mask sprite
-		vdp.drawWindowTilemap('text2', { prio: 3 });
+		if (windowHeight > 0) {
+			vdp.drawWindowTilemap('text2', {prio: 3});
+		}
 		// We don't care about the contents of this, because we set blendSrc: '#000' (making it essentially black).
 		// What matters is the blendDst: '#448' which darkens everything, keeping 0.5x the blue, and 0.25x red and green.
 		vdp.configBackgroundTransparency({ op: 'add', blendDst: '#448', blendSrc: '#000' });
