@@ -26,8 +26,8 @@ config({ compact: true, debug: true }, () => {
 	});
 
 	palette('text2', () => {
-		tileset('text2', 'gfx/defaultFont.png', 6, 10, () => {
-			map('text2', blank(Math.ceil(SCREEN_WIDTH / 6), Math.ceil(SCREEN_HEIGHT / 10)));
+		tileset('text2', 'gfx/defaultFont.png', 8, 8, () => {
+			map('text2', blank(Math.ceil(SCREEN_WIDTH / 8), Math.ceil(SCREEN_HEIGHT / 8)));
 		});
 	});
 
