@@ -130,24 +130,24 @@ class Mario {
 
 	_checkCollisionsLateral() {
 		// Left (check at bottom and top)
-		if (this._collidesAt(this.left, this.top + 1) || this._collidesAt(this.left, this.bottom - 1)) {
+		if (this._collidesAt(this.left, this.top) || this._collidesAt(this.left, this.bottom)) {
 			this.left += 1;
 			this.velocityX = 0;
 		}
 
-		if (this._collidesAt(this.right, this.top + 1) || this._collidesAt(this.right, this.bottom - 1)) {
+		if (this._collidesAt(this.right, this.top) || this._collidesAt(this.right, this.bottom)) {
 			this.left -= 1;
 			this.velocityX = 0;
 		}
 	}
 
 	_checkCollisionsVertical() {
-		if (this._collidesAt(this.left + 1, this.top) || this._collidesAt(this.right - 1, this.top)) {
+		if (this._collidesAt(this.left, this.top) || this._collidesAt(this.right, this.top)) {
 			this.top += 1;
 			this.velocityY = 0;
 		}
 
-		if (this._collidesAt(this.left + 1, this.bottom) || this._collidesAt(this.right - 1, this.bottom)) {
+		if (this._collidesAt(this.left, this.bottom) || this._collidesAt(this.right, this.bottom)) {
 			this.top -= 1;
 			this.velocityY = 0;
 		}
@@ -166,7 +166,7 @@ class Mario {
 
 	_isGrounded() {
 		// We're on the ground if there's something one pixel below us
-		return this._collidesAt(this.left + 1, this.bottom + 2) || this._collidesAt(this.right - 1, this.bottom + 2);
+		return this._collidesAt(this.left, this.bottom + 2) || this._collidesAt(this.right, this.bottom + 2);
 	}
 
 	_isSolidBlock(block) {

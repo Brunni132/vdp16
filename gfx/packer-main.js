@@ -3,11 +3,11 @@ const { addColors, blank, config, image,	map,	multiPalette,	palette,	sprite,	til
 const SCREEN_WIDTH = 256, SCREEN_HEIGHT = 256;
 
 config({ compact: true, debug: true }, () => {
-	palette('Default', () => {
+	palette('default', () => {
 		sprite('gradient', 'gfx/gradient.png');
 	});
 
-	palette('Mario', () => {
+	palette('mario', () => {
 		tileset('mario', image('gfx/mario-luigi-2.png').rect(80, 32, 224, 16), 16, 16);
 	});
 

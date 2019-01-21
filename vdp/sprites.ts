@@ -236,8 +236,8 @@ void main(void) {
 export function computeObjectCells(x0: number, y0: number, x1: number, y1: number): number {
 	if (x0 > x1) [x1, x0] = [x0, x1];
 	if (y0 > y1) [y1, y0] = [y0, y1];
-	const w = Math.min(SCREEN_WIDTH, x1) - Math.max(0, x0);
-	const h = Math.min(SCREEN_HEIGHT, y1) - Math.max(0, y0);
+	const w = Math.round(Math.min(SCREEN_WIDTH, x1) - Math.max(0, x0));
+	const h = Math.round(Math.min(SCREEN_HEIGHT, y1) - Math.max(0, y0));
 	return Math.max(1, Math.ceil(w / OBJ_CELL_SIZE) * Math.ceil(h / OBJ_CELL_SIZE));
 }
 

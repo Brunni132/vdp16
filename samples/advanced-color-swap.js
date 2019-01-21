@@ -6,7 +6,9 @@ function *main(vdp) {
 
 	// The colors at (x, y) in build/palettes.png that we want to modify.
 	// First is the background of the first section of the 'tmx' map. Second is the red of the 'mario' sprite.
-	const swaps = [new LineColorArray(10, 3), new LineColorArray(1, 1)];
+	const marioPaletteNo = vdp.palette('mario').y;
+	const tmxPaletteNo = vdp.palette('tmx').y;
+	const swaps = [new LineColorArray(10, tmxPaletteNo), new LineColorArray(1, marioPaletteNo)];
 
 	// Set up the 2 palettes with a gradient (32 and 33, make them far enough so that they're not used)
 	const gradientPalette = vdp.readPaletteMemory(0, 32, 16, 2, VDPCopySource.blank);
@@ -15,7 +17,7 @@ function *main(vdp) {
 	vdp.writePaletteMemory(0, 32, 16, 2, gradientPalette);
 
 	// Note that the color (0, 32) is not used, it's transparent so it will let the backdrop appear
-	vdp.configBackdropColor('#008');
+	vdp.configBackdropColor(gradientPalette.getElement(0, 0));
 
 	// Set up another gradient for Mario's costume. Note that where the color 0 is used, the sprite will be transparent.
 	for (let i = 0; i < swaps[1].length; i++) {
@@ -23,6 +25,8 @@ function *main(vdp) {
 	}
 
 	while (true) {
+		// Make a color gradient setting colors from top to bottom. Use the frame number to create an alternating horizontal
+		// mesh, creating the illusion of additional colors.
 		for (let i = 0; i < swaps[0].length; i++) {
 			const intensity = 16 * i / swaps[0].length;
 			const floatingPart = intensity - Math.floor(intensity);
