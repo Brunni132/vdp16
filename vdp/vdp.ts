@@ -648,16 +648,14 @@ export class VDP {
 		drawPendingMap(this, this.bgBuffer);
 		this._drawObjectLayer(this.obj0Buffer);
 
-		// TBG then OBJ1
-		this.bgTransparency.apply(this);
-		gl.depthMask(false);
-		drawPendingMap(this, this.tbgBuffer);
-		gl.depthMask(true);
-
 		// Draw in reverse order
 		this.obj1Buffer.sort();
 		this.objTransparency.apply(this);
 		this._drawObjectLayer(this.obj1Buffer);
+
+		// OBJ1 then TBG, so OBJ1 can be used as mask
+		this.bgTransparency.apply(this);
+		drawPendingMap(this, this.tbgBuffer);
 
 		this.nextLinescrollBuffer = this.usedObjCells = this.usedBGs = this.usedTBGs = 0;
 		this.previousBgSettings = null;
