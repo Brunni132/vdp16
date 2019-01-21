@@ -150,21 +150,21 @@ function fadeCustomWhite(colors, statusArray) {
 }
 
 function resetPatrickBoyFade(vdp) {
-	vdp.configFade('#000', 0);
+	vdp.configFade({ color:'#000', factor: 0 });
 }
 
 function fadeToWhiteVDP(vdp) {
 	// VDP supports fading methods. They provide a better precision than modifying palettes, but the resolution remains
 	// 1/16th (where Sega's fade can do up to 47 steps in the case of white color).
-	vdp.configFade('#fff', loopIt * 2);
+	vdp.configFade({ color: '#fff', factor: loopIt * 2 });
 }
 
 function fadeToGrayVDP(vdp) {
-	vdp.configFade('#888', loopIt * 2);
+	vdp.configFade({ color: '#888', factor: loopIt * 2 });
 }
 
 function fadeToBlackVDP(vdp) {
-	vdp.configFade('#000', loopIt * 2);
+	vdp.configFade({ color: '#000', factor: loopIt * 2 });
 }
 
 function fadeByDesaturating(colorsSource, colorsDest) {

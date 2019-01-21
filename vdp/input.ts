@@ -33,6 +33,10 @@ const mapping = {
 	'k': InputKey.B,
 	'h': InputKey.L,
 	'l': InputKey.R,
+	'c': InputKey.A,
+	'v': InputKey.B,
+	'x': InputKey.L,
+	'b': InputKey.R,
 	' ': InputKey.Select,
 	'Enter': InputKey.Start,
 };

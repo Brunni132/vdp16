@@ -98,7 +98,7 @@ class Mario {
 
 		// Jump: just give an inpulse (can only be done if we're resting on the ground)
 		if (input.hasToggledDown(InputKey.B) && this._isGrounded()) {
-			this.velocityY = this.jumpImpulse - Math.abs(this.velocityX / 6);
+			this.velocityY = this.jumpImpulse - Math.abs(this.velocityX / 4);
 			this._setAnimation('jumping');
 		}
 		else if (input.isDown(InputKey.B) && this.velocityY < 0) {
