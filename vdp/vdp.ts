@@ -37,7 +37,7 @@ import { Input } from './input';
 
 export const DEBUG = true;
 // Specs of the fantasy console, do not modify for now
-const MAX_TBGS = 1, MAX_BGS = 2, MAX_OBJS = 512, MAX_VRAM_WRITES = 4096, MAX_FRAME_SLOWDOWN = 30;
+const MAX_BGS = 2, MAX_OBJS = 512, MAX_VRAM_WRITES = 4096, MAX_FRAME_SLOWDOWN = 30;
 let BG_LIMIT: number, OBJ_CELL_LIMIT: number, OBJ0_LIMIT: number, OBJ1_LIMIT: number;
 
 type TransparencyConfigEffect = 'none' | 'color' | 'blend' | 'premult';
@@ -173,7 +173,7 @@ export class VDP {
 	private bgTransparency = new TransparencyConfig('color', 'add', 0x888888, 0x888888);
 	private objTransparency = new TransparencyConfig('color', 'add', 0x888888, 0x888888);
 	private bgBuffer = makeMapBuffer('Opaque BG [BG]', MAX_BGS * 2); // x2 because of window
-	private tbgBuffer = makeMapBuffer('Transparent BG [TBG]', MAX_TBGS * 2);
+	private tbgBuffer = makeMapBuffer('Transparent BG [TBG]', 1); // can support only one because of OBJ1 sorting required
 	private obj0Buffer = makeObjBuffer('Opaque sprites [OBJ0]', MAX_OBJS);
 	private obj1Buffer = makeObjBuffer('Transparent sprites [OBJ1]', MAX_OBJS);
 	private stats = {
@@ -365,7 +365,7 @@ export class VDP {
 		const buffer = transparent ? this.tbgBuffer : this.bgBuffer;
 
 		if (prio < 0 || prio > 15) throw new Error('Unsupported BG priority (0-15)');
-		if (this.usedBGs + this.usedTBGs >= BG_LIMIT || this.usedTBGs >= MAX_TBGS) {
+		if (this.usedBGs + this.usedTBGs >= BG_LIMIT || this.usedTBGs >= 1) {
 			if (DEBUG) console.log(`Too many BGs (${this.usedBGs} opaque, ${this.usedTBGs} transparent), ignoring drawBackgroundTilemap`);
 			return;
 		}
@@ -436,6 +436,8 @@ export class VDP {
 
 	drawWindowTilemap(map: VdpMap|string, opts: {palette?: string|VdpPalette, scrollX?: number, scrollY?: number, wrap?: boolean, tileset?: string|VdpSprite, prio?: number} = {}) {
 		if (!this.previousBgSettings) throw new Error('drawWindowTilemap needs to be called after drawBackgroundTilemap');
+		// Because the code in doRender supports only one TBG
+		if (this.previousBgSettings.transparent) throw new Error('drawWindowTilemap cannot be used for a transparent BG');
 		if (typeof map === 'string') map = this.map(map);
 
 		const { winX, winY, winH, winW, transparent, linescrollBuffer } = this.previousBgSettings;
@@ -642,34 +644,29 @@ export class VDP {
 			this.frameStarted = false;
 		}
 
+
 		// OBJ0 and BG (both opaque, OBJ0 first to appear above
 		NO_TRANSPARENCY.apply(this);
-		mat3.identity(this.modelViewMatrix);
 		drawPendingMap(this, this.bgBuffer);
-		this._drawObjectLayer(this.obj0Buffer);
+		drawPendingObj(this, this.obj0Buffer, 0, this.obj0Buffer.usedSprites);
 
-		// Draw in reverse order
-		this.obj1Buffer.sort();
+		// We need to split the render in 2: once for the objects behind the TBG and once for those in front
+		const splitAt = this.obj1Buffer.sort(this.tbgBuffer.getZOfBG(0));
+
+		// Objects in front of the BG
 		this.objTransparency.apply(this);
-		this._drawObjectLayer(this.obj1Buffer);
+		drawPendingObj(this, this.obj1Buffer, 0, splitAt);
 
 		// OBJ1 then TBG, so OBJ1 can be used as mask
 		this.bgTransparency.apply(this);
 		drawPendingMap(this, this.tbgBuffer);
 
+		// Objects behind the BG
+		this.objTransparency.apply(this);
+		drawPendingObj(this, this.obj1Buffer, splitAt, this.obj1Buffer.usedSprites);
+
 		this.nextLinescrollBuffer = this.usedObjCells = this.usedBGs = this.usedTBGs = 0;
 		this.previousBgSettings = null;
-	}
-
-	/**
-	 * @param objBuffer {ObjBuffer}
-	 * @private
-	 */
-	private _drawObjectLayer(objBuffer: ObjBuffer) {
-		// Use config only for that poly list
-		mat3.identity(this.modelViewMatrix);
-		drawPendingObj(this, objBuffer);
-		mat3.identity(this.modelViewMatrix);
 	}
 
 	/**

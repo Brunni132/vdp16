@@ -1,234 +1,43 @@
 import {InputKey, startGame, color, VDPCopySource} from "./lib-main";
 
-const GRAVITY = 0.4;
-const TILE_SIZE = 16;
-const SHINING_BLOCK_COLORS = [color.make('#f93'), color.make('#f93'), color.make('#c50'), color.make('#810'), color.make('#810'), color.make('#c50')];
-
-class Camera {
-	constructor() {
-		this.x = 0;
-	}
-
-	update(mario) {
-		if (mario.left - this.x >= 108) {
-			// The camera better had no floating part, as this could introduce "shaking" when computing the sprite positions
-			this.x = Math.floor(mario.left - 108);
-		}
-	}
-}
-
-class Mario {
-	constructor() {
-		this.left = 0;
-		this.top = 160;
-		this.width = 16;
-		this.height = 15;
-		this.velocityX = 0;
-		this.velocityY = 0;
-		this.direction = 'right';
-		// tileNo refer to the tile number in the image of the tileset Mario (image number from the left), see packer-main.js
-		this.animations = {
-			'standing': [{tileNo: 6, untilFrame: Infinity}],
-			'walking': [{tileNo: 0, untilFrame: 8}, {tileNo: 1, untilFrame: 16}, {tileNo: 2, untilFrame: 24}],
-			'running': [{tileNo: 0, untilFrame: 4}, {tileNo: 1, untilFrame: 8}, {tileNo: 2, untilFrame: 12}],
-			'turning': [{tileNo: 3, untilFrame: Infinity}],
-			'jumping': [{tileNo: 4, untilFrame: Infinity}],
-		};
-		this.currentAnimation = this.animations['standing'];
-		this.currentAnimationDuration = 0;
-		// Constants
-		this.accelerationX = 0.2;
-		this.decelerationX = 0.95;
-		this.maxVelocityX = 2;
-		this.maxVelocityWhenRunningX = 3;
-		this.jumpImpulse = -4;
-	}
-
-	// Draw the Mario sprite as an object for one frame
-	draw(vdp) {
-		const tileNo = this._getMarioTileFromAnimation();
-		const sprite = vdp.sprite('mario').tile(tileNo);
-		const needsFlip = this.direction === 'left';
-		vdp.drawObject(sprite, Math.floor(this.left - camera.x), this.top, { flipH: needsFlip });
-	}
-
-	get right() { return this.left + this.width; }
-
-	get bottom() { return this.top + this.height; }
-
-	// Integrate the physics for one frame and handle controls
-	update(input) {
-		// Gravity is constantly affecting the vertical velocity (acceleration)
-		this.velocityY += GRAVITY;
-
-		// Pressing A accelerates the character
-		const maxVelocity = input.isDown(InputKey.A) ? this.maxVelocityWhenRunningX : this.maxVelocityX;
-		let padDirection = 0;
-
-		// Pressing the key affects the lateral (X) velocity
-		if (input.isDown(InputKey.Right)) padDirection = 1;
-		else if (input.isDown(InputKey.Left)) padDirection = -1;
-		else {
-			// If nothing is pressed, brake
-			this.velocityX *= this.decelerationX;
-			if (Math.abs(this.velocityX) < 0.8) this.velocityX = 0;
-		}
-
-		// padDirection is 1 for right, -1 for left, or 0 if nothing is pressed. Use as a multiplier for direction.
-		this.velocityX += this.accelerationX * padDirection;
-		// Make sure these stay in range
-		if (this.velocityX >= maxVelocity) this.velocityX = maxVelocity;
-		if (this.velocityX <= -maxVelocity) this.velocityX = -maxVelocity;
-		// Keep track of the direction for flipping the sprite
-		if (this.velocityX > this.accelerationX && this._isGrounded()) this.direction = 'right';
-		if (this.velocityX < -this.accelerationX && this._isGrounded()) this.direction = 'left';
-
-		// Determine the animation step (these are overriden in special cases below)
-		if (this._isGrounded()) {
-			if (padDirection !== 0 && padDirection !== Math.sign(this.velocityX)) {
-				this._setAnimation('turning');
-			} else if (Math.abs(this.velocityX) > this.maxVelocityX) {
-				this._setAnimation('running');
-			} else if (Math.abs(this.velocityX) >= 1) {
-				this._setAnimation('walking');
-			} else {
-				this._setAnimation('standing');
-			}
-		}
-
-		// Jump: just give an inpulse (can only be done if we're resting on the ground)
-		if (input.hasToggledDown(InputKey.B) && this._isGrounded()) {
-			this.velocityY = this.jumpImpulse - Math.abs(this.velocityX / 6);
-			this._setAnimation('jumping');
-		}
-		else if (input.isDown(InputKey.B) && this.velocityY < 0) {
-			// Can extend the jump by leaving the button pressed
-			this.velocityY -= GRAVITY * 0.6;
-		}
-
-		// Integrate the velocity to the position
-		let moveH = this.velocityX, moveV = this.velocityY;
-		while (Math.abs(moveH) >= 0.001 || Math.abs(moveV) >= 0.001) {
-			// Move a max of one unit horizontally and vertically each time.
-			// Original games didn't do that because it's inefficient, but it saves a lot of headache.
-			const unitH = Math.min(1, Math.abs(moveH)) * Math.sign(moveH);
-			const unitV = Math.min(1, Math.abs(moveV)) * Math.sign(moveV);
-			moveH -= unitH;
-			moveV -= unitV;
-			this.top += unitV;
-			this._checkCollisionsVertical();
-			this.left += unitH;
-			this._checkCollisionsLateral();
-		}
-
-		// Do not allow going off the camera
-		this.left = Math.max(this.left, camera.x);
-
-		// For animations
-		this.currentAnimationDuration += 1;
-	}
-
-	_checkCollisionsLateral() {
-		// Left (check at bottom and top)
-		if (this._collidesAt(this.left, this.top) || this._collidesAt(this.left, this.bottom)) {
-			this.left += 1;
-			this.velocityX = 0;
-		}
-
-		if (this._collidesAt(this.right, this.top) || this._collidesAt(this.right, this.bottom)) {
-			this.left -= 1;
-			this.velocityX = 0;
-		}
-	}
-
-	_checkCollisionsVertical() {
-		if (this._collidesAt(this.left, this.top) || this._collidesAt(this.right, this.top)) {
-			this.top += 1;
-			this.velocityY = 0;
-		}
-
-		if (this._collidesAt(this.left, this.bottom) || this._collidesAt(this.right, this.bottom)) {
-			this.top -= 1;
-			this.velocityY = 0;
-		}
-	}
-
-	_collidesAt(x, y) {
-		return this._isSolidBlock(this._mapBlockAtPosition(x, y));
-	}
-
-	_getMarioTileFromAnimation() {
-		const animTotalDuration = this.currentAnimation[this.currentAnimation.length - 1].untilFrame;
-		const currentMarioFrameInLoop = this.currentAnimationDuration % animTotalDuration;
-		const animStep = this.currentAnimation.find(animStep => currentMarioFrameInLoop < animStep.untilFrame);
-		return animStep.tileNo;
-	}
-
-	_isGrounded() {
-		// We're on the ground if there's something one pixel below us
-		return this._collidesAt(this.left, this.bottom + 2) || this._collidesAt(this.right, this.bottom + 2);
-	}
-
-	_isSolidBlock(block) {
-		return [38, 11, 12, 18, 19, 24, 25, 16, 13].indexOf(block) >= 0;
-	}
-
-	_mapBlockAtPosition(x, y) {
-		return mapData.getElement(x / TILE_SIZE, y / TILE_SIZE);
-	}
-
-	_setAnimation(animationName) {
-		if (this.currentAnimation === this.animations[animationName]) return;
-		// Reset the animation counters when the animation changes
-		this.currentAnimation = this.animations[animationName];
-		this.currentAnimationDuration = 0;
-	}
-}
-
 class TextLayer {
 	constructor(vdp) {
 		this.map = vdp.readMap('text2', VDPCopySource.blank);
+		this.vdp = vdp;
 	}
 	drawText(x, y, text) {
 		for (let i = 0; i < text.length; i++) this.map.setElement(x + i, y, text.charCodeAt(i) - 32);
-	}
-	drawAsWindow(vdp) {
-		vdp.writeMap('text2', this.map);
-		vdp.drawWindowTilemap('text2');
+		this.vdp.writeMap('text2', this.map);
 	}
 }
-
-function animateLevel1(vdp) {
-	// Rotate the shining block color from the choices above, every 12 frames
-	const colorIndex = Math.floor(frameNo / 12) % SHINING_BLOCK_COLORS.length;
-	const pal = vdp.readPalette('level1');
-	pal.array[8] = SHINING_BLOCK_COLORS[colorIndex];
-	vdp.writePalette('level1', pal);
-}
-
-let camera = new Camera();
-let mapData;
-let frameNo = 0;
 
 /** @param vdp {VDP} */
 function *main(vdp) {
-	const mario = new Mario();
 	const textLayer = new TextLayer(vdp);
+	let loop = 0;
 
-	mapData = vdp.readMap('level1');
-	textLayer.drawText(0, 0, 'Use WASD to move, J to run, K to jump');
-	vdp.configBackdropColor('#59f');
+	textLayer.drawText(0, 0, 'You can still place a window on top of a darkened BG');
+	vdp.configBackdropColor('#888');
 
 	while (true) {
-		mario.update(vdp.input);
-		camera.update(mario);
+		// Scrolling background
+		vdp.drawBackgroundTilemap('tmx', { scrollX: loop, scrollY: -16, winY: 16, prio: 0 });
+		// Window with top priority, for the text to appear even above the transparent layer and mask sprite
+		vdp.drawWindowTilemap('text2', { prio: 3 });
+		// We don't care about the contents of this, because we set blendSrc: '#000' (making it essentially black).
+		// What matters is the blendDst: '#448' which darkens everything, keeping 0.5x the blue, and 0.25x red and green.
+		vdp.configBackgroundTransparency({ op: 'add', blendDst: '#448', blendSrc: '#000' });
+		vdp.drawBackgroundTilemap('tmx', { transparent: true, prio: 2 });
 
-		vdp.drawBackgroundTilemap('level1', { scrollX: camera.x, wrap: false, winY: 16 });
-		textLayer.drawAsWindow(vdp);
-		mario.draw(vdp);
+		// Draw an object in mask mode (1x destination + 0x source) with a higher priority than the mask BG (prio: 2).
+		// Because of that, the object will prevent the transparent BG from drawing in that area, although it doesn't change
+		// the colors behind. This works because only the topmost "transparent" pixel is kept.
+		const anim = Math.floor(loop / 12) % 3;
+		const mario = vdp.sprite('mario').tile(anim);
+		vdp.configObjectTransparency({ op: 'add', blendDst: '#fff', blendSrc: '#000' });
+		vdp.drawObject(mario, 96, 96, { width: 64, height: 64, transparent: true, prio: 3 });
 
-		animateLevel1(vdp);
-		frameNo += 1;
+		loop++;
 		yield;
 	}
 }

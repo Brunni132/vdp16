@@ -44,9 +44,17 @@ export class MapBuffer {
 		return 	this.maxVertices - this.usedVertices;
 	}
 
-	// get usedLayers(): number {
-	// 	return this.usedVertices / BG_BUFFER_STRIDE;
-	// }
+	/**
+	 * @returns {number} the z component of the BG at the index-th position
+	 * @param index {number}
+	 */
+	getZOfBG(index: number): number {
+		return this.xyzp[this.firstVertice + BG_BUFFER_STRIDE * 4 * index + 2];
+	}
+
+	get usedLayers(): number {
+		return this.usedVertices / BG_BUFFER_STRIDE;
+	}
 }
 
 export function initMapShaders(vdp: VDP) {

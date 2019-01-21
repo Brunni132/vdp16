@@ -84,11 +84,11 @@ export class ObjBuffer {
 	// 	};
 	// }
 
-	/**
-	 * Modifies the OBJ list to fit within the number of cells. Use the return value to know how many sprites to draw.
-	 * @param maxCells {number} maximum allowed number of cells
-	 * @returns {number} sprites fully drawable for this list
-	 */
+	// /**
+	//  * Modifies the OBJ list to fit within the number of cells. Use the return value to know how many sprites to draw.
+	//  * @param maxCells {number} maximum allowed number of cells
+	//  * @returns {number} sprites fully drawable for this list
+	//  */
 	// limitObjList(maxCells: number): number {
 	// 	let cells = 0;
 	// 	const endOfList = this.firstSprite + this.usedSprites;
@@ -119,18 +119,26 @@ export class ObjBuffer {
 	// 	this.xyzp[vert + 4 * 2] = this.xyzp[vert] + width;
 	// }
 
-	sort(frontToBack = true) {
+	sort(splitAtZ: number): number {
 		const items = makeRangeArray(this.firstVertice / OBJ_BUFFER_STRIDE, this.usedVertices / OBJ_BUFFER_STRIDE);
-		if (frontToBack) {
+		// if (frontToBack) {
 			// First vertice, z component (3rd)
-			items.sort((a, b) => this.getZOfObject(b) - this.getZOfObject(a));
-		} else {
-			items.sort((a, b) => this.getZOfObject(a) - this.getZOfObject(b));
+			// items.sort((a, b) => this.getZOfObject(b) - this.getZOfObject(a));
+		items.sort((a, b) => this.getZOfObject(b) - this.getZOfObject(a));
+		// } else {
+		// 	items.sort((a, b) => this.getZOfObject(a) - this.getZOfObject(b));
+		// }
+
+		let hasSplitAt = items.length;
+		for (let i = 0; i < items.length; i++) {
+			// Return the first sprite number that is behind the Z asked
+			if (this.getZOfObject(items[i]) <= splitAtZ) hasSplitAt = i;
 		}
 
 		const originalXyzp = this.xyzp.slice();
 		const originalUv = this.uv.slice();
 		const firstSprite = this.firstSprite;
+
 		for (let i = 0; i < items.length; i++) {
 			this.xyzp.set(
 				originalXyzp.subarray(OBJ_BUFFER_STRIDE * 4 * items[i], OBJ_BUFFER_STRIDE * 4 * (items[i] + 1)),
@@ -139,6 +147,8 @@ export class ObjBuffer {
 				originalUv.subarray(OBJ_BUFFER_STRIDE * 2 * items[i], OBJ_BUFFER_STRIDE * 2 * (items[i] + 1)),
 				OBJ_BUFFER_STRIDE * 2 * (i + firstSprite));
 		}
+
+		return hasSplitAt;
 	}
 
 	get usedSprites(): number {
@@ -244,9 +254,11 @@ export function computeObjectCells(x0: number, y0: number, x1: number, y1: numbe
 /**
  * @param vdp {VDP}
  * @param objBuffer {ObjBuffer}
+ * @param first {number} the index of the first sprite to draw. Pass 0 if you want to draw the full buffer.
+ * @param last {number} the index of the last sprite to draw (exclusive). Pass objBuffer.usedSprites to draw them all.
  */
-export function drawPendingObj(vdp: VDP, objBuffer: ObjBuffer) {
-	if (objBuffer.usedSprites <= 0) return;
+export function drawPendingObj(vdp: VDP, objBuffer: ObjBuffer, first: number, last: number) {
+	if (last <= first) return;
 
 	const prog = vdp.spriteProgram;
 	const gl = vdp.gl;
@@ -297,7 +309,7 @@ export function drawPendingObj(vdp: VDP, objBuffer: ObjBuffer) {
 	gl.uniform4f(prog.uniformLocations.envColor, envColor[0], envColor[1], envColor[2], envColor[3]);
 	gl.uniform4f(prog.uniformLocations.colorSwaps, colorSwaps[0], colorSwaps[1], colorSwaps[2], colorSwaps[3]);
 
-	gl.drawArrays(gl.TRIANGLES, 0, objBuffer.usedSprites * OBJ_BUFFER_STRIDE);
+	gl.drawArrays(gl.TRIANGLES, first * OBJ_BUFFER_STRIDE, last * OBJ_BUFFER_STRIDE);
 
 	objBuffer.usedVertices = 0;
 }
