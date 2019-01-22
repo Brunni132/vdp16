@@ -233,7 +233,7 @@ class MasterPack {
 		this.spriteTex.writeToPng('build/sprites.png');
 		this.paletteTex.writeToPng('build/palettes.png');
 		if (writeSample) {
-			console.log('Writing sample.png (optional & long, you can update the game page already)');
+			console.log('Writing sample.png (optional & long, consider setting debug: false in gfx/packer-main.js)');
 			this.writeSampleImage(resultJson, 'sample.png');
 		}
 	}

@@ -1,4 +1,4 @@
-const { addColors, blank, config, image,	map,	multiPalette,	palette,	sprite,	tileset,	tiledMap, paletteNamed } = require('../tools/gfxConverter/dsl');
+// import { addColors, blank, config, image,	map,	multiPalette,	palette,	sprite,	tileset,	tiledMap, paletteNamed } from '../tools/gfxConverter/dsl';
 
 const SCREEN_WIDTH = 256, SCREEN_HEIGHT = 256;
 
