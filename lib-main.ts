@@ -10,8 +10,10 @@ export function startStandalone(resourceDirectory: string, scriptFile: string) {
 		}),
 		loadVdp(document.querySelector('#glCanvas'), resourceDirectory)
 	]).then(([code, vdp]) => {
-		code = `(function(vdp,color){var window ='Please play fair';${code};return main;})`;
-		const mainFunc = eval(code)(vdp, color);
+		// Strip imports
+		code = code.replace(/import.*?;/g, '');
+		code = `(function(vdp){var window ='Please play fair';${code};return main;})`;
+		const mainFunc = eval(code)(vdp);
 		if (!mainFunc) throw new Error('Check that your script contains a function *main()');
 		runProgram(vdp, mainFunc());
 	});
@@ -21,7 +23,6 @@ export function startGame(canvasSelector: string, loadedCb: () => IterableIterat
 	loadVdp(document.querySelector(canvasSelector), './build')
 		.then(vdp => {
 			window['vdp'] = vdp;
-			window['color'] = color;
 			runProgram(vdp, loadedCb());
 		});
 }

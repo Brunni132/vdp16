@@ -202,6 +202,7 @@ export class VDP {
 	public LineColorArray = LineColorArray;
 	public LineTransformationArray = LineTransformationArray;
 	public CopySource = CopySource;
+	public color = color;
 
 	constructor(canvas: HTMLCanvasElement, imageDirectory: string, done: () => void) {
 		this._initContext(canvas);
