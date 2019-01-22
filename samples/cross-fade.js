@@ -22,8 +22,8 @@ function *main() {
 			}
 		}
 
-		const blendSrc = color.make(crossFadeFactor, crossFadeFactor, crossFadeFactor);
-		const blendDst = color.make(255 - crossFadeFactor, 255 - crossFadeFactor, 255 - crossFadeFactor);
+		const blendSrc = vdp.color.make(crossFadeFactor, crossFadeFactor, crossFadeFactor);
+		const blendDst = vdp.color.make(255 - crossFadeFactor, 255 - crossFadeFactor, 255 - crossFadeFactor);
 		vdp.configBackgroundTransparency({ op: 'add', blendSrc, blendDst });
 
 		vdp.drawBackgroundTilemap('level1', { scrollX: loop * 0.25 });

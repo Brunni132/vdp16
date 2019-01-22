@@ -1,3 +1,4 @@
+const color = vdp.color;
 const GRAVITY = 0.4;
 const TILE_SIZE = 16;
 const SHINING_BLOCK_COLORS = [color.make('#f93'), color.make('#f93'), color.make('#c50'), color.make('#810'), color.make('#810'), color.make('#c50')];

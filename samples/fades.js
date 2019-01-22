@@ -1,3 +1,4 @@
+const color = vdp.color;
 let loopIt = 0;
 
 function fadeNaiveBlack(colorsSource, colorsDest) {

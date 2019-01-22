@@ -1,3 +1,5 @@
+const color = vdp.color;
+
 function *main() {
 	let loop = 0;
 
