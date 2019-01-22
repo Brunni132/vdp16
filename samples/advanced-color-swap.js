@@ -1,17 +1,14 @@
-import {LineColorArray, VDPCopySource, startGame, color} from "./lib-main";
-
-/** @param vdp {VDP} */
-function *main(vdp) {
+function *main() {
 	let loop = 0;
 
 	// The colors at (x, y) in build/palettes.png that we want to modify.
 	// First is the background of the first section of the 'tmx' map. Second is the red of the 'mario' sprite.
 	const marioPaletteNo = vdp.palette('mario').y;
 	const tmxPaletteNo = vdp.palette('tmx').y;
-	const swaps = [new LineColorArray(10, tmxPaletteNo), new LineColorArray(1, marioPaletteNo)];
+	const swaps = [new vdp.LineColorArray(10, tmxPaletteNo), new vdp.LineColorArray(1, marioPaletteNo)];
 
 	// Set up the 2 palettes with a gradient (32 and 33, make them far enough so that they're not used)
-	const gradientPalette = vdp.readPaletteMemory(0, 32, 16, 2, VDPCopySource.blank);
+	const gradientPalette = vdp.readPaletteMemory(0, 32, 16, 2, vdp.CopySource.blank);
 	for (let i = 0; i < 16; i++) gradientPalette.setElement(i, 0, color.make(i * 16, 0, 128));
 	for (let i = 0; i < 16; i++) gradientPalette.setElement(i, 1, color.make(i * 16, i * 16, i * 16));
 	vdp.writePaletteMemory(0, 32, 16, 2, gradientPalette);
@@ -46,5 +43,3 @@ function *main(vdp) {
 		yield;
 	}
 }
-
-startGame('#glCanvas', vdp => main(vdp));

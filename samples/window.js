@@ -1,8 +1,6 @@
-import {startGame, SCREEN_WIDTH, SCREEN_HEIGHT, VDPCopySource} from "./lib-main";
-
 const TextLayer = {
-	setup: function(vdp) {
-		this.map = vdp.readMap('text2', VDPCopySource.blank);
+	setup: function() {
+		this.map = vdp.readMap('text2', vdp.CopySource.blank);
 	},
 	getCharTile: function(c) {
 		if (c >= 32 && c < 128) return c - 32;
@@ -13,51 +11,47 @@ const TextLayer = {
 			this.map.setElement(x + i, y, this.getCharTile(text.charCodeAt(i)));
 		}
 	},
-	drawLayer: function(vdp) {
+	drawLayer: function() {
 		vdp.writeMap('text2', this.map);
 		vdp.drawBackgroundTilemap('text2');
 	}
 };
 
-/** @param vdp {VDP} */
-function *main(vdp) {
-
-	TextLayer.setup(vdp);
-	TextLayer.drawText(16, 10, 'Window demo');
+function *main() {
+	TextLayer.setup();
+	TextLayer.drawText(11, 14, 'Window demo');
 
 	while (true) {
-		TextLayer.drawText(16, 12, ' from top  ');
-		for (let loop = 0; loop < SCREEN_HEIGHT; loop++) {
+		TextLayer.drawText(11, 16, ' from top  ');
+		for (let loop = 0; loop < vdp.screenHeight; loop++) {
 			vdp.drawBackgroundTilemap('level2', {winY: loop});
 			vdp.drawWindowTilemap('level1');
-			TextLayer.drawLayer(vdp);
+			TextLayer.drawLayer();
 			yield;
 		}
 
-		TextLayer.drawText(16, 12, 'from bottom');
-		for (let loop = 0; loop < SCREEN_HEIGHT; loop++) {
+		TextLayer.drawText(11, 16, 'from bottom');
+		for (let loop = 0; loop < vdp.screenHeight; loop++) {
 			vdp.drawBackgroundTilemap('level1', {winH: 255 - loop});
 			vdp.drawWindowTilemap('level2');
-			TextLayer.drawLayer(vdp);
+			TextLayer.drawLayer();
 			yield;
 		}
 
-		TextLayer.drawText(16, 12, ' from left ');
-		for (let loop = 0; loop < SCREEN_WIDTH; loop++) {
+		TextLayer.drawText(11, 16, ' from left ');
+		for (let loop = 0; loop < vdp.screenWidth; loop++) {
 			vdp.drawBackgroundTilemap('level2', {winX: loop});
 			vdp.drawWindowTilemap('level1');
-			TextLayer.drawLayer(vdp);
+			TextLayer.drawLayer();
 			yield;
 		}
 
-		TextLayer.drawText(16, 12, 'from right ');
-		for (let loop = 0; loop < SCREEN_WIDTH; loop++) {
+		TextLayer.drawText(11, 16, 'from right ');
+		for (let loop = 0; loop < vdp.screenWidth; loop++) {
 			vdp.drawBackgroundTilemap('level1', {winW: 255 - loop});
 			vdp.drawWindowTilemap('level2');
-			TextLayer.drawLayer(vdp);
+			TextLayer.drawLayer();
 			yield;
 		}
 	}
 }
-
-startGame('#glCanvas', vdp => main(vdp));

@@ -14,7 +14,7 @@ gfx/mario-1-1.tmx
 gfx/mario-1-1-til.png
 
 
-bundles/**
+lib/**
 temp/**
 temp-esm/**
 

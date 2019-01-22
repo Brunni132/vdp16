@@ -1,7 +1,4 @@
-import {startGame, color} from './lib-main';
-
-/** @param vdp {VDP} */
-function *main(vdp) {
+function *main() {
 	let loop = 0, crossFadeFactor = 0;
 	let direction = +1, wait = 10;
 
@@ -36,5 +33,3 @@ function *main(vdp) {
 		yield;
 	}
 }
-
-startGame('#glCanvas', vdp => main(vdp));

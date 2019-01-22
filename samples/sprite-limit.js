@@ -1,9 +1,4 @@
-import {startGame} from "./lib-main";
-
-/**
- * @param vdp {VDP}
- */
-function *main(vdp) {
+function *main() {
 	let loop = 0;
 
 	// Brings the limit to 256 sprites instead of 512 for easier demo
@@ -27,5 +22,3 @@ function *main(vdp) {
 		yield;
 	}
 }
-
-startGame('#glCanvas', vdp => main(vdp));

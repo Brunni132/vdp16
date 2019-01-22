@@ -1,5 +1,5 @@
-import {LineTransformationArray, startGame, SCREEN_WIDTH, SCREEN_HEIGHT} from './lib-main';
-import { mat3, vec3 } from 'gl-matrix';
+const mat3 = glMatrix.mat3;
+const vec3 = glMatrix.vec3;
 
 // You can play with that for the perspective
 function scaleAtLine(line) { return 100 / (line + 50); }
@@ -29,8 +29,8 @@ function drawSprite(vdp, transformations, x, z, obj) {
 }
 
 // Just a quick attempt. Use reference instead: https://www.coranac.com/tonc/text/mode7.htm
-function *main(vdp) {
-	const lineTransform = new LineTransformationArray();
+function *main() {
+	const lineTransform = new vdp.LineTransformationArray();
 	let loop = 0;
 
 	while (true) {
@@ -38,7 +38,7 @@ function *main(vdp) {
 		const viewerAngle = loop * 0.01;
 
 		const transformations = [];
-		for (let line = 0; line < SCREEN_HEIGHT + 64; line++) {
+		for (let line = 0; line < vdp.screenHeight + 64; line++) {
 			const scale = scaleAtLine(line);
 			const mat = mat3.create();
 			mat3.translate(mat, mat, viewerPos);
@@ -54,11 +54,9 @@ function *main(vdp) {
 
 		vdp.drawBackgroundTilemap('road', { lineTransform, winY: 0, wrap: true});
 		drawSprite(vdp, transformations, 512, 351, vdp.sprite('mario').tile(6));
-		drawSprite(vdp, transformations, 550, 400, vdp.sprite('mario').tile(2));
+		drawSprite(vdp, transformations, 550, 400, vdp.sprite('level1').tile(11));
 
 		loop += 1;
 		yield;
 	}
 }
-
-startGame('#glCanvas', vdp => main(vdp));

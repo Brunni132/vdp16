@@ -6,7 +6,6 @@ import {
 	initObjShaders,
 	makeObjBuffer,
 	OBJ_CELL_SIZE,
-	ObjBuffer
 } from "./sprites";
 import { drawPendingMap, enqueueMap, initMapShaders, makeMapBuffer } from "./maps";
 import {
@@ -20,7 +19,9 @@ import {
 	SCREEN_HEIGHT,
 	SCREEN_WIDTH,
 	SEMITRANSPARENT_CANVAS,
-	setTextureSizes,
+	setMapTextureSize,
+	setPaletteTextureSize,
+	setSpriteTextureSize,
 	USE_PRIORITIES
 } from "./shaders";
 import { drawOpaquePoly, initOpaquePolyShaders } from "./generalpolys";
@@ -90,7 +91,7 @@ class TransparencyConfig {
 const NO_TRANSPARENCY = new TransparencyConfig('none', 'add', 0, 0);
 const STANDARD_TRANSPARENCY = new TransparencyConfig('blend', 'add', 0, 0);
 
-export enum VDPCopySource {
+export enum CopySource {
 	current,
 	rom,
 	blank,
@@ -198,12 +199,17 @@ export class VDP {
 	private previousBgSettings: { linescrollBuffer: number; winY: number; winX: number; winH: number; winW: number, transparent: boolean };
 
 	public input: Input;
+	public LineColorArray = LineColorArray;
+	public LineTransformationArray = LineTransformationArray;
+	public CopySource = CopySource;
 
-	constructor(canvas: HTMLCanvasElement, done: () => void) {
+	constructor(canvas: HTMLCanvasElement, imageDirectory: string, done: () => void) {
 		this._initContext(canvas);
 		this._initMatrices();
 
 		const gl = this.gl;
+
+
 		// TODO Florian -- run all requests at the same time and wait for them all.
 		window.fetch('build/game.json').then((res) => {
 			if (!res.ok) throw new Error('You need to build your project first; run `npm run convert-gfx`.')
@@ -213,39 +219,40 @@ export class VDP {
 			this.paletteBpp = json.info.paletteBpp;
 			if ([2, 3, 4, 5, 8].indexOf(this.paletteBpp) === -1) throw new Error(`Unsupported paletteBpp ${this.paletteBpp}`);
 
-			loadTexture(gl, 'build/sprites.png').then(sprites => {
-				this.spriteTexture = sprites.texture;
-				this.romSpriteTex = makeShadowFromTexture8(gl, sprites);
-				this.shadowSpriteTex = this.romSpriteTex.clone();
-
-				loadTexture(gl, 'build/palettes.png').then(palettes => {
-					if (!(palettes.width === 256 && palettes.height === 64) && !(palettes.width === 16 && palettes.height === 256))
-						throw new Error('Mismatch in texture size (max {16,256}x256');
-					this.paletteTexture = palettes.texture;
-					this.romPaletteTex = makeShadowFromTexture32(gl, palettes);
-					this.shadowPaletteTex = this.romPaletteTex.clone();
-					if (this.paletteBpp !== 8) this.shadowPaletteTex.setPosterization(this.paletteBpp);
-
+				Promise.all([
+					loadTexture(gl, 'build/sprites.png').then(sprites => {
+						this.spriteTexture = sprites.texture;
+						this.romSpriteTex = makeShadowFromTexture8(gl, sprites);
+						this.shadowSpriteTex = this.romSpriteTex.clone();
+						setSpriteTextureSize(sprites.width, sprites.height);
+					}),
+					loadTexture(gl, 'build/palettes.png').then(palettes => {
+						if (!(palettes.width === 256 && palettes.height === 64) && !(palettes.width === 16 && palettes.height === 256))
+							throw new Error('Mismatch in texture size (max {16,256}x256');
+						this.paletteTexture = palettes.texture;
+						this.romPaletteTex = makeShadowFromTexture32(gl, palettes);
+						this.shadowPaletteTex = this.romPaletteTex.clone();
+						if (this.paletteBpp !== 8) this.shadowPaletteTex.setPosterization(this.paletteBpp);
+						setPaletteTextureSize(palettes.width, palettes.height);
+					}),
 					loadTexture(gl, 'build/maps.png').then(maps => {
 						this.mapTexture = maps.texture;
 						this.romMapTex = makeShadowFromTexture16(gl, maps);
 						this.shadowMapTex = this.romMapTex.clone();
+						setMapTextureSize(maps.width, maps.height);
+					})
+				]).then(() => {
+					this.otherTexture = createDataTextureFloat(gl, OTHER_TEX_W, OTHER_TEX_H);
+					// Startup color
+					this.configBackdropColor('#008');
+					this.configDisplay({ extraSprites: false });
 
-						setTextureSizes(palettes.width, palettes.height, maps.width, maps.height, sprites.width, sprites.height);
-
-						this.otherTexture = createDataTextureFloat(gl, OTHER_TEX_W, OTHER_TEX_H);
-						// Startup color
-						this.configBackdropColor('#008');
-						this.configDisplay({ extraSprites: false });
-
-						initMapShaders(this);
-						initObjShaders(this);
-						initOpaquePolyShaders(this);
-						done();
-					});
+					initMapShaders(this);
+					initObjShaders(this);
+					initOpaquePolyShaders(this);
+					done();
 				});
 			});
-		});
 	}
 
 	/**
@@ -496,11 +503,11 @@ export class VDP {
 	 * @return a Array2D containing the map data (buffer member is a Uint16Array), each element being the tile number
 	 * in the tileset.
 	 */
-	readMap(map: string|VdpMap, source = VDPCopySource.current): Array2D {
+	readMap(map: string|VdpMap, source = CopySource.current): Array2D {
 		const m = this._getMap(map);
 		const result = new Uint16Array(m.w * m.h);
-		if (source === VDPCopySource.current) this.shadowMapTex.readToBuffer(m.x, m.y, m.w, m.h, result);
-		if (source === VDPCopySource.rom) this.romMapTex.readToBuffer(m.x, m.y, m.w, m.h, result);
+		if (source === CopySource.current) this.shadowMapTex.readToBuffer(m.x, m.y, m.w, m.h, result);
+		if (source === CopySource.rom) this.romMapTex.readToBuffer(m.x, m.y, m.w, m.h, result);
 		return new Array2D(result, m.w, m.h);
 	}
 
@@ -510,7 +517,7 @@ export class VDP {
 	 * @param source look at readMap for more info.
 	 * @return {Array2D} an array containing the color entries, encoded as 0xAABBGGRR
 	 */
-	readPalette(palette: string|VdpPalette, source = VDPCopySource.current): Array2D {
+	readPalette(palette: string|VdpPalette, source = CopySource.current): Array2D {
 		const pal = this._getPalette(palette);
 		return this.readPaletteMemory(0, pal.y, pal.w, pal.h, source);
 	}
@@ -523,10 +530,10 @@ export class VDP {
 	 * @param source look at readMap for more info.
 	 * @return a Array2D that contains color entries, encoded as 0xAABBGGRR
 	 */
-	readPaletteMemory(x: number, y: number, w: number, h: number, source = VDPCopySource.current): Array2D {
+	readPaletteMemory(x: number, y: number, w: number, h: number, source = CopySource.current): Array2D {
 		const result = new Uint32Array(w * h);
-		if (source === VDPCopySource.current) this.shadowPaletteTex.readToBuffer(x, y, w, h, result);
-		if (source === VDPCopySource.rom) this.romPaletteTex.readToBuffer(x, y, w, h, result);
+		if (source === CopySource.current) this.shadowPaletteTex.readToBuffer(x, y, w, h, result);
+		if (source === CopySource.rom) this.romPaletteTex.readToBuffer(x, y, w, h, result);
 		return new Array2D(result, w, h);
 	}
 
@@ -537,7 +544,7 @@ export class VDP {
 	 * @return a Array2D containing the tileset data. For hi-color sprites, each entry represents one pixel.
 	 * For lo-color sprites, each entry corresponds to two packed pixels, of 4 bits each.
 	 */
-	readSprite(sprite: string|VdpSprite, source = VDPCopySource.current): Array2D {
+	readSprite(sprite: string|VdpSprite, source = CopySource.current): Array2D {
 		const s = this._getSprite(sprite);
 
 		if (!s.hiColor && s.x % 2 !== 0) throw new Error('Lo-color sprites need to be aligned to 2 pixels');
@@ -545,9 +552,17 @@ export class VDP {
 		const w = s.hiColor ? s.w : Math.ceil(s.w / 2);
 
 		const result = new Uint8Array(w * s.h);
-		if (source === VDPCopySource.current) this.shadowSpriteTex.readToBuffer(x, s.y, w, s.h, result);
-		if (source === VDPCopySource.rom) this.romSpriteTex.readToBuffer(x, s.y, w, s.h, result);
+		if (source === CopySource.current) this.shadowSpriteTex.readToBuffer(x, s.y, w, s.h, result);
+		if (source === CopySource.rom) this.romSpriteTex.readToBuffer(x, s.y, w, s.h, result);
 		return new Array2D(result, w, s.h);
+	}
+
+	get screenHeight(): number {
+		return SCREEN_HEIGHT;
+	}
+
+	get screenWidth(): number {
+		return SCREEN_WIDTH;
 	}
 
 	sprite(name: string): VdpSprite {

@@ -1,13 +1,10 @@
-import {startGame, color, VDPCopySource} from "./lib-main";
-
-/** @param vdp {VDP} */
-function *main(vdp) {
+function *main() {
 	let loop = 0;
 
 	vdp.configBackdropColor('#000');
 
 	while (true) {
-		const pal = vdp.readPalette('level2', VDPCopySource.rom);
+		const pal = vdp.readPalette('level2', vdp.CopySource.rom);
 		pal.array.forEach((col, i) => {
 			const hsl = color.toHsl(col);
 			hsl.h += loop * 0.01;
@@ -20,5 +17,3 @@ function *main(vdp) {
 		yield;
 	}
 }
-
-startGame('#glCanvas', vdp => main(vdp));

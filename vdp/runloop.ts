@@ -3,12 +3,12 @@ import { DEBUG, VDP } from "./vdp";
 import { FramerateAdjuster, NOMINAL_FRAMERATE } from "./FramerateAdjuster";
 import { Input } from './input';
 
-export function loadVdp(canvas: HTMLCanvasElement): Promise<VDP> {
+export function loadVdp(canvas: HTMLCanvasElement, resourceDirectory: string): Promise<VDP> {
 	//canvas.style.width = `${canvas.width * 2}px`;
 	//canvas.style.height = `${canvas.height * 2}px`;
 	setParams(canvas.width, canvas.height, false);
 	return new Promise(function (resolve) {
-		const vdp = new VDP(canvas, () => {
+		const vdp = new VDP(canvas, resourceDirectory, () => {
 			vdp._startFrame();
 			vdp.input = new Input();
 			resolve(vdp);

@@ -1,18 +1,14 @@
-import {InputKey, startGame, color, VDPCopySource} from "./lib-main";
-
 class TextLayer {
-	constructor(vdp) {
-		this.map = vdp.readMap('text2', VDPCopySource.blank);
-		this.vdp = vdp;
+	constructor() {
+		this.map = vdp.readMap('text2', vdp.CopySource.blank);
 	}
 	drawText(x, y, text) {
 		for (let i = 0; i < text.length; i++) this.map.setElement(x + i, y, text.charCodeAt(i) - 32);
-		this.vdp.writeMap('text2', this.map);
+		vdp.writeMap('text2', this.map);
 	}
 }
 
-/** @param vdp {VDP} */
-function *main(vdp) {
+function *main() {
 	const textLayer = new TextLayer(vdp);
 	let loop = 0;
 	let windowHeight = 0, windowTargetHeight = 0;
@@ -52,5 +48,3 @@ function *main(vdp) {
 		yield;
 	}
 }
-
-startGame('#glCanvas', vdp => main(vdp));

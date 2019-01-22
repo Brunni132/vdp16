@@ -1,5 +1,3 @@
-import {startGame, VDPCopySource, color} from "./lib-main";
-
 let loopIt = 0;
 
 function fadeNaiveBlack(colorsSource, colorsDest) {
@@ -149,21 +147,21 @@ function fadeCustomWhite(colors, statusArray) {
 	}
 }
 
-function resetPatrickBoyFade(vdp) {
+function resetPatrickBoyFade() {
 	vdp.configFade({ color:'#000', factor: 0 });
 }
 
-function fadeToWhiteVDP(vdp) {
+function fadeToWhiteVDP() {
 	// VDP supports fading methods. They provide a better precision than modifying palettes, but the resolution remains
 	// 1/16th (where Sega's fade can do up to 47 steps in the case of white color).
 	vdp.configFade({ color: '#fff', factor: loopIt * 2 });
 }
 
-function fadeToGrayVDP(vdp) {
+function fadeToGrayVDP() {
 	vdp.configFade({ color: '#888', factor: loopIt * 2 });
 }
 
-function fadeToBlackVDP(vdp) {
+function fadeToBlackVDP() {
 	vdp.configFade({ color: '#000', factor: loopIt * 2 });
 }
 
@@ -176,11 +174,10 @@ function fadeByDesaturating(colorsSource, colorsDest) {
 }
 
 const TextLayer = {
-	setup: function(vdp) {
-		this.vdp = vdp;
+	setup: function() {
 		this.tileset = vdp.sprite('text');
 		this.mapWidth = vdp.map('text').w;
-		this.map = vdp.readMap('text', VDPCopySource.blank);
+		this.map = vdp.readMap('text', vdp.CopySource.blank);
 	},
 	getCharTile: function(c) {
 		if (c >= '0'.charCodeAt(0) && c <= '9'.charCodeAt(0)) return 1 + c - '0'.charCodeAt(0);
@@ -200,32 +197,29 @@ const TextLayer = {
 		}
 	},
 	drawLayer: function(opacity) {
-		this.vdp.writeMap('text', this.map);
-		this.vdp.configBackgroundTransparency({ op: 'add', blendDst: '#fff', blendSrc: color.make(opacity, opacity, opacity) });
-		this.vdp.drawBackgroundTilemap('text', { transparent: true });
+		vdp.writeMap('text', this.map);
+		vdp.configBackgroundTransparency({ op: 'add', blendDst: '#fff', blendSrc: color.make(opacity, opacity, opacity) });
+		vdp.drawBackgroundTilemap('text', { transparent: true });
 	}
 };
 
-/**
- * @param vdp {VDP}
- */
-function *main(vdp) {
+function *main() {
 	let fadeType = 0;
-	const palette1Original = vdp.readPalette('level1', VDPCopySource.rom);
+	const palette1Original = vdp.readPalette('level1', vdp.CopySource.rom);
 	const fadeCustomStatus = new Array(palette1Original.array.length);
 	const FADE_LIST = [
-		{ text: 'Naive black', fn: (colors, vdp) => fadeNaiveBlack(palette1Original.array, colors) },
-		{ text: 'Naive white', fn: (colors, vdp) => fadeNaiveWhite(palette1Original.array, colors) },
-		{ text: 'Game Boy Color black', fn: (colors, vdp) => fadeToBlackGameBoyColor(colors) },
-		{ text: 'Game Boy Color white', fn: (colors, vdp) => fadeToWhiteGameBoyColor(colors) },
-		{ text: 'Sega black', fn: (colors, vdp) => fadeToBlackSega(colors) },
-		{ text: 'Sega white', fn: (colors, vdp) => fadeToWhiteSega(colors) },
-		{ text: 'Custom black', fn: (colors, vdp) => fadeCustomBlack(colors, fadeCustomStatus) },
-		{ text: 'Custom white', fn: (colors, vdp) => fadeCustomWhite(colors, fadeCustomStatus) },
-		{ text: 'Desaturate', fn: (colors, vdp) => fadeByDesaturating(palette1Original.array, colors) },
-		{ text: 'VDP white', fn: (colors, vdp) => fadeToWhiteVDP(vdp) },
-		{ text: 'VDP gray', fn: (colors, vdp) => fadeToGrayVDP(vdp) },
-		{ text: 'VDP black', fn: (colors, vdp) => fadeToBlackVDP(vdp) },
+		{ text: 'Naive black', fn: (colors) => fadeNaiveBlack(palette1Original.array, colors) },
+		{ text: 'Naive white', fn: (colors) => fadeNaiveWhite(palette1Original.array, colors) },
+		{ text: 'Game Boy Color black', fn: (colors) => fadeToBlackGameBoyColor(colors) },
+		{ text: 'Game Boy Color white', fn: (colors) => fadeToWhiteGameBoyColor(colors) },
+		{ text: 'Sega black', fn: (colors) => fadeToBlackSega(colors) },
+		{ text: 'Sega white', fn: (colors) => fadeToWhiteSega(colors) },
+		{ text: 'Custom black', fn: (colors) => fadeCustomBlack(colors, fadeCustomStatus) },
+		{ text: 'Custom white', fn: (colors) => fadeCustomWhite(colors, fadeCustomStatus) },
+		{ text: 'Desaturate', fn: (colors) => fadeByDesaturating(palette1Original.array, colors) },
+		{ text: 'VDP white', fn: (colors) => fadeToWhiteVDP() },
+		{ text: 'VDP gray', fn: (colors) => fadeToGrayVDP() },
+		{ text: 'VDP black', fn: (colors) => fadeToBlackVDP() },
 	];
 
 	while (true) {
@@ -244,7 +238,7 @@ function *main(vdp) {
 		while (loop < 300) {
 			if (loop >= 100) {
 				const colors = vdp.readPalette('level1');
-				FADE_LIST[fadeType].fn(colors.array, vdp);
+				FADE_LIST[fadeType].fn(colors.array);
 				vdp.writePalette('level1', colors);
 				loopIt++;
 			}
@@ -259,5 +253,3 @@ function *main(vdp) {
 		fadeType = (fadeType + 1) % FADE_LIST.length;
 	}
 }
-
-startGame('#glCanvas', vdp => main(vdp));

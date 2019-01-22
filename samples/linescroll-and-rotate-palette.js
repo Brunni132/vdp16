@@ -1,10 +1,8 @@
-import {LineTransformationArray, startGame} from "./lib-main";
-import {mat3} from "gl-matrix";
+const mat3 = glMatrix.mat3;
 
-/** @param vdp {VDP} */
-function *main(vdp) {
+function *main() {
 	let loop = 0;
-	const lineTransform = new LineTransformationArray();
+	const lineTransform = new vdp.LineTransformationArray();
 
 	// Black has been made transparent to spare one color
 	vdp.configBackdropColor('#20a');
@@ -42,5 +40,3 @@ function *main(vdp) {
 		yield;
 	}
 }
-
-startGame('#glCanvas', vdp => main(vdp));

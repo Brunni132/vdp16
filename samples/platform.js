@@ -1,5 +1,3 @@
-import {InputKey, startGame, color} from "./lib-main";
-
 const GRAVITY = 0.4;
 const TILE_SIZE = 16;
 const SHINING_BLOCK_COLORS = [color.make('#f93'), color.make('#f93'), color.make('#c50'), color.make('#810'), color.make('#810'), color.make('#c50')];
@@ -62,12 +60,12 @@ class Mario {
 		this.velocityY += GRAVITY;
 
 		// Pressing A accelerates the character
-		const maxVelocity = input.isDown(InputKey.A) ? this.maxVelocityWhenRunningX : this.maxVelocityX;
+		const maxVelocity = input.isDown(input.Key.A) ? this.maxVelocityWhenRunningX : this.maxVelocityX;
 		let padDirection = 0;
 
 		// Pressing the key affects the lateral (X) velocity
-		if (input.isDown(InputKey.Right)) padDirection = 1;
-		else if (input.isDown(InputKey.Left)) padDirection = -1;
+		if (input.isDown(input.Key.Right)) padDirection = 1;
+		else if (input.isDown(input.Key.Left)) padDirection = -1;
 		else {
 			// If nothing is pressed, brake
 			this.velocityX *= this.decelerationX;
@@ -97,11 +95,11 @@ class Mario {
 		}
 
 		// Jump: just give an inpulse (can only be done if we're resting on the ground)
-		if (input.hasToggledDown(InputKey.B) && this._isGrounded()) {
+		if (input.hasToggledDown(input.Key.B) && this._isGrounded()) {
 			this.velocityY = this.jumpImpulse - Math.abs(this.velocityX / 4);
 			this._setAnimation('jumping');
 		}
-		else if (input.isDown(InputKey.B) && this.velocityY < 0) {
+		else if (input.isDown(input.Key.B) && this.velocityY < 0) {
 			// Can extend the jump by leaving the button pressed
 			this.velocityY -= GRAVITY * 0.6;
 		}
@@ -197,8 +195,7 @@ let camera = new Camera();
 let mapData;
 let frameNo = 0;
 
-/** @param vdp {VDP} */
-function *main(vdp) {
+function *main() {
 	const mario = new Mario();
 	mapData = vdp.readMap('level1');
 	vdp.configBackdropColor('#000');
@@ -215,5 +212,3 @@ function *main(vdp) {
 		yield;
 	}
 }
-
-startGame('#glCanvas', vdp => main(vdp));

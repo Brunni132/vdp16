@@ -24,13 +24,19 @@ export function setParams(screenWidth: number, screenHeight: number, compositedF
 	SEMITRANSPARENT_CANVAS = compositedFramebuffer;
 }
 
-export function setTextureSizes(paletteTexW: number, paletteTexH: number, mapTexW: number, mapTexH: number, spriteTexW: number, spriteTexH: number) {
-	PALETTE_TEX_H = paletteTexH;
-	PALETTE_TEX_W = paletteTexW;
-	SPRITE_TEX_W = spriteTexW;
-	SPRITE_TEX_H = spriteTexH;
-	MAP_TEX_W = mapTexW;
-	MAP_TEX_H = mapTexH;
+export function setPaletteTextureSize(width: number, height: number) {
+	PALETTE_TEX_W = width;
+	PALETTE_TEX_H = height;
+}
+
+export function setSpriteTextureSize(width: number, height: number) {
+	SPRITE_TEX_W = width;
+	SPRITE_TEX_H = height;
+}
+
+export function setMapTextureSize(width: number, height: number) {
+	MAP_TEX_W = width;
+	MAP_TEX_H = height;
 }
 
 export function declareReadTexel(): string {

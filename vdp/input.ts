@@ -1,5 +1,5 @@
 
-export enum InputKey {
+export enum Key {
 	Up = 0,
 	Down = 1,
 	Left = 2,
@@ -13,7 +13,7 @@ export enum InputKey {
 	NumKeys = 10
 }
 
-enum InputKeyState {
+enum KeyState {
 	Up = 0, // released for long
 	Released = 1, // just released
 	Down = 2, // >= 2 implies down
@@ -21,41 +21,42 @@ enum InputKeyState {
 }
 
 const mapping = {
-	'ArrowUp': InputKey.Up,
-	'ArrowDown': InputKey.Down,
-	'ArrowLeft': InputKey.Left,
-	'ArrowRight': InputKey.Right,
-	'w': InputKey.Up,
-	's': InputKey.Down,
-	'a': InputKey.Left,
-	'd': InputKey.Right,
-	'j': InputKey.A,
-	'k': InputKey.B,
-	'h': InputKey.L,
-	'l': InputKey.R,
-	'c': InputKey.A,
-	'v': InputKey.B,
-	'x': InputKey.L,
-	'b': InputKey.R,
-	' ': InputKey.Select,
-	'Enter': InputKey.Start,
+	'ArrowUp': Key.Up,
+	'ArrowDown': Key.Down,
+	'ArrowLeft': Key.Left,
+	'ArrowRight': Key.Right,
+	'w': Key.Up,
+	's': Key.Down,
+	'a': Key.Left,
+	'd': Key.Right,
+	'j': Key.A,
+	'k': Key.B,
+	'h': Key.L,
+	'l': Key.R,
+	'c': Key.A,
+	'v': Key.B,
+	'x': Key.L,
+	'b': Key.R,
+	' ': Key.Select,
+	'Enter': Key.Start,
 };
 
 export class Input {
-	private readonly keyState: InputKeyState[];
+	private readonly keyState: KeyState[];
+	public Key = Key;
 
 	constructor() {
 		const self = this;
-		this.keyState = new Array( InputKey.NumKeys).fill(InputKeyState.Up);
+		this.keyState = new Array( Key.NumKeys).fill(KeyState.Up);
 
 		document.onkeydown = function(ev: KeyboardEvent) {
 			const keyIndex = self._translateKeyEvent(ev);
-			if (keyIndex >= 0 && !self.isDown(keyIndex)) self.keyState[keyIndex] = InputKeyState.Pressed;
+			if (keyIndex >= 0 && !self.isDown(keyIndex)) self.keyState[keyIndex] = KeyState.Pressed;
 		};
 
 		document.onkeyup = function(ev: KeyboardEvent) {
 			const keyIndex = self._translateKeyEvent(ev);
-			if (keyIndex >= 0) self.keyState[keyIndex] = InputKeyState.Released;
+			if (keyIndex >= 0) self.keyState[keyIndex] = KeyState.Released;
 		};
 	}
 
@@ -63,16 +64,16 @@ export class Input {
 	 * @param key {number} key to check for
 	 * @returns {boolean} whether the key just toggled from released to pressed this frame.
 	 */
-	public hasToggledDown(key: InputKey): boolean {
-		return this.keyState[key] === InputKeyState.Pressed;
+	public hasToggledDown(key: Key): boolean {
+		return this.keyState[key] === KeyState.Pressed;
 	}
 
 	/**
 	 * @param key {number} key to check for
 	 * @returns {boolean} whether the key just toggled from pressed to released this frame.
 	 */
-	public hasToggledUp(key: InputKey): boolean {
-		return this.keyState[key] === InputKeyState.Released;
+	public hasToggledUp(key: Key): boolean {
+		return this.keyState[key] === KeyState.Released;
 	}
 
 	/**
@@ -80,8 +81,8 @@ export class Input {
 	 * @returns {boolean} whether the key is currently down. True from the moment the user presses the key until he
 	 * releases it.
 	 */
-	public isDown(key: InputKey): boolean {
-		return this.keyState[key] >= InputKeyState.Down;
+	public isDown(key: Key): boolean {
+		return this.keyState[key] >= KeyState.Down;
 	}
 
 	/**
@@ -89,15 +90,15 @@ export class Input {
 	 */
 	public _process() {
 		this.keyState.forEach((state, index) => {
-			if (state === InputKeyState.Pressed) this.keyState[index] = InputKeyState.Down;
-			if (state === InputKeyState.Released) this.keyState[index] = InputKeyState.Up;
+			if (state === KeyState.Pressed) this.keyState[index] = KeyState.Down;
+			if (state === KeyState.Released) this.keyState[index] = KeyState.Up;
 		});
 	}
 
 	/**
-	 * Returns -1 if the key doesn't map to an existing key, or the index of the key (InputKey).
+	 * Returns -1 if the key doesn't map to an existing key, or the index of the key (Key).
 	 */
-	private _translateKeyEvent(ev: KeyboardEvent): InputKey {
+	private _translateKeyEvent(ev: KeyboardEvent): Key {
 		return (ev.key in mapping) ? mapping[ev.key] : -1;
 	}
 }

@@ -24,9 +24,9 @@
     "webpack-dev-server": "^3.1.4"
   },
   "scripts": {
-    "clean-lib": "shx rm -rf bundles temp temp-esm",
-    "build-lib-esm": "npm run clean-lib && tsc -m es6 && webpack --config webpack.prod.js && dts-bundle-generator --no-check --project ./tsconfig.json -o bundles/vdp-lib.d.ts lib-main.ts",
-    "build-lib": "npm run clean-lib && tsc && webpack --config webpack.prod.js && dts-bundle-generator --no-check --project ./tsconfig.json -o bundles/vdp-lib.d.ts lib-main.ts",
+    "clean-lib": "shx rm -rf lib/vdp-* temp temp-esm",
+    "build-lib-esm": "npm run clean-lib && tsc -m es6 && webpack --config webpack.prod.js && dts-bundle-generator --no-check --project ./tsconfig.json -o lib/vdp-lib.d.ts lib-main.ts",
+    "build-lib": "npm run clean-lib && tsc && webpack --config webpack.prod.js && dts-bundle-generator --no-check --project ./tsconfig.json -o lib/vdp-lib.d.ts lib-main.ts",
     "build-exe": "shx rm -rf temp temp-esm && tsc && webpack --config webpack.exe.js",
     "dev-server": "webpack-dev-server --config webpack.dev.js",
     "convert-gfx": "node gfx/packer-main.js"

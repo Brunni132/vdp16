@@ -1,30 +1,32 @@
 import { loadVdp, runProgram } from './vdp/runloop';
-import { VDP, LineTransformationArray, LineColorArray, VDPCopySource } from './vdp/vdp';
+import { VDP } from './vdp/vdp';
 import { color } from './vdp/color';
-import { SCREEN_WIDTH, SCREEN_HEIGHT } from './vdp/shaders';
-import { InputKey } from './vdp/input';
 
-export function startStandalone() {
-	window.fetch('build/main.js').then((res) => {
-		if (!res.ok) throw new Error('build/main.js not found');
-	 	return res.text();
-	}).then((code) => {
-		eval(code);
+export function startStandalone(resourceDirectory: string, scriptFile: string) {
+	Promise.all([
+		window.fetch(scriptFile).then((res) => {
+			if (!res.ok) throw new Error(`${scriptFile} not found`);
+		 	return res.text();
+		}),
+		loadVdp(document.querySelector('#glCanvas'), resourceDirectory)
+	]).then(([code, vdp]) => {
+		code = `(function(vdp,color){var window ='Please play fair';${code};return main;})`;
+		const mainFunc = eval(code)(vdp, color);
+		if (!mainFunc) throw new Error('Check that your script contains a function *main()');
+		runProgram(vdp, mainFunc());
 	});
 }
 
-export function startGame(canvasSelector: string, loadedCb: (vdp: VDP) => IterableIterator<void>) {
-	loadVdp(document.querySelector(canvasSelector))
-		.then(vdp => runProgram(vdp, loadedCb(vdp)));
+export function startGame(canvasSelector: string, loadedCb: () => IterableIterator<void>) {
+	loadVdp(document.querySelector(canvasSelector), './build')
+		.then(vdp => {
+			window['vdp'] = vdp;
+			window['color'] = color;
+			runProgram(vdp, loadedCb());
+		});
 }
 
 export {
 	VDP,
-	LineTransformationArray,
-	LineColorArray,
 	color,
-	VDPCopySource,
-	SCREEN_WIDTH,
-	SCREEN_HEIGHT,
-	InputKey
 };

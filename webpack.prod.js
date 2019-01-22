@@ -2,7 +2,7 @@ const path = require("path");
 
 var PATHS = {
 	entryPoint: path.resolve(__dirname, 'lib-main.ts'),
-	bundles: path.resolve(__dirname, 'bundles'),
+	bundles: path.resolve(__dirname, 'lib'),
 }
 
 var config = {
@@ -25,16 +25,16 @@ var config = {
 		library: 'vdp-lib',
 		umdNamedDefine: true
 	},
-	externals: [
-		{
-			'gl-matrix': {
-				root: 'window',
-				commonjs: 'gl-matrix',
-				commonjs2: 'gl-matrix',
-				amd: 'gl-matrix'
-			}
-		}
-	],
+	// externals: [
+	// 	{
+	// 		'gl-matrix': {
+	// 			root: 'window',
+	// 			commonjs: 'gl-matrix',
+	// 			commonjs2: 'gl-matrix',
+	// 			amd: 'gl-matrix'
+	// 		}
+	// 	}
+	// ],
 	// Add resolve for `tsx` and `ts` files, otherwise Webpack would
 	// only look for common JavaScript file extension (.js)
 	resolve: {

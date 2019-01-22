@@ -1,9 +1,4 @@
-import {startGame, SCREEN_HEIGHT} from "./lib-main";
-
-/**
- * @param vdp {VDP}
- */
-function *main(vdp) {
+function *main() {
 	const mario = {
 		x: 100, y: 142, w: 48, h: 48, vx: 0.5, vy: 0
 	};
@@ -44,5 +39,3 @@ function *main(vdp) {
 		yield;
 	}
 }
-
-startGame('#glCanvas', vdp => main(vdp));

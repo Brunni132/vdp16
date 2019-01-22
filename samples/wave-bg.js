@@ -1,14 +1,12 @@
-import {startGame, LineTransformationArray, SCREEN_HEIGHT} from "./lib-main";
-import { mat3 } from 'gl-matrix';
+const mat3 = glMatrix.mat3;
 
-/** @param vdp {VDP} */
-function *main(vdp) {
+function *main() {
 	let loop = 0;
 	while (true) {
-		const transformationArray = new LineTransformationArray();
+		const transformationArray = new vdp.LineTransformationArray();
 		const transformationMatrix = mat3.create();
 
-		for (let line = 0; line < SCREEN_HEIGHT; line++) {
+		for (let line = 0; line < vdp.screenHeight; line++) {
 			const horizOffset = Math.sin((line + loop) / 20);
 			mat3.fromTranslation(transformationMatrix, [horizOffset * 10, line]);
 			transformationArray.setLine(line, transformationMatrix);
@@ -19,5 +17,3 @@ function *main(vdp) {
 		yield;
 	}
 }
-
-startGame('#glCanvas', vdp => main(vdp));

@@ -1,19 +1,14 @@
-import {loadVdp, runProgram} from "./vdp/runloop";
-import {mat3} from 'gl-matrix-ts';
+const mat3 = glMatrix.mat3;
 
 const TextLayer = {
-	/**
-	 * @param vdp {VDP}
-	 */
-	setup: function(vdp) {
-		this.vdp = vdp;
+	setup: function() {
 		this.tileset = vdp.sprite('text');
 		this.mapWidth = vdp.map('text').w;
-		this.map = vdp.readMap('text', vdp.SOURCE_BLANK);
+		this.map = vdp.readMap('text', vdp.CopySource.blank);
 	},
 	clear: function() {
-		this.map.fill(0);
-		this.vdp.writeMap('text', this.map);
+		this.map.array.fill(0);
+		vdp.writeMap('text', this.map);
 	},
 	getCharTile: function(c) {
 		if (c >= '0'.charCodeAt(0) && c <= '9'.charCodeAt(0)) return 1 + c - '0'.charCodeAt(0);
@@ -33,8 +28,8 @@ const TextLayer = {
 		}
 	},
 	drawLayer: function() {
-		const buffer = [];
-		for (let i = 0; i < 256; i++) {
+		const array = new vdp.LineTransformationArray();
+		for (let i = 0; i < array.length; i++) {
 			const mat = mat3.create();
 			// Like this, it will scale and then move, meaning that the screen is double-sized and one tile (8 pixels) is scrolled left (16 pixels with double size). The 'translate x' parameter of the matrix is 8.
 			// If we reversed those 2 lines, only half a tile would be scrolled, because we'd scroll 8 pixels and then scale, but 8 pixels is only half a 16x16 double-sized tile. The 'translate x' parameter of the matrix would be 4.
@@ -65,18 +60,17 @@ const TextLayer = {
 			//// Then we translate back, in the rotated space.
 			//mat3.translate(mat, mat, [-8, -0]);
 
-			buffer.push(mat);
+			array.setLine(i, mat);
 		}
 
 		// Update and draw
-		this.vdp.writeMap('text', this.map);
-		this.vdp.drawBackgroundTilemap('text', { linescrollBuffer: buffer });
+		vdp.writeMap('text', this.map);
+		vdp.drawBackgroundTilemap('text', { lineTransform: array });
 	}
 };
 
-/** @param vdp {VDP} */
-function *main(vdp) {
-	TextLayer.setup(vdp);
+function *main() {
+	TextLayer.setup();
 	TextLayer.clear();
 	TextLayer.drawText(0, 0, `Hello world`);
 
@@ -85,5 +79,3 @@ function *main(vdp) {
 		yield;
 	}
 }
-
-loadVdp(document.querySelector("#glCanvas")).then(vdp => runProgram(vdp, main(vdp)));

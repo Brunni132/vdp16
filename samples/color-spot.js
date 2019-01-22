@@ -1,14 +1,12 @@
-import {LineTransformationArray, LineColorArray, startGame} from "./lib-main";
-import {mat3} from "gl-matrix";
+const mat3 = glMatrix.mat3;
 
-/** @param vdp {VDP} */
-function *main(vdp) {
+function *main() {
 	let loop = 0;
 	const mario = { x: 120, y: 128, w: 16, h: 16 };
 
 	const maskBgPalNo = vdp.palette('mask-bg').y;
 	// Replace color 0 (outside of mask) with opaque color 1 (gray)
-	const colorReplacements = [ new LineColorArray(0, maskBgPalNo) ];
+	const colorReplacements = [ new vdp.LineColorArray(0, maskBgPalNo) ];
 	colorReplacements[0].setAll(1, maskBgPalNo);
 
 	while (true) {
@@ -17,7 +15,7 @@ function *main(vdp) {
 		mario.y = 120 + Math.sin(loop / 90) * 112;
 
 		// Draw a spot using scale and translations each line
-		const lineTransform = new LineTransformationArray();
+		const lineTransform = new vdp.LineTransformationArray();
 		for (let y = 0; y < lineTransform.length; y++) {
 			const center = { x: Math.floor(mario.x + mario.w / 2), y: Math.floor(mario.y + mario.h / 2) };
 			let scale = 0;
@@ -49,5 +47,3 @@ function *main(vdp) {
 		yield;
 	}
 }
-
-startGame('#glCanvas', vdp => main(vdp));

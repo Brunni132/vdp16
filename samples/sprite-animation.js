@@ -1,10 +1,4 @@
-import {loadVdp, runProgram} from "./vdp/runloop";
-
-/**
- * @param vdp {VDP}
- * @returns {IterableIterator<void>}
- */
-function *main(vdp) {
+function *main() {
 	let loop = 0;
 	let characterAnimation = 0;
 
@@ -22,5 +16,3 @@ function *main(vdp) {
 		yield;
 	}
 }
-
-loadVdp(document.querySelector("#glCanvas")).then(vdp => runProgram(vdp, main(vdp)));
