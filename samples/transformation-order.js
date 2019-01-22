@@ -24,7 +24,7 @@ const TextLayer = {
 	},
 	drawText: function (x, y, text) {
 		for (let i = 0; i < text.length; i++) {
-			this.map[this.mapWidth * y + x + i] = this.getCharTile(text.charCodeAt(i));
+			this.map.setElement(x + i, y, this.getCharTile(text.charCodeAt(i)));
 		}
 	},
 	drawLayer: function() {
