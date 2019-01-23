@@ -11,7 +11,7 @@ export function startStandalone(resourceDirectory: string, scriptFile: string) {
 		loadVdp(document.querySelector('#glCanvas'), resourceDirectory)
 	]).then(([code, vdp]) => {
 		// Strip imports
-		code = code.replace(/import.*?;/g, '');
+		code = code.replace(/^import .*?;/gm, '');
 		code = `(function(vdp){var window ='Please play fair';${code};return main;})`;
 		const mainFunc = eval(code)(vdp);
 		if (!mainFunc) throw new Error('Check that your script contains a function *main()');
@@ -19,11 +19,11 @@ export function startStandalone(resourceDirectory: string, scriptFile: string) {
 	});
 }
 
-export function startGame(canvasSelector: string, loadedCb: () => IterableIterator<void>) {
+export function startGame(canvasSelector: string, loadedCb: (vdp: VDP) => IterableIterator<void>) {
 	loadVdp(document.querySelector(canvasSelector), './build')
 		.then(vdp => {
 			window['vdp'] = vdp;
-			runProgram(vdp, loadedCb());
+			runProgram(vdp, loadedCb(vdp));
 		});
 }
 

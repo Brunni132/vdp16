@@ -14,7 +14,7 @@ args.forEach((v) => {
 console.log('Packing graphics into build directory…');
 
 let code = fs.readFileSync('gfx/packer-main.js', 'utf-8');
-code = code.replace(/import.*?;/g, '');
+code = code.replace(/^import .*?;/gm, '');
 code = `(function({conv,currentPalette,currentPaletteMultiple,currentTileset,paletteNamed,spriteNamed,tilesetNamed,mapNamed,addColors,blank,config,image,map,multiPalette,palette,sprite,tileset,tiledMap}){${code}})`;
 eval(code)(require('./dsl'));
 
