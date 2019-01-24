@@ -58,7 +58,7 @@ export class MapBuffer {
 }
 
 export function initMapShaders(vdp: VDP) {
-	const gl = vdp.gl;
+	const gl = vdp._gl;
 	// Vertex shader program
 	const vsSource = `attribute vec4 aXyzp;
 attribute vec4 aMapInfo1;
@@ -240,7 +240,7 @@ void main(void) {
 }`;
 
 	const shaderProgram = initShaderProgram(gl, vsSource, fsSource);
-	vdp.mapProgram = {
+	vdp._mapProgram = {
 		program: shaderProgram,
 		attribLocations: {
 			xyzp: gl.getAttribLocation(shaderProgram, 'aXyzp'),
@@ -272,8 +272,8 @@ void main(void) {
 export function drawPendingMap(vdp: VDP, mapBuffer: MapBuffer) {
 	if (mapBuffer.usedVertices < 3) return;
 
-	const gl = vdp.gl;
-	const prog = vdp.mapProgram;
+	const gl = vdp._gl;
+	const prog = vdp._mapProgram;
 	const firstVertice = mapBuffer.firstVertice;
 
 	gl.bindBuffer(gl.ARRAY_BUFFER, prog.glBuffers.xyzp);
@@ -327,13 +327,13 @@ export function drawPendingMap(vdp: VDP, mapBuffer: MapBuffer) {
 	// Tell WebGL we want to affect texture unit 0
 	gl.activeTexture(gl.TEXTURE0);
 	// Bind the texture to texture unit 0
-	gl.bindTexture(gl.TEXTURE_2D, vdp.spriteTexture);
+	gl.bindTexture(gl.TEXTURE_2D, vdp._spriteTexture);
 	gl.activeTexture(gl.TEXTURE1);
-	gl.bindTexture(gl.TEXTURE_2D, vdp.paletteTexture);
+	gl.bindTexture(gl.TEXTURE_2D, vdp._paletteTexture);
 	gl.activeTexture(gl.TEXTURE2);
-	gl.bindTexture(gl.TEXTURE_2D, vdp.mapTexture);
+	gl.bindTexture(gl.TEXTURE_2D, vdp._mapTexture);
 	gl.activeTexture(gl.TEXTURE3);
-	gl.bindTexture(gl.TEXTURE_2D, vdp.otherTexture);
+	gl.bindTexture(gl.TEXTURE_2D, vdp._otherTexture);
 
 	// Tell the shader we bound the texture to texture unit 0
 	gl.uniform1i(prog.uniformLocations.uSamplerSprites, 0);
@@ -342,8 +342,8 @@ export function drawPendingMap(vdp: VDP, mapBuffer: MapBuffer) {
 	gl.uniform1i(prog.uniformLocations.uSamplerOthers, 3);
 
 	// Set the shader uniforms
-	gl.uniformMatrix4fv(prog.uniformLocations.projectionMatrix, false, vdp.projectionMatrix);
-	gl.uniformMatrix3fv(prog.uniformLocations.modelViewMatrix,false, vdp.modelViewMatrix);
+	gl.uniformMatrix4fv(prog.uniformLocations.projectionMatrix, false, vdp._projectionMatrix);
+	gl.uniformMatrix3fv(prog.uniformLocations.modelViewMatrix,false, vdp._modelViewMatrix);
 
 	gl.uniform4f(prog.uniformLocations.envColor, envColor[0], envColor[1], envColor[2], envColor[3]);
 	gl.uniform4f(prog.uniformLocations.colorSwaps, colorSwaps[0], colorSwaps[1], colorSwaps[2], colorSwaps[3]);

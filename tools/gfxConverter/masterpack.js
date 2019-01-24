@@ -88,7 +88,7 @@ class MasterPack {
 	 */
 	constructor(opts) {
 		g_config.hiColorMode = opts.hasOwnProperty('hiColorMode') ? opts.hiColorMode : false;
-		g_config.paletteBpp = opts.hasOwnProperty('paletteBpp') ? opts.paletteBpp : 4;
+		g_config.paletteBpp = opts.hasOwnProperty('_paletteBpp') ? opts._paletteBpp : 4;
 		g_config.debug = !!opts.debug;
 
 		if (!opts.compact) {

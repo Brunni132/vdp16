@@ -1,4 +1,5 @@
 const path = require("path");
+const TerserPlugin = require('terser-webpack-plugin');
 
 var PATHS = {
 	entryPoint: path.resolve(__dirname, 'lib-main.ts'),
@@ -65,18 +66,18 @@ var config = {
 	//      minimize: false
 	//}
 	// Crashes the resulting code
-	//optimization: {
-	//      minimizer: [new TerserPlugin({
-	//              sourceMap: false,
-	//              terserOptions: {
-	//                      mangle: {
-	//                              properties: {
-	//                                      regex: /^_.+$/,
-	//                              },
-	//                      },
-	//              },
-	//      })],
-	//},
+	optimization: {
+		minimizer: [new TerserPlugin({
+			sourceMap: false,
+			terserOptions: {
+				mangle: {
+					properties: {
+						regex: /^_.+$/,
+					},
+				},
+			},
+		})],
+	},
 };
 
 module.exports = config;

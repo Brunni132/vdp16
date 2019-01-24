@@ -58,7 +58,7 @@ class TransparencyConfig {
 	}
 
 	apply(vdp: VDP) {
-		const gl = vdp.gl;
+		const gl = vdp._gl;
 		const {effect, blendSrc, blendDst, operation} = this;
 
 		envColor[0] = envColor[1] = envColor[2] = envColor[3] = 1;
@@ -71,8 +71,8 @@ class TransparencyConfig {
 			gl.enable(gl.BLEND);
 			gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 		} else if (effect === 'color') {
-			const dst = color.extract(blendDst, vdp.paletteBpp);
-			const src = color.extract(blendSrc, vdp.paletteBpp);
+			const dst = color.extract(blendDst, vdp._paletteBpp);
+			const src = color.extract(blendSrc, vdp._paletteBpp);
 			// Background blend factor
 			gl.blendColor(dst.r / 255, dst.g / 255, dst.b / 255, dst.a / 255);
 			// Source blend factor defined in shader
@@ -155,19 +155,19 @@ export class LineColorArray {
 }
 
 export class VDP {
-	gl: WebGLRenderingContext;
-	gameData: any;
-	mapProgram: any;
-	modelViewMatrix: mat3;
-	projectionMatrix: mat4;
-	spriteProgram: any;
-	opaquePolyProgram: any;
-	mapTexture: WebGLTexture;
-	paletteTexture: WebGLTexture;
-	spriteTexture: WebGLTexture;
-	otherTexture: WebGLTexture;
+	_gl: WebGLRenderingContext;
+	_gameData: any;
+	_mapProgram: any;
+	_modelViewMatrix: mat3;
+	_projectionMatrix: mat4;
+	_spriteProgram: any;
+	_opaquePolyProgram: any;
+	_mapTexture: WebGLTexture;
+	_paletteTexture: WebGLTexture;
+	_spriteTexture: WebGLTexture;
+	_otherTexture: WebGLTexture;
 	// 2 = 64 colors (SMS), 3 = 512 colors (Mega Drive), 4 = 4096 (System 16), 5 = 32k (SNES), 8 = unmodified (PC)
-	paletteBpp;
+	_paletteBpp;
 
 	// Fade color (factor is the upper 8 bits).
 	private fadeColor = 0x00000000;
@@ -182,21 +182,21 @@ export class VDP {
 		peakBG: 0,
 		peakVramWrites: 0
 	};
-	private frameStarted = true;
+	private _frameStarted = true;
 	// Original data (ROM) for sprites
-	private romSpriteTex: ShadowTexture;
+	private _romSpriteTex: ShadowTexture;
 	// Copy of the VRAM data for fast read access from the program
-	private shadowSpriteTex: ShadowTexture;
-	private romPaletteTex: ShadowTexture;
-	private shadowPaletteTex: ShadowTexture;
-	private romMapTex: ShadowTexture;
-	private shadowMapTex: ShadowTexture;
-	private nextLinescrollBuffer = 0;
-	private usedBGs = 0;
-	private usedTBGs = 0;
-	private usedObjCells = 0;
-	private usedVramWrites = 0;
-	private previousBgSettings: { linescrollBuffer: number; winY: number; winX: number; winH: number; winW: number, transparent: boolean };
+	private _shadowSpriteTex: ShadowTexture;
+	private _romPaletteTex: ShadowTexture;
+	private _shadowPaletteTex: ShadowTexture;
+	private _romMapTex: ShadowTexture;
+	private _shadowMapTex: ShadowTexture;
+	private _nextLinescrollBuffer = 0;
+	private _usedBGs = 0;
+	private _usedTBGs = 0;
+	private _usedObjCells = 0;
+	private _usedVramWrites = 0;
+	private _previousBgSettings: { linescrollBuffer: number; winY: number; winX: number; winH: number; winW: number, transparent: boolean };
 
 	public input: Input;
 	public LineColorArray = LineColorArray;
@@ -208,7 +208,7 @@ export class VDP {
 		this._initContext(canvas);
 		this._initMatrices();
 
-		const gl = this.gl;
+		const gl = this._gl;
 
 
 		// TODO Florian -- run all requests at the same time and wait for them all.
@@ -216,34 +216,34 @@ export class VDP {
 			if (!res.ok) throw new Error('You need to build your project first; run `npm run convert-gfx`.')
 			return res.json();
 		}).then((json) => {
-			this.gameData = json;
-			this.paletteBpp = json.info.paletteBpp;
-			if ([2, 3, 4, 5, 8].indexOf(this.paletteBpp) === -1) throw new Error(`Unsupported paletteBpp ${this.paletteBpp}`);
+			this._gameData = json;
+			this._paletteBpp = json.info.paletteBpp;
+			if ([2, 3, 4, 5, 8].indexOf(this._paletteBpp) === -1) throw new Error(`Unsupported paletteBpp ${this._paletteBpp}`);
 
 				Promise.all([
 					loadTexture(gl, 'build/sprites.png').then(sprites => {
-						this.spriteTexture = sprites.texture;
-						this.romSpriteTex = makeShadowFromTexture8(gl, sprites);
-						this.shadowSpriteTex = this.romSpriteTex.clone();
+						this._spriteTexture = sprites.texture;
+						this._romSpriteTex = makeShadowFromTexture8(gl, sprites);
+						this._shadowSpriteTex = this._romSpriteTex.clone();
 						setSpriteTextureSize(sprites.width, sprites.height);
 					}),
 					loadTexture(gl, 'build/palettes.png').then(palettes => {
 						if (!(palettes.width === 256 && palettes.height === 64) && !(palettes.width === 16 && palettes.height === 256))
 							throw new Error('Mismatch in texture size (max {16,256}x256');
-						this.paletteTexture = palettes.texture;
-						this.romPaletteTex = makeShadowFromTexture32(gl, palettes);
-						this.shadowPaletteTex = this.romPaletteTex.clone();
-						if (this.paletteBpp !== 8) this.shadowPaletteTex.setPosterization(this.paletteBpp);
+						this._paletteTexture = palettes.texture;
+						this._romPaletteTex = makeShadowFromTexture32(gl, palettes);
+						this._shadowPaletteTex = this._romPaletteTex.clone();
+						if (this._paletteBpp !== 8) this._shadowPaletteTex.setPosterization(this._paletteBpp);
 						setPaletteTextureSize(palettes.width, palettes.height);
 					}),
 					loadTexture(gl, 'build/maps.png').then(maps => {
-						this.mapTexture = maps.texture;
-						this.romMapTex = makeShadowFromTexture16(gl, maps);
-						this.shadowMapTex = this.romMapTex.clone();
+						this._mapTexture = maps.texture;
+						this._romMapTex = makeShadowFromTexture16(gl, maps);
+						this._shadowMapTex = this._romMapTex.clone();
 						setMapTextureSize(maps.width, maps.height);
 					})
 				]).then(() => {
-					this.otherTexture = createDataTextureFloat(gl, OTHER_TEX_W, OTHER_TEX_H);
+					this._otherTexture = createDataTextureFloat(gl, OTHER_TEX_W, OTHER_TEX_H);
 					// Startup color
 					this.configBackdropColor('#008');
 					this.configDisplay({ extraSprites: false });
@@ -263,7 +263,7 @@ export class VDP {
 	 * @param c backdrop color
 	 */
 	configBackdropColor(c: number|string) {
-		this.shadowPaletteTex.buffer[0] = color.make(c);
+		this._shadowPaletteTex.buffer[0] = color.make(c);
 	}
 
 	/**
@@ -290,7 +290,7 @@ export class VDP {
 		if (colorTable.length > 4) throw new Error('Can only swap up to 4 colors at a time');
 		colorTable.forEach((t, i) => {
 			colorSwaps[i] = t.targetPaletteNumber << 8 | t.targetPaletteIndex;
-			writeToTextureFloat(this.gl, this.otherTexture, 0, i + OTHER_TEX_COLORSWAP_INDEX, t.buffer.length / 4, 1, t.buffer);
+			writeToTextureFloat(this._gl, this._otherTexture, 0, i + OTHER_TEX_COLORSWAP_INDEX, t.buffer.length / 4, 1, t.buffer);
 		});
 		for (let i = colorTable.length; i < 4; i++) colorSwaps[i] = -1; // Unreachable color
 	}
@@ -303,7 +303,7 @@ export class VDP {
 	 * (which can be transparent), but allow 512 sprite cells/entries instead of 256, covering up to two times the screen.
 	 */
 	configDisplay(opts: { extraSprites?: boolean } = {}) {
-		if (this.obj0Buffer.usedSprites > 0 || this.obj1Buffer.usedSprites > 0 || this.usedBGs > 0 || this.usedTBGs > 0) {
+		if (this.obj0Buffer.usedSprites > 0 || this.obj1Buffer.usedSprites > 0 || this._usedBGs > 0 || this._usedTBGs > 0) {
 			throw new Error('configDisplay must come at the beginning of your program/frame');
 		}
 		BG_LIMIT = opts.extraSprites ? 1 : 2;
@@ -373,12 +373,12 @@ export class VDP {
 		const buffer = transparent ? this.tbgBuffer : this.bgBuffer;
 
 		if (prio < 0 || prio > 15) throw new Error('Unsupported BG priority (0-15)');
-		if (this.usedBGs + this.usedTBGs >= BG_LIMIT || this.usedTBGs >= 1) {
-			if (DEBUG) console.log(`Too many BGs (${this.usedBGs} opaque, ${this.usedTBGs} transparent), ignoring drawBackgroundTilemap`);
+		if (this._usedBGs + this._usedTBGs >= BG_LIMIT || this._usedTBGs >= 1) {
+			if (DEBUG) console.log(`Too many BGs (${this._usedBGs} opaque, ${this._usedTBGs} transparent), ignoring drawBackgroundTilemap`);
 			return;
 		}
-		if (transparent) this.usedTBGs += 1;
-		else this.usedBGs += 1;
+		if (transparent) this._usedTBGs += 1;
+		else this._usedBGs += 1;
 
 		// To avoid drawing too big quads and them counting toward the BG pixel budget
 		// winX = Math.min(SCREEN_WIDTH, Math.max(0, winX));
@@ -388,11 +388,11 @@ export class VDP {
 
 		let linescrollBuffer = -1;
 		if (opts.lineTransform) {
-			linescrollBuffer = 256 + this.nextLinescrollBuffer;
-			writeToTextureFloat(this.gl, this.otherTexture, 0, this.nextLinescrollBuffer++, opts.lineTransform.buffer.length / 4, 1, opts.lineTransform.buffer);
+			linescrollBuffer = 256 + this._nextLinescrollBuffer;
+			writeToTextureFloat(this._gl, this._otherTexture, 0, this._nextLinescrollBuffer++, opts.lineTransform.buffer.length / 4, 1, opts.lineTransform.buffer);
 		}
 
-		this.previousBgSettings = { winX, winY, winW, winH, linescrollBuffer, transparent };
+		this._previousBgSettings = { winX, winY, winW, winH, linescrollBuffer, transparent };
 		enqueueMap(buffer, map.x, map.y, til.x, til.y, map.w, map.h, til.w, til.tw, til.th, winX, winY, winW, winH, scrollX, scrollY, pal.y, til.hiColor, linescrollBuffer, wrap ? 1 : 0, prio);
 	}
 
@@ -423,32 +423,32 @@ export class VDP {
 		if (prio < 0 || prio > 15) throw new Error('Unsupported object priority (0-15)');
 
 		const cells = computeObjectCells(x, y, x + w, y + h);
-		if (cells + this.usedObjCells > OBJ_CELL_LIMIT) {
-			if (this.usedObjCells >= OBJ_CELL_LIMIT) return;
+		if (cells + this._usedObjCells > OBJ_CELL_LIMIT) {
+			if (this._usedObjCells >= OBJ_CELL_LIMIT) return;
 			if (DEBUG) console.log('Using too many cells');
 
 			// Split the object horizontally to fit all cells
 			const cellsTall = computeObjectCells(0, y, OBJ_CELL_SIZE, y + h);
-			const remainingCells = OBJ_CELL_LIMIT - this.usedObjCells;
+			const remainingCells = OBJ_CELL_LIMIT - this._usedObjCells;
 			const newW = (remainingCells / cellsTall) * OBJ_CELL_SIZE;
 			enqueueObj(buffer, x, y, x + newW, y + h,
 				u, v, u + sprite.w * newW / w, v + Math.floor(sprite.h), pal.y, sprite.hiColor, prio, opts.flipH, opts.flipV);
-			this.usedObjCells = OBJ_CELL_LIMIT;
+			this._usedObjCells = OBJ_CELL_LIMIT;
 			return;
 		}
-		this.usedObjCells += cells;
+		this._usedObjCells += cells;
 
 		enqueueObj(buffer, x, y, x + w, y + h,
 			u, v, u + Math.floor(sprite.w), v + Math.floor(sprite.h), pal.y, sprite.hiColor, prio, opts.flipH, opts.flipV);
 	}
 
 	drawWindowTilemap(map: VdpMap|string, opts: {palette?: string|VdpPalette, scrollX?: number, scrollY?: number, wrap?: boolean, tileset?: string|VdpSprite, prio?: number} = {}) {
-		if (!this.previousBgSettings) throw new Error('drawWindowTilemap needs to be called after drawBackgroundTilemap');
+		if (!this._previousBgSettings) throw new Error('drawWindowTilemap needs to be called after drawBackgroundTilemap');
 		// Because the code in doRender supports only one TBG
-		if (this.previousBgSettings.transparent) throw new Error('drawWindowTilemap cannot be used for a transparent BG');
+		if (this._previousBgSettings.transparent) throw new Error('drawWindowTilemap cannot be used for a transparent BG');
 		if (typeof map === 'string') map = this.map(map);
 
-		const { winX, winY, winH, winW, transparent, linescrollBuffer } = this.previousBgSettings;
+		const { winX, winY, winH, winW, transparent, linescrollBuffer } = this._previousBgSettings;
 		const pal = this._getPalette(opts.hasOwnProperty('palette') ? opts.palette : map.designPalette);
 		const til = this._getSprite(opts.hasOwnProperty('tileset') ? opts.tileset : map.designTileset);
 		const scrollX = opts.hasOwnProperty('scrollX') ? opts.scrollX : 0;
@@ -479,17 +479,17 @@ export class VDP {
 		}
 
 		enqueueMap(buffer, map.x, map.y, til.x, til.y, map.w, map.h, til.w, til.tw, til.th, finalWinX, finalWinY, finalWinW, finalWinH, scrollX, scrollY, pal.y, til.hiColor, linescrollBuffer, wrap ? 1 : 0, prio);
-		this.previousBgSettings = null;
+		this._previousBgSettings = null;
 	}
 
 	map(name: string): VdpMap {
-		const map = this.gameData.maps[name];
+		const map = this._gameData.maps[name];
 		if (!map) throw new Error(`Map ${name} not found`);
 		return new VdpMap(map.x, map.y, map.w, map.h, map.til, map.pal);
 	}
 
 	palette(name: string): VdpPalette {
-		const pal = this.gameData.pals[name];
+		const pal = this._gameData.pals[name];
 		if (!pal) throw new Error(`Palette ${name} not found`);
 		return new VdpPalette(pal.y, pal.w, pal.h);
 	}
@@ -507,8 +507,8 @@ export class VDP {
 	readMap(map: string|VdpMap, source = CopySource.current): Array2D {
 		const m = this._getMap(map);
 		const result = new Uint16Array(m.w * m.h);
-		if (source === CopySource.current) this.shadowMapTex.readToBuffer(m.x, m.y, m.w, m.h, result);
-		if (source === CopySource.rom) this.romMapTex.readToBuffer(m.x, m.y, m.w, m.h, result);
+		if (source === CopySource.current) this._shadowMapTex.readToBuffer(m.x, m.y, m.w, m.h, result);
+		if (source === CopySource.rom) this._romMapTex.readToBuffer(m.x, m.y, m.w, m.h, result);
 		return new Array2D(result, m.w, m.h);
 	}
 
@@ -533,8 +533,8 @@ export class VDP {
 	 */
 	readPaletteMemory(x: number, y: number, w: number, h: number, source = CopySource.current): Array2D {
 		const result = new Uint32Array(w * h);
-		if (source === CopySource.current) this.shadowPaletteTex.readToBuffer(x, y, w, h, result);
-		if (source === CopySource.rom) this.romPaletteTex.readToBuffer(x, y, w, h, result);
+		if (source === CopySource.current) this._shadowPaletteTex.readToBuffer(x, y, w, h, result);
+		if (source === CopySource.rom) this._romPaletteTex.readToBuffer(x, y, w, h, result);
 		return new Array2D(result, w, h);
 	}
 
@@ -553,8 +553,8 @@ export class VDP {
 		const w = s.hiColor ? s.w : Math.ceil(s.w / 2);
 
 		const result = new Uint8Array(w * s.h);
-		if (source === CopySource.current) this.shadowSpriteTex.readToBuffer(x, s.y, w, s.h, result);
-		if (source === CopySource.rom) this.romSpriteTex.readToBuffer(x, s.y, w, s.h, result);
+		if (source === CopySource.current) this._shadowSpriteTex.readToBuffer(x, s.y, w, s.h, result);
+		if (source === CopySource.rom) this._romSpriteTex.readToBuffer(x, s.y, w, s.h, result);
 		return new Array2D(result, w, s.h);
 	}
 
@@ -567,7 +567,7 @@ export class VDP {
 	}
 
 	sprite(name: string): VdpSprite {
-		const spr = this.gameData.sprites[name];
+		const spr = this._gameData.sprites[name];
 		if (!spr) throw new Error(`Sprite ${name} not found`);
 		return new VdpSprite(spr.x, spr.y, spr.w, spr.h, spr.tw, spr.th, spr.tiles, spr.hicol, spr.pal);
 	}
@@ -579,9 +579,9 @@ export class VDP {
 	 */
 	writeMap(map: string|VdpMap, data: Array2D) {
 		const m = this._getMap(map);
-		this.shadowMapTex.writeTo(m.x, m.y, m.w, m.h, data.array);
-		this.shadowMapTex.syncToVramTexture(this.gl, this.mapTexture, m.x, m.y, m.w, m.h);
-		this.usedVramWrites += m.w * m.h;
+		this._shadowMapTex.writeTo(m.x, m.y, m.w, m.h, data.array);
+		this._shadowMapTex.syncToVramTexture(this._gl, this._mapTexture, m.x, m.y, m.w, m.h);
+		this._usedVramWrites += m.w * m.h;
 	}
 
 	/**
@@ -602,9 +602,9 @@ export class VDP {
 	 * @param data {Array2D} color entries, encoded as 0xAABBGGRR
 	 */
 	writePaletteMemory(x: number, y: number, w: number, h: number, data: Array2D) {
-		this.shadowPaletteTex.writeTo(x, y, w, h, data.array);
-		this.shadowPaletteTex.syncToVramTexture(this.gl, this.paletteTexture, x, y, w, h);
-		this.usedVramWrites += w * h;
+		this._shadowPaletteTex.writeTo(x, y, w, h, data.array);
+		this._shadowPaletteTex.syncToVramTexture(this._gl, this._paletteTexture, x, y, w, h);
+		this._usedVramWrites += w * h;
 	}
 
 	/**
@@ -620,30 +620,30 @@ export class VDP {
 		const x = s.hiColor ? s.x : (s.x / 2);
 		const w = s.hiColor ? s.w : Math.ceil(s.w / 2);
 
-		this.shadowSpriteTex.writeTo(x, s.y, w, s.h, data.array);
-		this.shadowSpriteTex.syncToVramTexture(this.gl, this.spriteTexture, x, s.y, w, s.h);
-		this.usedVramWrites += s.w * s.h;
+		this._shadowSpriteTex.writeTo(x, s.y, w, s.h, data.array);
+		this._shadowSpriteTex.syncToVramTexture(this._gl, this._spriteTexture, x, s.y, w, s.h);
+		this._usedVramWrites += s.w * s.h;
 	}
 
 	// --------------------- PRIVATE ---------------------
 
 	// Take one frame in account for the stats. Read with _readStats.
 	private _computeStats() {
-		this.stats.peakBG = Math.max(this.stats.peakBG, this.usedBGs + this.usedTBGs);
-		this.stats.peakOBJ = Math.max(this.stats.peakOBJ, this.usedObjCells);
+		this.stats.peakBG = Math.max(this.stats.peakBG, this._usedBGs + this._usedTBGs);
+		this.stats.peakOBJ = Math.max(this.stats.peakOBJ, this._usedObjCells);
 	}
 
 	/**
 	 * Renders the machine in the current state. Only available for the extended version of the GPU.
 	 */
 	private _doRender() {
-		const gl = this.gl;
+		const gl = this._gl;
 		// Do before drawing stuff since it flushes the buffer
 		if (DEBUG) this._computeStats();
 
 		// Only the first time per frame (allow multiple render per frames)
-		if (this.frameStarted) {
-			const clearColor = color.extract(this.shadowPaletteTex.buffer[0], this.paletteBpp);
+		if (this._frameStarted) {
+			const clearColor = color.extract(this._shadowPaletteTex.buffer[0], this._paletteBpp);
 			gl.clearColor(clearColor.r / 255, clearColor.g / 255, clearColor.b / 255, 0);
 
 			if (USE_PRIORITIES) {
@@ -657,7 +657,7 @@ export class VDP {
 				gl.clear(gl.COLOR_BUFFER_BIT);
 			}
 
-			this.frameStarted = false;
+			this._frameStarted = false;
 		}
 
 
@@ -681,8 +681,8 @@ export class VDP {
 		this.objTransparency.apply(this);
 		drawPendingObj(this, this.obj1Buffer, splitAt, this.obj1Buffer.usedSprites);
 
-		this.nextLinescrollBuffer = this.usedObjCells = this.usedBGs = this.usedTBGs = 0;
-		this.previousBgSettings = null;
+		this._nextLinescrollBuffer = this._usedObjCells = this._usedBGs = this._usedTBGs = 0;
+		this._previousBgSettings = null;
 	}
 
 	/**
@@ -694,19 +694,19 @@ export class VDP {
 		this._doRender();
 
 		// Draw fade
-		const {r, g, b, a} = color.extract(this.fadeColor, this.paletteBpp);
+		const {r, g, b, a} = color.extract(this.fadeColor, this._paletteBpp);
 		if (a > 0) {
-			const gl = this.gl;
+			const gl = this._gl;
 
 			STANDARD_TRANSPARENCY.apply(this);
 			gl.disable(gl.DEPTH_TEST);
 			drawOpaquePoly(this, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, r / 255, g / 255, b / 255, a / 255);
 		}
 
-		const cost = Math.min(MAX_FRAME_SLOWDOWN, Math.ceil(this.usedVramWrites / MAX_VRAM_WRITES));
-		if (DEBUG && cost > 1) console.log(`Overuse of VRAM writes for this frame (${this.usedVramWrites}/${MAX_VRAM_WRITES}), slowing down ${cost}x`);
-		this.stats.peakVramWrites = Math.max(this.stats.peakVramWrites, this.usedVramWrites);
-		this.usedVramWrites = 0;
+		const cost = Math.min(MAX_FRAME_SLOWDOWN, Math.ceil(this._usedVramWrites / MAX_VRAM_WRITES));
+		if (DEBUG && cost > 1) console.log(`Overuse of VRAM writes for this frame (${this._usedVramWrites}/${MAX_VRAM_WRITES}), slowing down ${cost}x`);
+		this.stats.peakVramWrites = Math.max(this.stats.peakVramWrites, this._usedVramWrites);
+		this._usedVramWrites = 0;
 		return cost;
 	}
 
@@ -739,27 +739,27 @@ export class VDP {
 	}
 
 	private _initContext(canvas: HTMLCanvasElement) {
-		this.gl = canvas.getContext("webgl", { premultipliedAlpha: true, alpha: SEMITRANSPARENT_CANVAS });
+		this._gl = canvas.getContext("webgl", { premultipliedAlpha: true, alpha: SEMITRANSPARENT_CANVAS });
 
 		// Only continue if WebGL is available and working
-		if (this.gl === null) {
+		if (this._gl === null) {
 			alert("Unable to initialize WebGL. Your browser or machine may not support it.");
 		}
 	}
 
 	private _initMatrices() {
-		this.projectionMatrix = mat4.create();
+		this._projectionMatrix = mat4.create();
 		// note: glmatrix.js always has the first argument as the destination to receive the result.
-		mat4.ortho(this.projectionMatrix, 0.0, SCREEN_WIDTH, SCREEN_HEIGHT, 0.0, -10, 10);
+		mat4.ortho(this._projectionMatrix, 0.0, SCREEN_WIDTH, SCREEN_HEIGHT, 0.0, -10, 10);
 
 		// Normally set in modelViewMatrix, but we want to allow an empty model view matrix
 		//mat4.translate(this.projectionMatrix, this.projectionMatrix, [-0.0, 0.0, -0.1]);
 
-		this.modelViewMatrix = mat3.create();
+		this._modelViewMatrix = mat3.create();
 		// mat4.translate(this.modelViewMatrix, this.modelViewMatrix, [-0.0, 0.0, -0.1]);
 	}
 
 	public _startFrame() {
-		this.frameStarted = true;
+		this._frameStarted = true;
 	}
 }

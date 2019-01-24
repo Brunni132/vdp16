@@ -3,7 +3,7 @@ import { VDP } from './vdp';
 
 // For debugging only
 export function initOpaquePolyShaders(vdp: VDP) {
-	const gl = vdp.gl;
+	const gl = vdp._gl;
 	// Vertex shader program
 	const vsSource = `
 			attribute vec2 aXy;
@@ -30,7 +30,7 @@ export function initOpaquePolyShaders(vdp: VDP) {
 	const TOTAL_VERTICES = 1 * 4;
 	const shaderProgram = initShaderProgram(gl, vsSource, fsSource);
 
-	vdp.opaquePolyProgram = {
+	vdp._opaquePolyProgram = {
 		program: shaderProgram,
 		arrayBuffers: {
 			xy: new Float32Array(TOTAL_VERTICES * 2),
@@ -54,8 +54,8 @@ export function initOpaquePolyShaders(vdp: VDP) {
 
 // Color is float (r, g, b, a) between 0 and 1
 export function drawOpaquePoly(vdp: VDP, xStart: number, yStart: number, xEnd: number, yEnd: number, colorR: number, colorG: number, colorB: number, colorA: number) {
-	const gl = vdp.gl;
-	const prog = vdp.opaquePolyProgram;
+	const gl = vdp._gl;
+	const prog = vdp._opaquePolyProgram;
 	const positions = [
 		xStart, yStart,
 		xEnd, yStart,
@@ -95,8 +95,8 @@ export function drawOpaquePoly(vdp: VDP, xStart: number, yStart: number, xEnd: n
 	}
 
 	// Set the shader uniforms
-	gl.uniformMatrix4fv(prog.uniformLocations.projectionMatrix, false, vdp.projectionMatrix);
-	gl.uniformMatrix3fv(prog.uniformLocations.modelViewMatrix,false, vdp.modelViewMatrix);
+	gl.uniformMatrix4fv(prog.uniformLocations.projectionMatrix, false, vdp._projectionMatrix);
+	gl.uniformMatrix3fv(prog.uniformLocations.modelViewMatrix,false, vdp._modelViewMatrix);
 
 	{
 		const offset = 0;

@@ -30,9 +30,9 @@
     "build-lib": "npm run clean-lib && tsc && webpack --config webpack.prod.js && dts-bundle-generator --no-check --project ./tsconfig.json -o lib/vdp-lib.d.ts lib-main.ts",
     "build-app": "shx rm -rf temp temp-esm && tsc && webpack --config webpack.exe.js",
     "build-exe": "pkg -t node8-win-x86 -o packer tools/gfxConverter/executable.js",
-    "dev-server": "webpack-dev-server --config webpack.dev.js",
-    "convert-gfx": "node tools/gfxConverter/executable.js --convert-only",
-    "convert-gfx-and-serve": "node tools/gfxConverter/executable.js"
+    "app-dev-server": "webpack-dev-server --config webpack.dev.js",
+    "pack-gfx": "node tools/gfxConverter/executable.js --convert-only",
+    "pack-and-serve": "node tools/gfxConverter/executable.js"
   },
   "author": "",
   "license": "ISC"
