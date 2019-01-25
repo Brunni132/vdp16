@@ -170,14 +170,14 @@ export class VDP {
 	_paletteBpp;
 
 	// Fade color (factor is the upper 8 bits).
-	private fadeColor = 0x00000000;
-	private bgTransparency = new TransparencyConfig('color', 'add', 0x888888, 0x888888);
-	private objTransparency = new TransparencyConfig('color', 'add', 0x888888, 0x888888);
-	private bgBuffer = makeMapBuffer('Opaque BG [BG]', MAX_BGS * 2); // x2 because of window
-	private tbgBuffer = makeMapBuffer('Transparent BG [TBG]', 1); // can support only one because of OBJ1 sorting required
-	private obj0Buffer = makeObjBuffer('Opaque sprites [OBJ0]', MAX_OBJS);
-	private obj1Buffer = makeObjBuffer('Transparent sprites [OBJ1]', MAX_OBJS);
-	private stats = {
+	private _fadeColor = 0x00000000;
+	private _bgTransparency = new TransparencyConfig('color', 'add', 0x888888, 0x888888);
+	private _objTransparency = new TransparencyConfig('color', 'add', 0x888888, 0x888888);
+	private _bgBuffer = makeMapBuffer('Opaque BG [BG]', MAX_BGS * 2); // x2 because of window
+	private _tbgBuffer = makeMapBuffer('Transparent BG [TBG]', 1); // can support only one because of OBJ1 sorting required
+	private _obj0Buffer = makeObjBuffer('Opaque sprites [OBJ0]', MAX_OBJS);
+	private _obj1Buffer = makeObjBuffer('Transparent sprites [OBJ1]', MAX_OBJS);
+	private _stats = {
 		peakOBJ: 0,
 		peakBG: 0,
 		peakVramWrites: 0
@@ -277,9 +277,9 @@ export class VDP {
 		if (opts.op !== 'add' && opts.op !== 'sub') {
 			throw new Error(`Invalid operation ${opts.op}`);
 		}
-		this.bgTransparency.operation = opts.op;
-		this.bgTransparency.blendSrc = color.make(opts.blendSrc);
-		this.bgTransparency.blendDst = color.make(opts.blendDst);
+		this._bgTransparency.operation = opts.op;
+		this._bgTransparency.blendSrc = color.make(opts.blendSrc);
+		this._bgTransparency.blendDst = color.make(opts.blendDst);
 	}
 
 	/**
@@ -303,7 +303,7 @@ export class VDP {
 	 * (which can be transparent), but allow 512 sprite cells/entries instead of 256, covering up to two times the screen.
 	 */
 	configDisplay(opts: { extraSprites?: boolean } = {}) {
-		if (this.obj0Buffer.usedSprites > 0 || this.obj1Buffer.usedSprites > 0 || this._usedBGs > 0 || this._usedTBGs > 0) {
+		if (this._obj0Buffer.usedSprites > 0 || this._obj1Buffer.usedSprites > 0 || this._usedBGs > 0 || this._usedTBGs > 0) {
 			throw new Error('configDisplay must come at the beginning of your program/frame');
 		}
 		BG_LIMIT = opts.extraSprites ? 1 : 2;
@@ -320,7 +320,7 @@ export class VDP {
 	configFade(opts: { color?: number|string, factor: number }) {
 		const c = opts.color || 0;
 		opts.factor = Math.min(255, Math.max(0, opts.factor));
-		this.fadeColor = (color.make(c) & 0xffffff) | (opts.factor << 24);
+		this._fadeColor = (color.make(c) & 0xffffff) | (opts.factor << 24);
 	}
 
 	/**
@@ -334,9 +334,9 @@ export class VDP {
 		if (opts.op !== 'add' && opts.op !== 'sub') {
 			throw new Error(`Invalid operation ${opts.op}`);
 		}
-		this.objTransparency.operation = opts.op;
-		this.objTransparency.blendSrc = color.make(opts.blendSrc);
-		this.objTransparency.blendDst = color.make(opts.blendDst);
+		this._objTransparency.operation = opts.op;
+		this._objTransparency.blendSrc = color.make(opts.blendSrc);
+		this._objTransparency.blendDst = color.make(opts.blendDst);
 	}
 
 	/**
@@ -370,7 +370,7 @@ export class VDP {
 		const wrap = opts.hasOwnProperty('wrap') ? opts.wrap : true;
 		const transparent = !!opts.transparent;
 		const prio = Math.floor(opts.prio || (transparent ? 1 : 0));
-		const buffer = transparent ? this.tbgBuffer : this.bgBuffer;
+		const buffer = transparent ? this._tbgBuffer : this._bgBuffer;
 
 		if (prio < 0 || prio > 15) throw new Error('Unsupported BG priority (0-15)');
 		if (this._usedBGs + this._usedTBGs >= BG_LIMIT || this._usedTBGs >= 1) {
@@ -416,7 +416,7 @@ export class VDP {
 		const w = opts.hasOwnProperty('width') ? opts.width : sprite.w;
 		const h = opts.hasOwnProperty('height') ? opts.height : sprite.h;
 		const prio = Math.floor(opts.prio || (opts.transparent ? 2 : 1));
-		const buffer = opts.transparent ? this.obj1Buffer: this.obj0Buffer;
+		const buffer = opts.transparent ? this._obj1Buffer: this._obj0Buffer;
 		const u = Math.floor(sprite.x);
 		const v = Math.floor(sprite.y);
 
@@ -455,7 +455,7 @@ export class VDP {
 		const scrollY = opts.hasOwnProperty('scrollY') ? opts.scrollY : 0;
 		const wrap = opts.hasOwnProperty('wrap') ? opts.wrap : true;
 		const prio = Math.floor(opts.prio || (transparent ? 1 : 0));
-		const buffer = transparent ? this.tbgBuffer : this.bgBuffer;
+		const buffer = transparent ? this._tbgBuffer : this._bgBuffer;
 
 		if (prio < 0 || prio > 15) throw new Error('Unsupported BG priority (0-15)');
 
@@ -629,8 +629,8 @@ export class VDP {
 
 	// Take one frame in account for the stats. Read with _readStats.
 	private _computeStats() {
-		this.stats.peakBG = Math.max(this.stats.peakBG, this._usedBGs + this._usedTBGs);
-		this.stats.peakOBJ = Math.max(this.stats.peakOBJ, this._usedObjCells);
+		this._stats.peakBG = Math.max(this._stats.peakBG, this._usedBGs + this._usedTBGs);
+		this._stats.peakOBJ = Math.max(this._stats.peakOBJ, this._usedObjCells);
 	}
 
 	/**
@@ -663,23 +663,23 @@ export class VDP {
 
 		// OBJ0 and BG (both opaque, OBJ0 first to appear above
 		NO_TRANSPARENCY.apply(this);
-		drawPendingMap(this, this.bgBuffer);
-		drawPendingObj(this, this.obj0Buffer, 0, this.obj0Buffer.usedSprites);
+		drawPendingMap(this, this._bgBuffer);
+		drawPendingObj(this, this._obj0Buffer, 0, this._obj0Buffer.usedSprites);
 
 		// We need to split the render in 2: once for the objects behind the TBG and once for those in front
-		const splitAt = this.obj1Buffer.sort(this.tbgBuffer.getZOfBG(0));
+		const splitAt = this._obj1Buffer.sort(this._tbgBuffer.getZOfBG(0));
 
 		// Objects in front of the BG
-		this.objTransparency.apply(this);
-		drawPendingObj(this, this.obj1Buffer, 0, splitAt);
+		this._objTransparency.apply(this);
+		drawPendingObj(this, this._obj1Buffer, 0, splitAt);
 
 		// OBJ1 then TBG, so OBJ1 can be used as mask
-		this.bgTransparency.apply(this);
-		drawPendingMap(this, this.tbgBuffer);
+		this._bgTransparency.apply(this);
+		drawPendingMap(this, this._tbgBuffer);
 
 		// Objects behind the BG
-		this.objTransparency.apply(this);
-		drawPendingObj(this, this.obj1Buffer, splitAt, this.obj1Buffer.usedSprites);
+		this._objTransparency.apply(this);
+		drawPendingObj(this, this._obj1Buffer, splitAt, this._obj1Buffer.usedSprites);
 
 		this._nextLinescrollBuffer = this._usedObjCells = this._usedBGs = this._usedTBGs = 0;
 		this._previousBgSettings = null;
@@ -694,7 +694,7 @@ export class VDP {
 		this._doRender();
 
 		// Draw fade
-		const {r, g, b, a} = color.extract(this.fadeColor, this._paletteBpp);
+		const {r, g, b, a} = color.extract(this._fadeColor, this._paletteBpp);
 		if (a > 0) {
 			const gl = this._gl;
 
@@ -705,7 +705,7 @@ export class VDP {
 
 		const cost = Math.min(MAX_FRAME_SLOWDOWN, Math.ceil(this._usedVramWrites / MAX_VRAM_WRITES));
 		if (DEBUG && cost > 1) console.log(`Overuse of VRAM writes for this frame (${this._usedVramWrites}/${MAX_VRAM_WRITES}), slowing down ${cost}x`);
-		this.stats.peakVramWrites = Math.max(this.stats.peakVramWrites, this._usedVramWrites);
+		this._stats.peakVramWrites = Math.max(this._stats.peakVramWrites, this._usedVramWrites);
 		this._usedVramWrites = 0;
 		return cost;
 	}
@@ -729,8 +729,8 @@ export class VDP {
 	 * Get and reset the VDP stats.
 	 */
 	public _getStats() {
-		const result = this.stats;
-		this.stats = {
+		const result = this._stats;
+		this._stats = {
 			peakOBJ: 0,
 			peakBG: 0,
 			peakVramWrites: 0
