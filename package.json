@@ -9,6 +9,7 @@
     "awesome-typescript-loader": "^3.0.4-rc.2",
     "express": "^4.16.4",
     "gl-matrix": "^3.0.0",
+    "jsdoc-to-markdown": "^4.0.1",
     "pngjs": "^3.3.3",
     "xml2js": "^0.4.19"
   },

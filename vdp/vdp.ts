@@ -124,7 +124,7 @@ export class LineTransformationArray {
 	  }
   }
 
-	setLine(lineNo, transformation: mat3) {
+	setLine(lineNo: number, transformation: mat3) {
 		if (lineNo < 0 || lineNo >= this.length) throw new Error(`setLine: index ${lineNo} out of range`);
 		this.buffer.set((transformation as Float32Array).subarray(0, 8), lineNo * 8);
 	}
