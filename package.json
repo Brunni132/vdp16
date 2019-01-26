@@ -10,6 +10,7 @@
     "express": "^4.16.4",
     "gl-matrix": "^3.0.0",
     "jsdoc-to-markdown": "^4.0.1",
+    "pkg": "^4.3.7",
     "pngjs": "^3.3.3",
     "xml2js": "^0.4.19"
   },
