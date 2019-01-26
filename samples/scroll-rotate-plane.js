@@ -1,4 +1,4 @@
-const mat3 = glMatrix.mat3;
+const mat3 = vdp.mat3;
 
 function *main() {
 	let loop = 0;

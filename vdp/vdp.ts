@@ -33,12 +33,12 @@ import {
 	ShadowTexture
 } from "./shadowtexture";
 import { color } from "./color";
-import { mat3, mat4 } from 'gl-matrix';
+import { mat3, mat4, vec2 } from 'gl-matrix';
 import { Input } from './input';
 
 export const DEBUG = true;
 // Specs of the fantasy console, do not modify for now
-const MAX_BGS = 2, MAX_OBJS = 512, MAX_VRAM_WRITES = 4096, MAX_FRAME_SLOWDOWN = 30;
+const MAX_BGS = 2, MAX_OBJS = 512, MAX_VRAM_WRITES = 2048, MAX_FRAME_SLOWDOWN = 30;
 let BG_LIMIT: number, OBJ_CELL_LIMIT: number, OBJ0_LIMIT: number, OBJ1_LIMIT: number;
 
 type TransparencyConfigEffect = 'none' | 'color' | 'blend' | 'premult';
@@ -203,6 +203,8 @@ export class VDP {
 	public LineTransformationArray = LineTransformationArray;
 	public CopySource = CopySource;
 	public color = color;
+	public mat3 = mat3;
+	public vec2 = vec2;
 
 	constructor(canvas: HTMLCanvasElement, imageDirectory: string, done: () => void) {
 		this._initContext(canvas);

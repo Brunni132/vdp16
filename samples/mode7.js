@@ -1,5 +1,4 @@
-const mat3 = glMatrix.mat3;
-const vec3 = glMatrix.vec3;
+const mat3 = vdp.mat3, vec2 = vdp.vec2;
 
 // You can play with that for the perspective
 function scaleAtLine(line) { return 100 / (line + 50); }
@@ -9,13 +8,13 @@ function drawSprite(vdp, transformations, x, z, obj) {
 	// Here I just try to find the screen-space line on which the sprite is the most fitted (if any) by doing the inverse
 	// transformation on each line; if it's right, the 'y' component of the transformed vector should be around 0.
 	const mat = mat3.create();
-	const untransformed = vec3.fromValues(x, z, 1);
-	const result = vec3.create();
+	const untransformed = vec2.fromValues(x, z);
+	const result = vec2.create();
 	let line, scale;
 	for (line = transformations.length - 1; line >= 0; line--) {
 		scale = scaleAtLine(line);
 		mat3.invert(mat, transformations[line]);
-		vec3.transformMat3(result, untransformed, mat);
+		vec2.transformMat3(result, untransformed, mat);
 		if (Math.abs(result[1] ) < scale * 2) {
 			break;
 		}

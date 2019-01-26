@@ -1,5 +1,4 @@
-const mat3 = glMatrix.mat3;
-const input = vdp.input;
+const mat3 = vdp.mat3, input = vdp.input;
 
 // You can play with that for the perspective. Basically the highest the line number, the lower on the screen, and the
 // highest the scaling, to give the impression that it's closer to the viewer.

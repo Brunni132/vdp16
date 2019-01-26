@@ -184,6 +184,16 @@ class Mario {
 	}
 }
 
+class TextLayer {
+	constructor() {
+		this.map = vdp.readMap('text2', vdp.CopySource.blank);
+	}
+	drawText(x, y, text) {
+		for (let i = 0; i < text.length; i++) this.map.setElement(x + i, y, text.charCodeAt(i) - 32);
+		vdp.writeMap('text2', this.map);
+	}
+}
+
 function animateLevel1(vdp) {
 	// Rotate the shining block color from the choices above, every 12 frames
 	const colorIndex = Math.floor(frameNo / 12) % SHINING_BLOCK_COLORS.length;
@@ -197,15 +207,20 @@ let mapData;
 let frameNo = 0;
 
 function *main() {
+	const textLayer = new TextLayer();
 	const mario = new Mario();
+
+	vdp.configBackdropColor('#59f');
 	mapData = vdp.readMap('level1');
-	vdp.configBackdropColor('#000');
+	textLayer.drawText(6, 28, 'BASIC PLATFORMER DEMO');
+	textLayer.drawText(0, 30, 'Use arrow keys (or WASD) to moveand C to run, V to jump (or J/K)');
 
 	while (true) {
 		mario.update(vdp.input);
 		camera.update(mario);
 
-		vdp.drawBackgroundTilemap('level1', { scrollX: camera.x, wrap: false });
+		vdp.drawBackgroundTilemap('level1', { scrollX: camera.x, wrap: false, winH: 224 });
+		vdp.drawWindowTilemap('text2');
 		mario.draw(vdp);
 
 		animateLevel1(vdp);
