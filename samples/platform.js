@@ -226,7 +226,7 @@ function *main() {
 		camera.update(mario);
 
 		vdp.drawBackgroundTilemap('level1', { scrollX: camera.x, wrap: false, winH: 224 });
-		textLayer.drawWindow(frameNo / 4);
+		textLayer.drawWindow(frameNo / 10);
 		mario.draw(vdp);
 
 		animateLevel1(vdp);

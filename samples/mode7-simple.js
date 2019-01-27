@@ -7,7 +7,7 @@ function scaleAtLine(line) { return 100 / (line + 50); }
 // Just a quick attempt. Use reference instead: https://www.coranac.com/tonc/text/mode7.htm
 function *main() {
 	const lineTransform = new vdp.LineTransformationArray();
-    const viewerPos = { x: 512, y: 0 };
+	const viewerPos = { x: 512, y: 0 };
 	let viewerAngle = 0;
 
 	while (true) {
@@ -23,20 +23,20 @@ function *main() {
 			// Then move back around the final rotation center in screen space (middle-bottom of the screen)
 			mat3.translate(mat, mat, [-vdp.screenWidth / 2, -vdp.screenHeight + line]);
 			lineTransform.setLine(line, mat);
-        }
+		}
 
 		// Change just the angle using the keys
-        if (input.isDown(input.Key.Left)) viewerAngle -= 0.01;
+		if (input.isDown(input.Key.Left)) viewerAngle -= 0.01;
 		if (input.isDown(input.Key.Right)) viewerAngle += 0.01;
 		// Then up/down move the viewer at the specified angle (trigonometry)
-        if (input.isDown(input.Key.Up)) {
-            viewerPos.x += Math.cos(viewerAngle - Math.PI / 2);
-            viewerPos.y += Math.sin(viewerAngle - Math.PI / 2);
-        }
-        if (input.isDown(input.Key.Down)) {
-            viewerPos.x += Math.cos(viewerAngle + Math.PI / 2);
-            viewerPos.y += Math.sin(viewerAngle + Math.PI / 2);
-        }
+		if (input.isDown(input.Key.Up)) {
+			viewerPos.x += Math.cos(viewerAngle - Math.PI / 2);
+			viewerPos.y += Math.sin(viewerAngle - Math.PI / 2);
+		}
+		if (input.isDown(input.Key.Down)) {
+			viewerPos.x += Math.cos(viewerAngle + Math.PI / 2);
+			viewerPos.y += Math.sin(viewerAngle + Math.PI / 2);
+		}
 
 		vdp.drawBackgroundTilemap('tmx', { lineTransform, wrap: true});
 		yield;

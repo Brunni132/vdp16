@@ -34,7 +34,6 @@ function *main() {
 			vdp.writePalette('sonic1-bg-rotating', pal);
 		}
 
-		// Do not render below 248 since the map is smaller
 		vdp.drawBackgroundTilemap('sonic1-bg', { lineTransform });
 		loop += 1;
 		yield;
