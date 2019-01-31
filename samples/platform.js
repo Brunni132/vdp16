@@ -18,7 +18,7 @@ class Camera {
 
 class Mario {
 	constructor() {
-		this.left = 0;
+		this.left = 64;
 		this.top = 160;
 		this.width = 16;
 		this.height = 15;
@@ -187,7 +187,7 @@ class Mario {
 class TextLayer {
 	constructor() {
 		// Make it smaller, we don't need the full screen since it's only for the small window at the bottom
-		this.mapDef = vdp.map('text2').offsetted(0, 0, 32, 12);
+		this.mapDef = vdp.map('text3').offsetted(0, 0, 43, 12);
 		this.map = vdp.readMap(this.mapDef, vdp.CopySource.blank);
 	}
 	drawText(x, y, text) {
@@ -218,8 +218,8 @@ function *main() {
 
 	vdp.configBackdropColor('#59f');
 	mapData = vdp.readMap('level1');
-	textLayer.drawText(6, 8, 'BASIC PLATFORMER DEMO');
-	textLayer.drawText(0, 10, 'Use arrow keys (or WASD) to moveand C to run, V to jump (or J/K)');
+	textLayer.drawText(11, 8, 'BASIC PLATFORMER DEMO');
+	textLayer.drawText(0, 10, 'Use arrow keys (or WASD) to move and C to  run, V to jump (or J/K).');
 
 	while (true) {
 		mario.update(vdp.input);

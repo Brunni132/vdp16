@@ -16,10 +16,11 @@ function *main() {
 
 		// Draw a spot using scale and translations each line
 		const lineTransform = new vdp.LineTransformationArray();
-		for (let y = 0; y < lineTransform.length; y++) {
-			const center = { x: Math.floor(mario.x + mario.w / 2), y: Math.floor(mario.y + mario.h / 2) };
+		const center = { x: Math.floor(mario.x + mario.w / 2), y: Math.floor(mario.y + mario.h / 2) };
+		const circleRay = Math.max(32, 300 - loop * 3);
+
+		for (let y = 0; y < vdp.screenHeight; y++) {
 			let scale = 0;
-			const circleRay = Math.max(32, 300 - loop * 3);
 			// Circle visible on that line?
 			if (Math.abs(y - center.y) < circleRay) {
 				const angle = Math.asin((y - center.y) / circleRay);

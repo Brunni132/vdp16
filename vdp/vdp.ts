@@ -1,11 +1,10 @@
 import { createDataTextureFloat, loadTexture, writeToTextureFloat } from "./utils";
 import {
-	computeObjectCells,
+	computeObjectPixels,
 	drawPendingObj,
 	enqueueObj,
 	initObjShaders,
 	makeObjBuffer,
-	OBJ_CELL_SIZE,
 } from "./sprites";
 import { drawPendingMap, enqueueMap, initMapShaders, makeMapBuffer } from "./maps";
 import {
@@ -38,8 +37,8 @@ import { Input } from './input';
 
 export const DEBUG = true;
 // Specs of the fantasy console, do not modify for now
-const MAX_BGS = 2, MAX_OBJS = 512, MAX_VRAM_WRITES = 2048, MAX_FRAME_SLOWDOWN = 30;
-let BG_LIMIT: number, OBJ_CELL_LIMIT: number, OBJ0_LIMIT: number, OBJ1_LIMIT: number;
+const MAX_BGS = 32, MAX_OBJS = 512, MAX_VRAM_WRITES = 2048, MAX_FRAME_SLOWDOWN = 30, MAX_LINESCROLL_BUFFERS = 2;
+let BG_PIXEL_LIMIT: number, OBJ_PIXEL_LIMIT: number, OBJ_LIMIT: number;
 
 type TransparencyConfigEffect = 'none' | 'color' | 'blend' | 'premult';
 type TransparencyConfigOperation = 'add' | 'sub';
@@ -102,6 +101,7 @@ export enum CopySource {
  * using this, look at the samples.
  */
 export class LineTransformationArray {
+	_assignedId = -1;
 	buffer: Float32Array;
 	length: number;
 
@@ -173,13 +173,14 @@ export class VDP {
 	private _fadeColor = 0x00000000;
 	private _bgTransparency = new TransparencyConfig('color', 'add', 0x888888, 0x888888);
 	private _objTransparency = new TransparencyConfig('color', 'add', 0x888888, 0x888888);
-	private _bgBuffer = makeMapBuffer('Opaque BG [BG]', MAX_BGS * 2); // x2 because of window
+	private _bgBuffer = makeMapBuffer('Opaque BG [BG]', MAX_BGS);
 	private _tbgBuffer = makeMapBuffer('Transparent BG [TBG]', 1); // can support only one because of OBJ1 sorting required
 	private _obj0Buffer = makeObjBuffer('Opaque sprites [OBJ0]', MAX_OBJS);
 	private _obj1Buffer = makeObjBuffer('Transparent sprites [OBJ1]', MAX_OBJS);
 	private _stats = {
-		peakOBJ: 0,
-		peakBG: 0,
+		peakOBJUse: 0,
+		peakOBJs: 0,
+		peakBGUse: 0,
 		peakVramWrites: 0
 	};
 	private _frameStarted = true;
@@ -192,11 +193,9 @@ export class VDP {
 	private _romMapTex: ShadowTexture;
 	private _shadowMapTex: ShadowTexture;
 	private _nextLinescrollBuffer = 0;
-	private _usedBGs = 0;
-	private _usedTBGs = 0;
-	private _usedObjCells = 0;
+	private _usedBgPixels = 0;
+	private _usedObjPixels = 0;
 	private _usedVramWrites = 0;
-	private _previousBgSettings: { linescrollBuffer: number; winY: number; winX: number; winH: number; winW: number, transparent: boolean };
 
 	public input: Input;
 	public LineColorArray = LineColorArray;
@@ -302,14 +301,16 @@ export class VDP {
 	 * rendered, not in the middle.
 	 * @param [opts] {Object}
 	 * @param [opts.extraSprites] {boolean} whether to enable the extra sprite mode. This will limit to only one BG layer
-	 * (which can be transparent), but allow 512 sprite cells/entries instead of 256, covering up to two times the screen.
+	 * (which can be transparent), but allow 512 sprites instead of 256, and twice the pixel count (covering up to two
+	 * times the screen).
 	 */
 	configDisplay(opts: { extraSprites?: boolean } = {}) {
-		if (this._obj0Buffer.usedSprites > 0 || this._obj1Buffer.usedSprites > 0 || this._usedBGs > 0 || this._usedTBGs > 0) {
+		if (this._usedObjPixels > 0 || this._usedBgPixels > 0) {
 			throw new Error('configDisplay must come at the beginning of your program/frame');
 		}
-		BG_LIMIT = opts.extraSprites ? 1 : 2;
-		OBJ0_LIMIT = OBJ1_LIMIT = OBJ_CELL_LIMIT = opts.extraSprites ? 512 : 256;
+		BG_PIXEL_LIMIT = (opts.extraSprites ? 1 : 2) * this.screenWidth * this.screenHeight;
+		OBJ_LIMIT = opts.extraSprites ? 512 : 256;
+		OBJ_PIXEL_LIMIT = (opts.extraSprites ? 2 : 1) * this.screenWidth * this.screenHeight;
 	}
 
 	/**
@@ -375,26 +376,29 @@ export class VDP {
 		const buffer = transparent ? this._tbgBuffer : this._bgBuffer;
 
 		if (prio < 0 || prio > 15) throw new Error('Unsupported BG priority (0-15)');
-		if (this._usedBGs + this._usedTBGs >= BG_LIMIT || this._usedTBGs >= 1) {
-			if (DEBUG) console.log(`Too many BGs (${this._usedBGs} opaque, ${this._usedTBGs} transparent), ignoring drawBackgroundTilemap`);
+
+		const pixels = computeObjectPixels(winX, winY, winX + winW, winY + winH);
+		if (pixels + this._usedBgPixels > BG_PIXEL_LIMIT) {
+			if (DEBUG) console.log('Using too many BG pixels');
+			this._usedBgPixels = BG_PIXEL_LIMIT;
 			return;
 		}
-		if (transparent) this._usedTBGs += 1;
-		else this._usedBGs += 1;
-
-		// To avoid drawing too big quads and them counting toward the BG pixel budget
-		// winX = Math.min(SCREEN_WIDTH, Math.max(0, winX));
-		// winY = Math.min(SCREEN_HEIGHT, Math.max(0, winY));
-		// winW = Math.min(SCREEN_WIDTH - winX, Math.max(0, winW));
-		// winH = Math.min(SCREEN_HEIGHT - winY, Math.max(0, winH));
+		this._usedBgPixels += pixels;
 
 		let linescrollBuffer = -1;
 		if (opts.lineTransform) {
-			linescrollBuffer = 256 + this._nextLinescrollBuffer;
-			writeToTextureFloat(this._gl, this._otherTexture, 0, this._nextLinescrollBuffer++, opts.lineTransform.buffer.length / 4, 1, opts.lineTransform.buffer);
+			linescrollBuffer = opts.lineTransform._assignedId;
+			// Not assigned yet => create entry and assign it so it can be reused across multiple planes
+			if (linescrollBuffer < 0) {
+				if (this._nextLinescrollBuffer >= MAX_LINESCROLL_BUFFERS) {
+					if (DEBUG) console.log(`Only ${MAX_LINESCROLL_BUFFERS} LineTransformationArray are allowed`);
+					return;
+				}
+				opts.lineTransform._assignedId = linescrollBuffer = 256 + this._nextLinescrollBuffer;
+				writeToTextureFloat(this._gl, this._otherTexture, 0, this._nextLinescrollBuffer++, opts.lineTransform.buffer.length / 4, 1, opts.lineTransform.buffer);
+			}
 		}
 
-		this._previousBgSettings = { winX, winY, winW, winH, linescrollBuffer, transparent };
 		enqueueMap(buffer, map.x, map.y, til.x, til.y, map.w, map.h, til.w, til.tw, til.th, winX, winY, winW, winH, scrollX, scrollY, pal.y, til.hiColor, linescrollBuffer, wrap ? 1 : 0, prio);
 	}
 
@@ -424,64 +428,29 @@ export class VDP {
 
 		if (prio < 0 || prio > 15) throw new Error('Unsupported object priority (0-15)');
 
-		const cells = computeObjectCells(x, y, x + w, y + h);
-		if (cells + this._usedObjCells > OBJ_CELL_LIMIT) {
-			if (this._usedObjCells >= OBJ_CELL_LIMIT) return;
-			if (DEBUG) console.log('Using too many cells');
-
-			// Split the object horizontally to fit all cells
-			const cellsTall = computeObjectCells(0, y, OBJ_CELL_SIZE, y + h);
-			const remainingCells = OBJ_CELL_LIMIT - this._usedObjCells;
-			const newW = (remainingCells / cellsTall) * OBJ_CELL_SIZE;
-			enqueueObj(buffer, x, y, x + newW, y + h,
-				u, v, u + sprite.w * newW / w, v + Math.floor(sprite.h), pal.y, sprite.hiColor, prio, opts.flipH, opts.flipV);
-			this._usedObjCells = OBJ_CELL_LIMIT;
+		if (this._obj0Buffer.usedSprites + this._obj1Buffer.usedSprites >= OBJ_LIMIT) {
+			if (DEBUG) console.log(`Using too many objects (max ${OBJ_LIMIT}`);
 			return;
 		}
-		this._usedObjCells += cells;
+
+		const pixels = computeObjectPixels(x, y, x + w, y + h);
+		if (pixels + this._usedObjPixels > OBJ_PIXEL_LIMIT) {
+			if (DEBUG) console.log('Using too many OBJ pixels');
+			if (this._usedObjPixels >= OBJ_PIXEL_LIMIT) return;
+
+			// Split the object horizontally to fit all remaining pixels
+			const visibleHeight = computeObjectPixels(0, y, 1, y + h);
+			const remaining = OBJ_PIXEL_LIMIT - this._usedObjPixels;
+			const newW = Math.floor(remaining / visibleHeight);
+			enqueueObj(buffer, x, y, x + newW, y + h,
+				u, v, u + sprite.w * newW / w, v + Math.floor(sprite.h), pal.y, sprite.hiColor, prio, opts.flipH, opts.flipV);
+			this._usedObjPixels = OBJ_PIXEL_LIMIT;
+			return;
+		}
+		this._usedObjPixels += pixels;
 
 		enqueueObj(buffer, x, y, x + w, y + h,
 			u, v, u + Math.floor(sprite.w), v + Math.floor(sprite.h), pal.y, sprite.hiColor, prio, opts.flipH, opts.flipV);
-	}
-
-	drawWindowTilemap(map: VdpMap|string, opts: {palette?: string|VdpPalette, scrollX?: number, scrollY?: number, wrap?: boolean, tileset?: string|VdpSprite, prio?: number} = {}) {
-		if (!this._previousBgSettings) throw new Error('drawWindowTilemap needs to be called after drawBackgroundTilemap');
-		// Because the code in doRender supports only one TBG
-		if (this._previousBgSettings.transparent) throw new Error('drawWindowTilemap cannot be used for a transparent BG');
-		if (typeof map === 'string') map = this.map(map);
-
-		const { winX, winY, winH, winW, transparent, linescrollBuffer } = this._previousBgSettings;
-		const pal = this._getPalette(opts.hasOwnProperty('palette') ? opts.palette : map.designPalette);
-		const til = this._getSprite(opts.hasOwnProperty('tileset') ? opts.tileset : map.designTileset);
-		const scrollX = opts.hasOwnProperty('scrollX') ? opts.scrollX : 0;
-		const scrollY = opts.hasOwnProperty('scrollY') ? opts.scrollY : 0;
-		const wrap = opts.hasOwnProperty('wrap') ? opts.wrap : true;
-		const prio = Math.floor(opts.prio || (transparent ? 1 : 0));
-		const buffer = transparent ? this._tbgBuffer : this._bgBuffer;
-
-		if (prio < 0 || prio > 15) throw new Error('Unsupported BG priority (0-15)');
-
-		let finalWinX = 0;
-		let finalWinY = 0;
-		let finalWinW = SCREEN_WIDTH;
-		let finalWinH = SCREEN_HEIGHT;
-		if (winY > 0) finalWinH = winY;
-		else if (winX > 0) finalWinW = winX;
-		else if (winW < SCREEN_WIDTH) {
-			finalWinX = winW;
-			finalWinW = SCREEN_WIDTH - winW;
-		}
-		else if (winH < SCREEN_HEIGHT) {
-			finalWinY = winH;
-			finalWinH = SCREEN_HEIGHT - winH;
-		}
-		else {
-			if (DEBUG) console.log('No remaining space for a window');
-			return;
-		}
-
-		enqueueMap(buffer, map.x, map.y, til.x, til.y, map.w, map.h, til.w, til.tw, til.th, finalWinX, finalWinY, finalWinW, finalWinH, scrollX, scrollY, pal.y, til.hiColor, linescrollBuffer, wrap ? 1 : 0, prio);
-		this._previousBgSettings = null;
 	}
 
 	map(name: string): VdpMap {
@@ -631,8 +600,9 @@ export class VDP {
 
 	// Take one frame in account for the stats. Read with _readStats.
 	private _computeStats() {
-		this._stats.peakBG = Math.max(this._stats.peakBG, this._usedBGs + this._usedTBGs);
-		this._stats.peakOBJ = Math.max(this._stats.peakOBJ, this._usedObjCells);
+		this._stats.peakBGUse = Math.max(this._stats.peakBGUse, Math.round(100 * this._usedBgPixels / BG_PIXEL_LIMIT));
+		this._stats.peakOBJUse = Math.max(this._stats.peakOBJUse, Math.round(100 * this._usedObjPixels / OBJ_PIXEL_LIMIT));
+		this._stats.peakOBJs = Math.max(this._stats.peakOBJs, this._obj0Buffer.usedSprites + this._obj1Buffer.usedSprites);
 	}
 
 	/**
@@ -683,8 +653,7 @@ export class VDP {
 		this._objTransparency.apply(this);
 		drawPendingObj(this, this._obj1Buffer, splitAt, this._obj1Buffer.usedSprites);
 
-		this._nextLinescrollBuffer = this._usedObjCells = this._usedBGs = this._usedTBGs = 0;
-		this._previousBgSettings = null;
+		this._nextLinescrollBuffer = this._usedObjPixels = this._usedBgPixels = 0;
 	}
 
 	/**
@@ -733,8 +702,9 @@ export class VDP {
 	public _getStats() {
 		const result = this._stats;
 		this._stats = {
-			peakOBJ: 0,
-			peakBG: 0,
+			peakOBJs: 0,
+			peakOBJUse: 0,
+			peakBGUse: 0,
 			peakVramWrites: 0
 		};
 		return result;

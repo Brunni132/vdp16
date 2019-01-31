@@ -12,9 +12,6 @@ import {
 } from "./shaders";
 import { DEBUG, VDP } from "./vdp";
 
-// How big (tall/wide) a sprite can be before it's broken down in smaller units of OBJ_CELL_SIZE^2
-export const OBJ_CELL_SIZE = 16;
-
 const OBJ_BUFFER_STRIDE = 6;
 
 // TODO Florian -- Refactor to use zero-based indexes (and document) for all helper functions, like MapBuffer
@@ -243,12 +240,12 @@ void main(void) {
  * @param {number} y1
  * @returns {number} the number of cells (e.g. 1 for a 16x16 square, 2 for a 17x16, etc.)
  */
-export function computeObjectCells(x0: number, y0: number, x1: number, y1: number): number {
+export function computeObjectPixels(x0: number, y0: number, x1: number, y1: number): number {
 	if (x0 > x1) [x1, x0] = [x0, x1];
 	if (y0 > y1) [y1, y0] = [y0, y1];
 	const w = Math.round(Math.min(SCREEN_WIDTH, x1) - Math.max(0, x0));
 	const h = Math.round(Math.min(SCREEN_HEIGHT, y1) - Math.max(0, y0));
-	return Math.max(1, Math.ceil(w / OBJ_CELL_SIZE) * Math.ceil(h / OBJ_CELL_SIZE));
+	return w * h;
 }
 
 /**
