@@ -241,11 +241,13 @@ void main(void) {
  * @returns {number} the number of cells (e.g. 1 for a 16x16 square, 2 for a 17x16, etc.)
  */
 export function computeObjectPixels(x0: number, y0: number, x1: number, y1: number): number {
+	x0 = Math.max(0, Math.min(SCREEN_WIDTH, x0));
+	x1 = Math.max(0, Math.min(SCREEN_WIDTH, x1));
+	y0 = Math.max(0, Math.min(SCREEN_WIDTH, y0));
+	y1 = Math.max(0, Math.min(SCREEN_WIDTH, y1));
 	if (x0 > x1) [x1, x0] = [x0, x1];
 	if (y0 > y1) [y1, y0] = [y0, y1];
-	const w = Math.round(Math.min(SCREEN_WIDTH, x1) - Math.max(0, x0));
-	const h = Math.round(Math.min(SCREEN_HEIGHT, y1) - Math.max(0, y0));
-	return w * h;
+	return (x1 - x0) * (y1 - y0);
 }
 
 /**
