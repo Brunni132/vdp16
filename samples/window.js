@@ -24,6 +24,7 @@ function *main() {
 	while (true) {
 		TextLayer.drawText(11, 16, ' from top  ');
 		for (let loop = 0; loop < vdp.screenHeight; loop++) {
+			// Even though we call this twice, it only counts as one layer, since they each take only a part of the screen
 			vdp.drawBackgroundTilemap('level2', {winY: loop});
 			vdp.drawBackgroundTilemap('level1', {winH: loop});
 			TextLayer.drawLayer();

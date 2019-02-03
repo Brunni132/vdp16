@@ -593,6 +593,11 @@ export class VDP {
 
 		this._shadowSpriteTex.writeTo(x, s.y, w, s.h, data.array);
 		this._shadowSpriteTex.syncToVramTexture(this._gl, this._spriteTexture, x, s.y, w, s.h);
+		// this._shadowSpriteTex = makeShadowFromTexture8(this._gl, {
+		// 	texture: this._spriteTexture,
+		// 	width: this._shadowSpriteTex.width,
+		// 	height: this._shadowSpriteTex.height
+		// });
 		this._usedVramWrites += s.w * s.h;
 	}
 
@@ -722,7 +727,7 @@ export class VDP {
 	private _initMatrices() {
 		this._projectionMatrix = mat4.create();
 		// note: glmatrix.js always has the first argument as the destination to receive the result.
-		mat4.ortho(this._projectionMatrix, 0.0, SCREEN_WIDTH, SCREEN_HEIGHT, 0.0, -10, 10);
+		mat4.ortho(this._projectionMatrix, 0.0, SCREEN_WIDTH, SCREEN_HEIGHT, 0.0, -16, 16);
 
 		// Normally set in modelViewMatrix, but we want to allow an empty model view matrix
 		//mat4.translate(this.projectionMatrix, this.projectionMatrix, [-0.0, 0.0, -0.1]);
