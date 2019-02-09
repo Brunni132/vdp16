@@ -81,6 +81,7 @@ export class VdpSprite {
 	 * @returns {VdpSprite} this
 	 */
 	tile(no: number): VdpSprite {
+		no = Math.floor(no);
 		const columnsPerRow = Math.floor(this.w / this.tw);
 		if (this.w / this.tw !== columnsPerRow) {
 			throw new Error(`Not a tileset (w=${this.w}, h=${this.h}, tw=${this.tw})`)
