@@ -4,48 +4,31 @@ import {mat3} from 'gl-matrix';
 /** @param vdp {VDP}*/
 function *main(vdp) {
 	let loop = 0;
-	const mario = { x: 120, y: 128, w: 16, h: 16 };
 
-	const maskBgPalNo = vdp.palette('mask-bg').y;
-	// Replace color 0 (outside of mask) with opaque color 1 (gray)
-	const colorReplacements = [ new vdp.LineColorArray(0, maskBgPalNo) ];
-	colorReplacements[0].setAll(1, maskBgPalNo);
+	const firstBlankPalette = 0;
+	const palMem = vdp.readPaletteMemory(0, firstBlankPalette, 16, 3, vdp.CopySource.blank);
+	// Blue to red gradient
+	for (let i = 0; i < 16; i++)
+		palMem.setElement(i, 0, vdp.color.make(i * 16, 0, 0x88 - i * 8));
+	// Red to yellow
+	for (let i = 1; i < 16; i++)
+		palMem.setElement(i, 1, vdp.color.make(255, i * 16, 0));
+	vdp.writePaletteMemory(0, firstBlankPalette, 16, 3, palMem);
+
+	const colorSwap = new vdp.LineColorArray(0, firstBlankPalette);
+	// Color 0 will be transparent
+	vdp.configBackdropColor(palMem.getElement(0, 0));
+	for (let i = 3; i < 48; i++)
+		colorSwap.setLine(i, i / 3, firstBlankPalette);
+	for (let i = 4; i < 64; i++)
+		colorSwap.setLine(i + 44, i / 4, firstBlankPalette + 1);
+	for (let i = 108; i < 128; i++)
+		colorSwap.setLine(i, 15, firstBlankPalette + 1);
+	vdp.configColorSwap([colorSwap]);
 
 	while (true) {
-		// Make mario turn around
-		mario.x = 120 + Math.cos(loop / 90) * 64;
-		mario.y = 120 + Math.sin(loop / 90) * 112;
-
-		// Draw a spot using scale and translations each line
-		const lineTransform = new vdp.LineTransformationArray();
-		for (let y = 0; y < lineTransform.length; y++) {
-			const center = { x: Math.floor(mario.x + mario.w / 2), y: Math.floor(mario.y + mario.h / 2) };
-			let scale = 0;
-			const circleRay = Math.max(32, 300 - loop * 3);
-			// Circle visible on that line?
-			if (Math.abs(y - center.y) < circleRay) {
-				const angle = Math.asin((y - center.y) / circleRay);
-				scale = Math.cos(angle) * circleRay;
-			}
-
-			const t = mat3.create();
-			// Centered on the 4th pixel of the mask-bg horizontally (the black stripe)
-			mat3.translate(t, t, [4, 0]);
-			mat3.scale(t, t, [1 / scale, 1 / scale]);
-			// This is a case where we want to use the row 0 all the time (the tilemap is only 8x1 pixels)
-			mat3.translate(t, t, [-center.x, 0]);
-			lineTransform.setLine(y, t);
-		}
-
-		vdp.configBackgroundTransparency({ op: 'sub', blendDst: '#fff', blendSrc: '#fff' });
-		vdp.configColorSwap(colorReplacements);
-
-		vdp.drawBackgroundTilemap('level1');
-		vdp.drawBackgroundTilemap('mask-bg', { wrap: false, transparent: true, lineTransform });
-
-		vdp.drawObject(vdp.sprite('mario').tile(0), mario.x, mario.y);
-
-		loop += 1;
+		vdp.drawObject('mario', 100, 100, { prio: 2 });
+		loop++;
 		yield;
 	}
 }

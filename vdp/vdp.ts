@@ -264,7 +264,9 @@ export class VDP {
 	 * @param c backdrop color
 	 */
 	configBackdropColor(c: number|string) {
-		this._shadowPaletteTex.buffer[0] = color.make(c);
+		const pal = this.readPaletteMemory(0, 0, 1, 1, CopySource.blank);
+		pal.array[0] = color.make(c);
+		this.writePaletteMemory(0, 0, 1, 1, pal);
 	}
 
 	/**
@@ -619,20 +621,25 @@ export class VDP {
 
 		// Only the first time per frame (allow multiple render per frames)
 		if (this._frameStarted) {
-			const clearColor = color.extract(this._shadowPaletteTex.buffer[0], this._paletteBpp);
-			gl.clearColor(clearColor.r / 255, clearColor.g / 255, clearColor.b / 255, 0);
+			// const clearColor = color.extract(this._shadowPaletteTex.buffer[0], this._paletteBpp);
+			// gl.clearColor(clearColor.r / 255, clearColor.g / 255, clearColor.b / 255, 0);
 
 			if (USE_PRIORITIES) {
 				gl.clearDepth(1.0);				 // Clear everything
 				// PERF: This is a lot slower if there's a discard in the fragment shader (and we need one?) because the GPU can't test & write to the depth buffer until after the fragment shader has been executed. So there's no point in using it I guess.
-				gl.enable(gl.DEPTH_TEST);		   // Enable depth testing
 				gl.depthFunc(gl.LESS);			// Near things obscure far things
+				// gl.clearDepth(0);
+				gl.clearColor(0, 0, 0, 0);
 				gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
 			} else {
 				gl.clear(gl.COLOR_BUFFER_BIT);
 			}
 
+			// Clear with BD color
+			gl.disable(gl.DEPTH_TEST);
+			drawOpaquePoly(this, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, 1, 1, 1, 0);
+			gl.enable(gl.DEPTH_TEST);
 			this._frameStarted = false;
 		}
 

@@ -1,5 +1,6 @@
 import { initShaderProgram, makeBuffer } from "./utils";
 import { VDP } from './vdp';
+import { colorSwaps, declareReadPalette, makeOutputColor } from './shaders';
 
 // For debugging only
 export function initOpaquePolyShaders(vdp: VDP) {
@@ -15,15 +16,27 @@ export function initOpaquePolyShaders(vdp: VDP) {
 			varying lowp vec4 vColor;
 		
 			void main(void) {
-				gl_Position = uProjectionMatrix * vec4(floor(uModelViewMatrix * vec3(aXy, 0)), 1);
+				vec4 pos = uProjectionMatrix * vec4(floor(uModelViewMatrix * vec3(aXy, 0)), 1);
+				pos.z = 0.0;
+				gl_Position = pos;
 				vColor = aColor;
 			}
 		`;
-	const fsSource = `
-    varying lowp vec4 vColor;
+	// Hack: drawing a poly with alpha=0 will fill the backdrop
+	const fsSource = `precision highp float;
+    varying vec4 vColor;
+		uniform vec4 uColorSwaps;
+		uniform sampler2D uSamplerOthers, uSamplerPalettes;
+    
+    ${declareReadPalette(false)}
 
     void main(void) {
-      gl_FragColor = vColor;
+      if (vColor.a > 0.0) {
+	      gl_FragColor = vColor;
+	    } else {
+		    vec4 color = readPalette(0.0, 0.0);
+				gl_FragColor = vec4(color.rgb, 1.0);
+			}
     }
   `;
 
@@ -46,8 +59,11 @@ export function initOpaquePolyShaders(vdp: VDP) {
 			color: makeBuffer(gl)
 		},
 		uniformLocations: {
+			colorSwaps: gl.getUniformLocation(shaderProgram, 'uColorSwaps'),
 			projectionMatrix: gl.getUniformLocation(shaderProgram, 'uProjectionMatrix'),
-			modelViewMatrix: gl.getUniformLocation(shaderProgram, 'uModelViewMatrix')
+			modelViewMatrix: gl.getUniformLocation(shaderProgram, 'uModelViewMatrix'),
+			uSamplerOthers: gl.getUniformLocation(shaderProgram, 'uSamplerOthers'),
+			uSamplerPalettes: gl.getUniformLocation(shaderProgram, 'uSamplerPalettes'),
 		},
 	};
 }
@@ -94,7 +110,18 @@ export function drawOpaquePoly(vdp: VDP, xStart: number, yStart: number, xEnd: n
 		gl.enableVertexAttribArray(prog.attribLocations.color);
 	}
 
+	// Tell WebGL we want to affect texture unit 0
+	gl.activeTexture(gl.TEXTURE0);
+	gl.bindTexture(gl.TEXTURE_2D, vdp._paletteTexture);
+	gl.activeTexture(gl.TEXTURE1);
+	gl.bindTexture(gl.TEXTURE_2D, vdp._otherTexture);
+
+	// Tell the shader we bound the texture to texture unit 0
+	gl.uniform1i(prog.uniformLocations.uSamplerPalettes, 0);
+	gl.uniform1i(prog.uniformLocations.uSamplerOthers, 1);
+
 	// Set the shader uniforms
+	gl.uniform4f(prog.uniformLocations.colorSwaps, colorSwaps[0], colorSwaps[1], colorSwaps[2], colorSwaps[3]);
 	gl.uniformMatrix4fv(prog.uniformLocations.projectionMatrix, false, vdp._projectionMatrix);
 	gl.uniformMatrix3fv(prog.uniformLocations.modelViewMatrix,false, vdp._modelViewMatrix);
 

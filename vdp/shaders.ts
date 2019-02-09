@@ -83,7 +83,7 @@ float readTexel4(float x, float y) {
 }`;
 }
 
-export function declareReadPalette(): string {
+export function declareReadPalette(allowDiscard = true): string {
 	// Can be reused, works and is checked to be 100% equivalent to having a RGBA4444 texture. But beware that makeOutputColor takes in account the envColor but doesn't posterize it, so you may want to move that
 	// return `vec4 readPalette(float x, float y) {
 	// 			vec4 data = texture2D(uSamplerPalettes, vec2(x, y));
@@ -106,17 +106,16 @@ export function declareReadPalette(): string {
 
 	return `vec4 readColorSwapBuffer(int bufferNo, float horizOffset) {
 	vec4 read = texture2D(uSamplerOthers, vec2((${SCREEN_HEIGHT}.0 - horizOffset) / ${OTHER_TEX_W}.0, float(bufferNo) / ${OTHER_TEX_H}.0));
-	if (read.x < ${1.0 / (PALETTE_TEX_W)}) discard; // color zero
 	return texture2D(uSamplerPalettes, read.xy);
 }
 
 vec4 readPalette(highp float x, highp float y) {
 	highp float index = x * ${PALETTE_TEX_W}.0 + (y * ${PALETTE_TEX_H}.0) * 256.0;
+	${allowDiscard ? `if (x < ${1.0 / (PALETTE_TEX_W)}) discard;` : ''}
 	if (index == uColorSwaps[0]) return readColorSwapBuffer(${OTHER_TEX_COLORSWAP_INDEX}, gl_FragCoord.y);
 	if (index == uColorSwaps[1]) return readColorSwapBuffer(${OTHER_TEX_COLORSWAP_INDEX+1}, gl_FragCoord.y);
 	if (index == uColorSwaps[2]) return readColorSwapBuffer(${OTHER_TEX_COLORSWAP_INDEX+2}, gl_FragCoord.y);
 	if (index == uColorSwaps[3]) return readColorSwapBuffer(${OTHER_TEX_COLORSWAP_INDEX+3}, gl_FragCoord.y);
-	if (x < ${1.0 / (PALETTE_TEX_W)}) discard;
 	return texture2D(uSamplerPalettes, vec2(x, y));
 }`;
 }
