@@ -598,7 +598,7 @@ export class VDP {
 		// 	width: this._shadowSpriteTex.width,
 		// 	height: this._shadowSpriteTex.height
 		// });
-		this._usedVramWrites += s.w * s.h;
+		this._usedVramWrites += w * s.h;
 	}
 
 	// --------------------- PRIVATE ---------------------
