@@ -196,22 +196,22 @@ void main(void) {
 		transformationMatrix = vTransformationMatrix;
 	}
 
-	vec2 texCoord = floor((transformationMatrix * vec3(vTextureCoord.x, y, 1)).xy);
-	int mapX = intDiv(texCoord.x, vTileSize.x), mapY = intDiv(texCoord.y, vTileSize.y);
+	vec2 texCoord = floor((transformationMatrix * vec3(vTextureCoord.x, y, 1)).xy);` +
+	// Out of bounds? Clamp to the edge
+`	if (vOtherInfo.y < 1.0) {
+		if (texCoord.x < 0.0) texCoord.x = 0.0;
+		if (texCoord.y < 0.0) texCoord.y = 0.0;
+		if (texCoord.x >= vTileSize.x * vMapSize.x) texCoord.x = vTileSize.x * vMapSize.x - 1.0;
+		if (texCoord.y >= vTileSize.y * vMapSize.y) texCoord.y = vTileSize.y * vMapSize.y - 1.0;
+	}
 
+	int mapX = intDiv(texCoord.x, vTileSize.x), mapY = intDiv(texCoord.y, vTileSize.y);
 	float basePalette = vPaletteNo;
 	if (vPaletteNo >= ${PALETTE_HICOLOR_FLAG}.0) {
 		basePalette -= ${PALETTE_HICOLOR_FLAG}.0;
 	}` +
-	// Out of bounds? Use color 0 of current map.
-`	if (vOtherInfo.y < 1.0 && (mapX < 0 || mapY < 0 || mapX >= int(vMapSize.x) || mapY >= int(vMapSize.y))) {
-		vec4 color = readPalette(0.0, basePalette / ${PALETTE_TEX_H}.0);
-		gl_FragColor = ${makeOutputColor('color')};
-		return;
-	}
-
-	int mapTileNo = readMap(mapX, mapY);` +
 	// Invisible tile (TODO Florian -- support in the converter)
+`	int mapTileNo = readMap(mapX, mapY);` +
 `	if (mapTileNo >= 65535) {
 		vec4 color = readPalette(0.0, basePalette / ${PALETTE_TEX_H}.0);
 		gl_FragColor = ${makeOutputColor('color')};
