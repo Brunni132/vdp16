@@ -38,7 +38,8 @@ import { Input } from './input';
 export const DEBUG = true;
 // Specs of the fantasy console, do not modify for now
 const MAX_BGS = 32, MAX_OBJS = 512, MAX_VRAM_WRITES = 2048, MAX_FRAME_SLOWDOWN = 30, MAX_LINESCROLL_BUFFERS = 2;
-let BG_PIXEL_LIMIT: number, OBJ_PIXEL_LIMIT: number, OBJ_LIMIT: number;
+let BG_PIXEL_LIMIT: number, OBJ_CELL_LIMIT: number, OBJ_LIMIT: number;
+export const OBJ_CELL_SIZE = 16;
 
 type TransparencyConfigEffect = 'none' | 'color' | 'blend' | 'premult';
 type TransparencyConfigOperation = 'add' | 'sub';
@@ -178,9 +179,8 @@ export class VDP {
 	private _obj0Buffer = makeObjBuffer('Opaque sprites [OBJ0]', MAX_OBJS);
 	private _obj1Buffer = makeObjBuffer('Transparent sprites [OBJ1]', MAX_OBJS);
 	private _stats = {
-		peakOBJUse: 0,
-		peakOBJs: 0,
-		peakBGUse: 0,
+		peakOBJ: 0,
+		peakBG: 0,
 		peakVramWrites: 0
 	};
 	private _frameStarted = true;
@@ -194,7 +194,7 @@ export class VDP {
 	private _shadowMapTex: ShadowTexture;
 	private _nextLinescrollBuffer = 0;
 	private _usedBgPixels = 0;
-	private _usedObjPixels = 0;
+	private _usedObjCells = 0;
 	private _usedVramWrites = 0;
 
 	public input: Input;
@@ -305,12 +305,12 @@ export class VDP {
 	 * times the screen).
 	 */
 	configDisplay(opts: { extraSprites?: boolean } = {}) {
-		if (this._usedObjPixels > 0 || this._usedBgPixels > 0) {
+		if (this._usedObjCells > 0 || this._usedBgPixels > 0) {
 			throw new Error('configDisplay must come at the beginning of your program/frame');
 		}
 		BG_PIXEL_LIMIT = (opts.extraSprites ? 1 : 2) * this.screenWidth * this.screenHeight;
 		OBJ_LIMIT = opts.extraSprites ? 512 : 256;
-		OBJ_PIXEL_LIMIT = (opts.extraSprites ? 2 : 1) * this.screenWidth * this.screenHeight;
+		OBJ_CELL_LIMIT = (opts.extraSprites ? 2 : 1) * Math.ceil(this.screenWidth * this.screenHeight / (OBJ_CELL_SIZE * OBJ_CELL_SIZE));
 	}
 
 	/**
@@ -433,21 +433,21 @@ export class VDP {
 			return;
 		}
 
-		const pixels = computeObjectPixels(x, y, x + w, y + h);
-		if (pixels + this._usedObjPixels > OBJ_PIXEL_LIMIT) {
+		const pixels = computeObjectPixels(x, y, x + w, y + h, true);
+		if (pixels + this._usedObjCells > OBJ_CELL_LIMIT) {
 			if (DEBUG) console.log('Using too many OBJ pixels');
-			if (this._usedObjPixels >= OBJ_PIXEL_LIMIT) return;
+			if (this._usedObjCells >= OBJ_CELL_LIMIT) return;
 
 			// Split the object horizontally to fit all remaining pixels
-			const visibleHeight = computeObjectPixels(0, y, 1, y + h);
-			const remaining = OBJ_PIXEL_LIMIT - this._usedObjPixels;
-			const newW = Math.floor(remaining / visibleHeight);
+			const visibleHeight = computeObjectPixels(0, y, OBJ_CELL_SIZE, y + h, true);
+			const remaining = OBJ_CELL_LIMIT - this._usedObjCells;
+			const newW = Math.floor(remaining / visibleHeight) * OBJ_CELL_SIZE;
 			enqueueObj(buffer, x, y, x + newW, y + h,
 				u, v, u + sprite.w * newW / w, v + Math.floor(sprite.h), pal.y, sprite.hiColor, prio, opts.flipH, opts.flipV);
-			this._usedObjPixels = OBJ_PIXEL_LIMIT;
+			this._usedObjCells = OBJ_CELL_LIMIT;
 			return;
 		}
-		this._usedObjPixels += pixels;
+		this._usedObjCells += pixels;
 
 		enqueueObj(buffer, x, y, x + w, y + h,
 			u, v, u + Math.floor(sprite.w), v + Math.floor(sprite.h), pal.y, sprite.hiColor, prio, opts.flipH, opts.flipV);
@@ -605,9 +605,8 @@ export class VDP {
 
 	// Take one frame in account for the stats. Read with _readStats.
 	private _computeStats() {
-		this._stats.peakBGUse = Math.max(this._stats.peakBGUse, Math.round(100 * this._usedBgPixels / BG_PIXEL_LIMIT));
-		this._stats.peakOBJUse = Math.max(this._stats.peakOBJUse, Math.round(100 * this._usedObjPixels / OBJ_PIXEL_LIMIT));
-		this._stats.peakOBJs = Math.max(this._stats.peakOBJs, this._obj0Buffer.usedSprites + this._obj1Buffer.usedSprites);
+		this._stats.peakBG = Math.max(this._stats.peakBG, Math.round(this._usedBgPixels / (this.screenWidth * this.screenHeight)));
+		this._stats.peakOBJ = Math.max(this._stats.peakOBJ, this._usedObjCells);
 	}
 
 	/**
@@ -658,7 +657,7 @@ export class VDP {
 		this._objTransparency.apply(this);
 		drawPendingObj(this, this._obj1Buffer, splitAt, this._obj1Buffer.usedSprites);
 
-		this._nextLinescrollBuffer = this._usedObjPixels = this._usedBgPixels = 0;
+		this._nextLinescrollBuffer = this._usedObjCells = this._usedBgPixels = 0;
 	}
 
 	/**
@@ -707,9 +706,8 @@ export class VDP {
 	public _getStats() {
 		const result = this._stats;
 		this._stats = {
-			peakOBJs: 0,
-			peakOBJUse: 0,
-			peakBGUse: 0,
+			peakOBJ: 0,
+			peakBG: 0,
 			peakVramWrites: 0
 		};
 		return result;

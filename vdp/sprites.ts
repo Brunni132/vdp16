@@ -10,7 +10,7 @@ import {
 	SCREEN_HEIGHT,
 	SCREEN_WIDTH
 } from "./shaders";
-import { DEBUG, VDP } from "./vdp";
+import { DEBUG, VDP, OBJ_CELL_SIZE } from "./vdp";
 
 const OBJ_BUFFER_STRIDE = 6;
 
@@ -238,15 +238,17 @@ void main(void) {
  * @param {number} y0
  * @param {number} x1
  * @param {number} y1
+ * @param {boolean} computeCells
  * @returns {number} the number of cells (e.g. 1 for a 16x16 square, 2 for a 17x16, etc.)
  */
-export function computeObjectPixels(x0: number, y0: number, x1: number, y1: number): number {
+export function computeObjectPixels(x0: number, y0: number, x1: number, y1: number, computeCells = false): number {
 	x0 = Math.max(0, Math.min(SCREEN_WIDTH, x0));
 	x1 = Math.max(0, Math.min(SCREEN_WIDTH, x1));
 	y0 = Math.max(0, Math.min(SCREEN_WIDTH, y0));
 	y1 = Math.max(0, Math.min(SCREEN_WIDTH, y1));
 	if (x0 > x1) [x1, x0] = [x0, x1];
 	if (y0 > y1) [y1, y0] = [y0, y1];
+	if (computeCells) return Math.ceil((x1 - x0) / OBJ_CELL_SIZE) * Math.ceil((y1 - y0) / OBJ_CELL_SIZE);
 	return (x1 - x0) * (y1 - y0);
 }
 
