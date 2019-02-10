@@ -15,7 +15,7 @@ export class VdpMap {
 		this.designPalette = designPalette;
 	}
 
-	offsetted(x: number, y: number, w: number, h: number): VdpMap {
+	offset(x: number, y: number, w: number, h: number): VdpMap {
 		this.x += x;
 		this.y += y;
 		this.w = w;
@@ -35,7 +35,7 @@ export class VdpPalette {
 		this.h = h;
 	}
 
-	offsetted(y: number, w: number, h: number): VdpPalette {
+	offset(y: number, w: number, h: number): VdpPalette {
 		this.y += y;
 		this.w = w;
 		this.h = h;
@@ -66,7 +66,7 @@ export class VdpSprite {
 		this.designPalette = designPalette;
 	}
 
-	offsetted(x: number, y: number, w: number, h: number): VdpSprite {
+	offset(x: number, y: number, w: number, h: number): VdpSprite {
 		this.x += x;
 		this.y += y;
 		this.w = w;
@@ -89,7 +89,7 @@ export class VdpSprite {
 
 		const col = no % columnsPerRow;
 		const row = Math.floor(no / columnsPerRow);
-		return this.offsetted(col * this.tw, row * this.th, this.tw, this.th);
+		return this.offset(col * this.tw, row * this.th, this.tw, this.th);
 	}
 }
 

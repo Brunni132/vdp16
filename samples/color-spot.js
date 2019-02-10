@@ -4,11 +4,6 @@ function *main() {
 	let loop = 0;
 	const mario = { x: 120, y: 128, w: 16, h: 16 };
 
-	const maskBgPalNo = vdp.palette('mask-bg').y;
-	// Replace color 0 (outside of mask) with opaque color 1 (gray)
-	const colorReplacements = [ new vdp.LineColorArray(0, maskBgPalNo) ];
-	colorReplacements[0].setAll(1, maskBgPalNo);
-
 	while (true) {
 		// Make mario turn around
 		mario.x = 120 + Math.cos(loop / 90) * 64;
@@ -37,7 +32,6 @@ function *main() {
 		}
 
 		vdp.configBackgroundTransparency({ op: 'sub', blendDst: '#fff', blendSrc: '#fff' });
-		vdp.configColorSwap(colorReplacements);
 
 		vdp.drawBackgroundTilemap('level1');
 		vdp.drawBackgroundTilemap('mask-bg', { wrap: false, transparent: true, lineTransform });

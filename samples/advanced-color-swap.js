@@ -18,21 +18,22 @@ function *main() {
 	// Note that the color (0, 32) is not used, it's transparent so it will let the backdrop appear
 	vdp.configBackdropColor(gradientPalette.getElement(0, 0));
 
-	// Set up another gradient for Mario's costume. Note that where the color 0 is used, the sprite will be transparent.
+	// Set up another gradient for Mario's costume. Note that here the color 0 is not transparent, because it
+	// originates from a non-zero pixel.
 	for (let i = 0; i < swaps[1].length; i++) {
 		swaps[1].setLine(i, Math.abs(i - swaps[1].length / 2) / 8, 33);
 	}
 
 	while (true) {
-		// Make a color gradient setting colors from top to bottom. Use the frame number to create an alternating horizontal
-		// mesh, creating the illusion of additional colors.
+		// Make a color gradient setting colors from top to bottom. Use the frame number to create an alternating
+		// horizontal mesh, creating the illusion of additional colors.
 		for (let i = 0; i < swaps[0].length; i++) {
 			const intensity = 16 * i / swaps[0].length;
 			const floatingPart = intensity - Math.floor(intensity);
 			const blinkActive = loop % 2 ? 1 : 0, blinkInactive = 1 - blinkActive;
 			const mesh = i % 2 ? blinkActive : blinkInactive;
 			let targetColorIndex;
-			if (floatingPart <= 0.5) targetColorIndex = intensity - mesh;
+			if (floatingPart <= 0.5) targetColorIndex = Math.max(0, intensity - mesh);
 			else targetColorIndex = intensity;
 			swaps[0].setLine(i, targetColorIndex, 32);
 		}
