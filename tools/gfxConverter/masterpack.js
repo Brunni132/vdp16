@@ -85,7 +85,7 @@ class MasterPack {
 	 * Allows to spare memory and colors.
 	 * @param [opts.hiColorMode=false] {boolean} if true, colors are 8 bits per pixel and palettes have 256 colors;
 	 * if false they are 4 bits per pixel and palettes have 16 colors.
-	 */
+ 	 */
 	constructor(opts) {
 		g_config.hiColorMode = opts.hasOwnProperty('hiColorMode') ? opts.hiColorMode : false;
 		g_config.paletteBpp = opts.hasOwnProperty('_paletteBpp') ? opts._paletteBpp : 4;
@@ -223,18 +223,18 @@ class MasterPack {
 
 		// Write all textures
 		console.log('Writing game data…');
-		if (!fs.existsSync('build')) fs.mkdirSync('build');
-		fs.writeFileSync('build/game.json', JSON.stringify(resultJson), function(err) {
+		if (!fs.existsSync('../build')) fs.mkdirSync('../build');
+		fs.writeFileSync('../build/game.json', JSON.stringify(resultJson), function(err) {
 				if (err) throw err;
 				console.log('complete');
 			}
 		);
-		this.mapTex.writeToPng('build/maps.png');
-		this.spriteTex.writeToPng('build/sprites.png');
-		this.paletteTex.writeToPng('build/palettes.png');
+		this.mapTex.writeToPng('../build/maps.png');
+		this.spriteTex.writeToPng('../build/sprites.png');
+		this.paletteTex.writeToPng('../build/palettes.png');
 		if (writeSample) {
 			console.log('Writing sample.png (optional & long, consider setting debug: false in gfx/packer-main.js)');
-			this.writeSampleImage(resultJson, 'sample.png');
+			this.writeSampleImage(resultJson, '../sample.png');
 		}
 	}
 

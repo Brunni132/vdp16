@@ -12,10 +12,10 @@ let conv = null;
 let currentPalette = null;
 let currentPaletteMultiple = null;
 let currentTileset = null;
-const paletteNamed = {};
-const spriteNamed = {};
-const tilesetNamed = {};
-const mapNamed = {};
+let paletteNamed = {};
+let spriteNamed = {};
+let tilesetNamed = {};
+let mapNamed = {};
 
 // System-only
 function checkConv() {
@@ -59,12 +59,18 @@ function image(name) {
 }
 
 function map(name, contents, opts, cb) {
+	if (name instanceof Map) {
+		conv.addMap(name);
+		mapNamed[name.name] = name;
+		return;
+	}
+
 	let result;
 	if (g_config.debug) console.log(`Processing map ${name}`);
 	assert(!!currentPalette, 'cannot define map outside of palette block');
 	assert(!!currentTileset, 'cannot define map outside of tileset block');
 	if (typeof contents === 'string') contents = image(contents);
-	if (typeof opts === 'function') { cb = opts; opts = null; }
+	if (typeof opts === 'function') [cb, opts] = [opts, null];
 	opts = opts || {};
 	if (contents.type === 'blank') {
 		const { params } = contents;
@@ -101,7 +107,7 @@ function multiPalette(name, contents, cb) {
 	else {
 		assert(false, `unsupported palettes arg ${contents}`);
 	}
-	cb();
+	cb(currentPaletteMultiple);
 	currentPaletteMultiple = null;
 }
 
@@ -110,11 +116,17 @@ function palette(name, cb) {
 	assert(!currentPalette && !currentPaletteMultiple, 'nested palettes not supported');
 	currentPalette = conv.createPalette(name);
 	paletteNamed[name] = currentPalette;
-	cb();
+	cb(currentPalette);
 	currentPalette = null;
 }
 
 function sprite(name, contents) {
+	if (name instanceof Sprite) {
+		conv.addSprite(name);
+		spriteNamed[name.name] = name;
+		return;
+	}
+
 	let result;
 	if (g_config.debug) console.log(`Processing sprite ${name}`);
 	assert(!!currentPalette, 'cannot define sprite outside of palette block');
@@ -133,18 +145,27 @@ function sprite(name, contents) {
 	spriteNamed[name] = result;
 }
 
-function tileset(name, contents, tileWidth, tileHeight, cb) {
+function tileset(name, contents, tileWidth, tileHeight, opts, cb) {
+	if (name instanceof Tileset) {
+		conv.addTileset(name);
+		tilesetNamed[name.name] = name;
+		return;
+	}
+
 	let result;
 	if (g_config.debug) console.log(`Processing tileset ${name}`);
 	assert(!!currentPalette, 'cannot define tileset outside of palette block');
 	if (typeof contents === 'string') contents = image(contents);
+	if (typeof opts === 'function') [cb, opts] = [opts, null];
+	opts = opts || {};
 	if (contents.type === 'blank') {
 		const { params } = contents;
 		assert(params.length === 2, 'Expects 2 params to blank(…) inside tileset');
 		result = Tileset.blank(name, tileWidth, tileHeight, params[0], params[1], currentPalette);
 	}
 	else if (contents instanceof Texture) {
-		result = Tileset.fromImage(name, contents, tileWidth, tileHeight, currentPalette);
+		const conversionOpts = { tilesetWidth: opts.tilesetWidth };
+		result = Tileset.fromImage(name, contents, tileWidth, tileHeight, currentPalette, conversionOpts);
 	}
 	else {
 		assert(false, `unsupported tileset arg ${contents}`);
@@ -153,7 +174,7 @@ function tileset(name, contents, tileWidth, tileHeight, cb) {
 	conv.addTileset(result);
 	tilesetNamed[name] = result;
 	currentTileset = result;
-	if (cb) cb();
+	if (cb) cb(result);
 	currentTileset = null;
 }
 
@@ -182,25 +203,34 @@ function tiledMap(name, fileNameBase, opts, cb) {
 	}
 
 	// Add these two to the conversion
-	const map = readTmx(fileNameBase, name, currentPaletteMultiple || currentPalette);
+	//const map = readTmx(fileNameBase, name, currentPaletteMultiple || currentPalette);
+	const tmx = new readTmx(tmxFileName);
+	const tileset = tmx.readTileset(name, currentPaletteMultiple || currentPalette);
+	const map = tmx.readMap(name, tileset);
 
-	conv.addTileset(map.tileset);
-	tilesetNamed[map.tileset.name] = map.tileset;
-
+	conv.addTileset(tileset);
+	tilesetNamed[tileset.name] = tileset;
 	conv.addMap(map);
 	mapNamed[map.name] = map;
+
 	if (cb) cb(map);
 }
 
+function _restart() {
+	conv = null;
+	currentPalette = null;
+	currentPaletteMultiple = null;
+	currentTileset = null;
+	paletteNamed = {};
+	spriteNamed = {};
+	tilesetNamed = {};
+	mapNamed = {};
+}
+
 module.exports = {
-	conv,
-	currentPalette,
-	currentPaletteMultiple,
-	currentTileset,
-	paletteNamed,
-	spriteNamed,
-	tilesetNamed,
-	mapNamed,
+	get global() {
+		return { conv, paletteNamed, spriteNamed, tilesetNamed, mapNamed }
+	},
 	addColors,
 	blank,
 	config,
@@ -208,7 +238,9 @@ module.exports = {
 	map,
 	multiPalette,
 	palette,
+	readTmx: (tmxFileName) => new readTmx(tmxFileName),
 	sprite,
 	tileset,
-	tiledMap
+	tiledMap,
+	_restart
 };

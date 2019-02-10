@@ -6,7 +6,6 @@ function *main() {
 	const sonicBgPaletteNo = vdp.palette('sonic1-bg').y;
 	for (let i = 0; i < swaps.length; i++)
 		swaps.setLine(i, 16 * i / swaps.length, sonicBgPaletteNo);
-	vdp.configBackdropColor('#333');
 
 	while (true) {
 		vdp.drawBackgroundTilemap('level1', { scrollX: loop, scrollY: loop / 4 });

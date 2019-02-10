@@ -218,10 +218,10 @@ void main(void) {
 		return;
 	}` +
 
-	// Bits 12-15: palette No
-`	int palOfs = mapTileNo / ${1 << 12};
+	// Bits 13-15: palette No
+`	int palOfs = mapTileNo / ${1 << 13};
 	float paletteOffset = basePalette + float(palOfs);
-	mapTileNo -= palOfs * ${1 << 12};` +
+	mapTileNo -= palOfs * ${1 << 13};` +
 
 	// Position of tile no in sprite texture, now we need to add the offset
 `	vec2 offsetInTile = vec2(int(texCoord.x) - mapX * int(vTileSize.x), int(texCoord.y) - mapY * int(vTileSize.y));

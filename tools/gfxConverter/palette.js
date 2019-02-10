@@ -108,7 +108,7 @@ class Palette {
 		}
 
 		if (ALLOW_MORE_COLORS && !this.alreadyWarned) {
-			console.log(`Max ${this.maxColors} colors exceeded in ${this.name}`.formatAs(utils.BRIGHT, utils.FG_RED));
+			console.log(`Max ${this.maxColors} colors exceeded in ${this.name}`.formatAs(utils.FG_RED));
 			this.alreadyWarned = true;
 		}
 		assert(ALLOW_MORE_COLORS, 'Exceeded color count in palette');
