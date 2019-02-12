@@ -724,7 +724,7 @@ export class VDP {
 	}
 
 	private _initContext(canvas: HTMLCanvasElement) {
-		this._gl = canvas.getContext("webgl", { premultipliedAlpha: true, alpha: SEMITRANSPARENT_CANVAS });
+		this._gl = canvas.getContext("webgl", { premultipliedAlpha: true, alpha: SEMITRANSPARENT_CANVAS, antialias: false });
 
 		// Only continue if WebGL is available and working
 		if (this._gl === null) {
