@@ -97,6 +97,10 @@ export enum CopySource {
 	blank,
 }
 
+function makeMat3(array: Float32Array): mat3 {
+	return mat3.fromValues(array[0], array[1], array[2], array[3], array[4], array[5], array[6], array[7], 1);
+}
+
 /**
  * Use this class to provide a transformation for each line of the BG when drawing. You can create many kind of effects
  * using this, look at the samples.
@@ -110,23 +114,80 @@ export class LineTransformationArray {
 		// 8 floats per item (hack for the last one since mat3 is actually 9 items)
 		this.length = SCREEN_HEIGHT;
 		this.buffer = new Float32Array(this.length * 8);
+		this.resetAll();
   }
 
-  getLine(lineNo): mat3 {
-	  if (lineNo < 0 || lineNo >= this.length) throw new Error(`getLine: index ${lineNo} out of range`);
-		return mat3.fromValues(this.buffer[lineNo * 8], this.buffer[lineNo * 8 + 1], this.buffer[lineNo * 8 + 2], this.buffer[lineNo * 8 + 3], this.buffer[lineNo * 8 + 4], this.buffer[lineNo * 8 + 5], this.buffer[lineNo * 8 + 6], this.buffer[lineNo * 8 + 7], 1);
+  getLine(lineNo: number): Float32Array {
+		return this._getLine(lineNo);
   }
 
-  setAll(transformation: mat3) {
-	  const copy = mat3.create();
-	  this._assignedId = -1;
-	  for (let i = 0; i < this.length; i++) {
-			mat3.translate(copy, transformation, [0, i]);
-			this.setLine(i, copy);
-	  }
-  }
+	identityAll() {
+		this._assignedId = -1;
+		for (let i = 0; i < this.length; i++) this.identityLine(i);
+	}
 
-	setLine(lineNo: number, transformation: mat3) {
+	identityLine(lineNo: number) {
+		const mat = mat3.create();
+		mat3.identity(mat);
+		this._setLine(lineNo, mat);
+	}
+
+	resetAll() {
+		this._assignedId = -1;
+		for (let i = 0; i < this.length; i++) this.resetLine(i);
+	}
+
+	resetLine(lineNo: number) {
+		const mat = mat3.create();
+		mat3.fromTranslation(mat, [0, lineNo]);
+		this._setLine(lineNo, mat);
+	}
+
+	rotateLine(lineNo: number, radians: number) {
+		const mat = makeMat3(this._getLine(lineNo));
+		mat3.rotate(mat, mat, radians);
+		this._setLine(lineNo, mat);
+	}
+
+	scaleLine(lineNo: number, scaleXY: number[]) {
+		if (!Array.isArray(scaleXY) || scaleXY.length !== 2) throw new Error('Array should be [x, y]');
+		const mat = makeMat3(this._getLine(lineNo));
+		mat3.scale(mat, mat, scaleXY);
+		this._setLine(lineNo, mat);
+	}
+
+	translateLine(lineNo: number, moveXY: number[]) {
+		if (!Array.isArray(moveXY) || moveXY.length !== 2) throw new Error('Array should be [x, y]');
+		const mat = makeMat3(this._getLine(lineNo));
+		mat3.translate(mat, mat, moveXY);
+		this._setLine(lineNo, mat);
+	}
+
+	transformVector(lineNo: number, vectorXY: number): {x: number, y: number} {
+		if (!Array.isArray(vectorXY) || vectorXY.length !== 2) throw new Error('Array should be [x, y]');
+		const result = vec2.create();
+		const mat = makeMat3(this._getLine(lineNo));
+		vec2.transformMat3(result, vectorXY, mat);
+		return {x: result[0], y: result[1]};
+	}
+
+	transformVectorInverse(lineNo: number, vectorXY: number): {x: number, y: number} {
+		if (!Array.isArray(vectorXY) || vectorXY.length !== 2) throw new Error('Array should be [x, y]');
+		const result = vec2.create();
+		const mat = makeMat3(this._getLine(lineNo));
+		mat3.invert(mat, mat);
+		vec2.transformMat3(result, vectorXY, mat);
+		return {x: result[0], y: result[1]};
+	}
+
+	/** @internal */
+	private _getLine(lineNo: number): mat3 {
+		if (lineNo < 0 || lineNo >= this.length) throw new Error(`getLine: index ${lineNo} out of range`);
+		return makeMat3(this.buffer.subarray(lineNo * 8, lineNo * 8 + 8));
+	}
+
+	/** @internal */
+	private _setLine(lineNo: number, transformation: mat3) {
 		if (lineNo < 0 || lineNo >= this.length) throw new Error(`setLine: index ${lineNo} out of range`);
 		this._assignedId = -1;
 		this.buffer.set((transformation as Float32Array).subarray(0, 8), lineNo * 8);
@@ -204,8 +265,6 @@ export class VDP {
 	public LineTransformationArray = LineTransformationArray;
 	public CopySource = CopySource;
 	public color = color;
-	public mat3 = mat3;
-	public vec2 = vec2;
 
 	constructor(canvas: HTMLCanvasElement, imageDirectory: string, done: () => void) {
 		this._initContext(canvas);

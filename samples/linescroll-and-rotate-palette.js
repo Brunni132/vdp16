@@ -1,5 +1,3 @@
-const mat3 = vdp.mat3;
-
 function *main() {
 	let loop = 0;
 	const lineTransform = new vdp.LineTransformationArray();
@@ -17,20 +15,15 @@ function *main() {
 			else if (i < 152) scrollFactor = 0.4;
 			else scrollFactor = 0.45 + (i - 152) * 0.01;
 
-			const transform = mat3.create();
-			mat3.translate(transform, transform, [loop * scrollFactor, i]);
-			lineTransform.setLine(i, transform);
+			lineTransform.resetLine(i);
+			lineTransform.translateLine(i, [loop * scrollFactor, 0]);
 		}
 
 		// Rotate waterfall colors (1-5)
 		// We have created another palette in the packer for the waterfall, named sonic1-bg-rotating
 		if (loop % 4 === 0) {
 			const pal = vdp.readPalette('sonic1-bg-rotating');
-			const lastCol = pal.getElement(4, 0);
-			pal.setElement(4, 0, pal.getElement(3, 0));
-			pal.setElement(3, 0, pal.getElement(2, 0));
-			pal.setElement(2, 0, pal.getElement(1, 0));
-			pal.setElement(1, 0, lastCol);
+			[pal.array[1], pal.array[2], pal.array[3], pal.array[4]] = [pal.array[4], pal.array[1], pal.array[2], pal.array[3]];
 			vdp.writePalette('sonic1-bg-rotating', pal);
 		}
 

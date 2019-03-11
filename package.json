@@ -33,7 +33,7 @@
     "build-app": "shx rm -rf temp temp-esm && tsc && webpack --config webpack.exe.js",
     "build-exe": "pkg -t node8-win-x86 -o packer tools/gfxConverter/executable.js",
     "app-dev-server": "webpack-dev-server --config webpack.dev.js",
-    "pack-gfx": "node tools/gfxConverter/executable.js --convert-only",
+    "pack-gfx": "node tools/gfxConverter/executable.js --no-server",
     "pack-and-serve": "node tools/gfxConverter/executable.js"
   },
   "author": "",

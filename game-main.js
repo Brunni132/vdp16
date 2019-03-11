@@ -1,34 +1,37 @@
 import {startGame, VDP} from "./lib-main";
-import {mat3} from 'gl-matrix';
 
 /** @param vdp {VDP}*/
 function *main(vdp) {
 	let loop = 0;
 
-	const firstBlankPalette = 0;
-	const palMem = vdp.readPaletteMemory(0, firstBlankPalette, 16, 3, vdp.CopySource.blank);
-	// Blue to red gradient
-	for (let i = 0; i < 16; i++)
-		palMem.setElement(i, 0, vdp.color.make(i * 16, 0, 0x88 - i * 8));
-	// Red to yellow
-	for (let i = 1; i < 16; i++)
-		palMem.setElement(i, 1, vdp.color.make(255, i * 16, 0));
-	vdp.writePaletteMemory(0, firstBlankPalette, 16, 3, palMem);
-
-	const colorSwap = new vdp.LineColorArray(0, firstBlankPalette);
-	// Color 0 will be transparent
-	vdp.configBackdropColor(palMem.getElement(0, 0));
-	for (let i = 3; i < 48; i++)
-		colorSwap.setLine(i, i / 3, firstBlankPalette);
-	for (let i = 4; i < 64; i++)
-		colorSwap.setLine(i + 44, i / 4, firstBlankPalette + 1);
-	for (let i = 108; i < 128; i++)
-		colorSwap.setLine(i, 15, firstBlankPalette + 1);
-	vdp.configColorSwap([colorSwap]);
+	// Black has been made transparent to spare one color
+	vdp.configBackdropColor('#20a');
 
 	while (true) {
-		vdp.drawObject('mario', 100, 100, { prio: 2 });
-		loop++;
+
+		const lineTransform = new vdp.LineTransformationArray();
+		for (let i = 0; i < lineTransform.length; i++) {
+			let scrollFactor = 1;
+			if (i < 32) scrollFactor = 0.7;
+			else if (i < 48) scrollFactor = 0.5;
+			else if (i < 64) scrollFactor = 0.3;
+			else if (i < 112) scrollFactor = 0.2;
+			else if (i < 152) scrollFactor = 0.4;
+			else scrollFactor = 0.45 + (i - 152) * 0.01;
+
+			lineTransform.translateLine(i, [loop * scrollFactor, 0]);
+		}
+
+		// Rotate waterfall colors (1-5)
+		// We have created another palette in the packer for the waterfall, named sonic1-bg-rotating
+		if (loop % 4 === 0) {
+			const pal = vdp.readPalette('sonic1-bg-rotating');
+			[pal.array[1], pal.array[2], pal.array[3], pal.array[4]] = [pal.array[4], pal.array[1], pal.array[2], pal.array[3]];
+			vdp.writePalette('sonic1-bg-rotating', pal);
+		}
+
+		vdp.drawBackgroundTilemap('sonic1-bg', { lineTransform });
+		loop += 1;
 		yield;
 	}
 }
