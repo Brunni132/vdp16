@@ -56,36 +56,6 @@ class TransparencyConfig {
 		this.blendSrc = blendSrc;
 		this.blendDst = blendDst;
 	}
-
-	apply(vdp: VDP) {
-		const gl = vdp._gl;
-		const {effect, blendSrc, blendDst, operation} = this;
-
-		envColor[0] = envColor[1] = envColor[2] = envColor[3] = 1;
-		gl.blendEquation(operation === 'sub' ? gl.FUNC_REVERSE_SUBTRACT : gl.FUNC_ADD);
-
-		if (effect === 'blend') { // Used internally for the fade
-			gl.enable(gl.BLEND);
-			gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-		} else if (effect === 'premult') {
-			gl.enable(gl.BLEND);
-			gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-		} else if (effect === 'color') {
-			const dst = color.extract(blendDst, vdp._paletteBpp);
-			const src = color.extract(blendSrc, vdp._paletteBpp);
-			// Background blend factor
-			gl.blendColor(dst.r / 255, dst.g / 255, dst.b / 255, dst.a / 255);
-			// Source blend factor defined in shader
-			envColor[0] = src.r / 255;
-			envColor[1] = src.g / 255;
-			envColor[2] = src.b / 255;
-			envColor[3] = src.a / 255;
-			gl.blendFunc(gl.SRC_ALPHA, gl.CONSTANT_COLOR);
-			gl.enable(gl.BLEND);
-		} else {
-			gl.disable(gl.BLEND);
-		}
-	}
 }
 
 const NO_TRANSPARENCY = new TransparencyConfig('none', 'add', 0, 0);
@@ -665,6 +635,35 @@ export class VDP {
 	}
 
 	// --------------------- PRIVATE ---------------------
+	private _applyTransparencyConfig(transparencyConfig) {
+		const gl = this._gl;
+		const {effect, blendSrc, blendDst, operation} = transparencyConfig;
+
+		envColor[0] = envColor[1] = envColor[2] = envColor[3] = 1;
+		gl.blendEquation(operation === 'sub' ? gl.FUNC_REVERSE_SUBTRACT : gl.FUNC_ADD);
+
+		if (effect === 'blend') { // Used internally for the fade
+			gl.enable(gl.BLEND);
+			gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+		} else if (effect === 'premult') {
+			gl.enable(gl.BLEND);
+			gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+		} else if (effect === 'color') {
+			const dst = color.extract(blendDst, this._paletteBpp);
+			const src = color.extract(blendSrc, this._paletteBpp);
+			// Background blend factor
+			gl.blendColor(dst.r / 255, dst.g / 255, dst.b / 255, dst.a / 255);
+			// Source blend factor defined in shader
+			envColor[0] = src.r / 255;
+			envColor[1] = src.g / 255;
+			envColor[2] = src.b / 255;
+			envColor[3] = src.a / 255;
+			gl.blendFunc(gl.SRC_ALPHA, gl.CONSTANT_COLOR);
+			gl.enable(gl.BLEND);
+		} else {
+			gl.disable(gl.BLEND);
+		}
+	}
 
 	// Take one frame in account for the stats. Read with _readStats.
 	private _computeStats() {
@@ -707,7 +706,7 @@ export class VDP {
 		}
 
 		// OBJ0 and BG (both opaque, OBJ0 first to appear above
-		NO_TRANSPARENCY.apply(this);
+		this._applyTransparencyConfig(NO_TRANSPARENCY);
 		drawPendingMap(this, this._bgBuffer);
 		drawPendingObj(this, this._obj0Buffer, 0, this._obj0Buffer.usedSprites);
 
@@ -715,15 +714,15 @@ export class VDP {
 		const splitAt = this._obj1Buffer.sort(this._tbgBuffer.getZOfBG(0));
 
 		// Objects in front of the BG
-		this._objTransparency.apply(this);
+		this._applyTransparencyConfig(this._objTransparency);
 		drawPendingObj(this, this._obj1Buffer, 0, splitAt);
 
 		// OBJ1 then TBG, so OBJ1 can be used as mask
-		this._bgTransparency.apply(this);
+		this._applyTransparencyConfig(this._bgTransparency);
 		drawPendingMap(this, this._tbgBuffer);
 
 		// Objects behind the BG
-		this._objTransparency.apply(this);
+		this._applyTransparencyConfig(this._objTransparency);
 		drawPendingObj(this, this._obj1Buffer, splitAt, this._obj1Buffer.usedSprites);
 
 		this._nextLinescrollBuffer = this._usedObjCells = this._usedBgPixels = 0;
@@ -742,7 +741,7 @@ export class VDP {
 		if (a > 0) {
 			const gl = this._gl;
 
-			STANDARD_TRANSPARENCY.apply(this);
+			this._applyTransparencyConfig(STANDARD_TRANSPARENCY);
 			gl.disable(gl.DEPTH_TEST);
 			drawOpaquePoly(this, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, r / 255, g / 255, b / 255, a / 255);
 		}
