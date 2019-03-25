@@ -1,11 +1,11 @@
 function *main() {
 	let loop = 0;
-	const lineTransform = new vdp.LineTransformationArray();
 
 	// Black has been made transparent to spare one color
 	vdp.configBackdropColor('#20a');
 
 	while (true) {
+		const lineTransform = new vdp.LineTransformationArray();
 		for (let i = 0; i < lineTransform.length; i++) {
 			let scrollFactor = 1;
 			if (i < 32) scrollFactor = 0.7;
@@ -15,7 +15,6 @@ function *main() {
 			else if (i < 152) scrollFactor = 0.4;
 			else scrollFactor = 0.45 + (i - 152) * 0.01;
 
-			lineTransform.resetLine(i);
 			lineTransform.translateLine(i, [loop * scrollFactor, 0]);
 		}
 

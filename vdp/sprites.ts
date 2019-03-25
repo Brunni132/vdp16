@@ -63,7 +63,7 @@ export class ObjBuffer {
 
 	/**
 	 * @returns {number} the z component of an object at the index-th position
-	 * @param index {number}
+	 * @param index {number} index in the array (not based on the firstVertice)
 	 */
 	getZOfObject(index): number {
 		return this.xyzp[OBJ_BUFFER_STRIDE * 4 * index + 2];
@@ -129,7 +129,10 @@ export class ObjBuffer {
 		let hasSplitAt = items.length;
 		for (let i = 0; i < items.length; i++) {
 			// Return the first sprite number that is behind the Z asked
-			if (this.getZOfObject(items[i]) <= splitAtZ) hasSplitAt = i;
+			if (this.getZOfObject(items[i]) <= splitAtZ) {
+				hasSplitAt = i;
+				break;
+			}
 		}
 
 		const originalXyzp = this.xyzp.slice();
@@ -146,6 +149,10 @@ export class ObjBuffer {
 		}
 
 		return hasSplitAt;
+	}
+
+	reset() {
+		this.usedVertices = 0;
 	}
 
 	get usedSprites(): number {
@@ -310,9 +317,7 @@ export function drawPendingObj(vdp: VDP, objBuffer: ObjBuffer, first: number, la
 	gl.uniform4f(prog.uniformLocations.envColor, envColor[0], envColor[1], envColor[2], envColor[3]);
 	gl.uniform4f(prog.uniformLocations.colorSwaps, colorSwaps[0], colorSwaps[1], colorSwaps[2], colorSwaps[3]);
 
-	gl.drawArrays(gl.TRIANGLES, first * OBJ_BUFFER_STRIDE, last * OBJ_BUFFER_STRIDE);
-
-	objBuffer.usedVertices = 0;
+	gl.drawArrays(gl.TRIANGLES, first * OBJ_BUFFER_STRIDE, (last - first) * OBJ_BUFFER_STRIDE);
 }
 
 export function enqueueObj(objBuffer: ObjBuffer, xStart: number, yStart: number, xEnd: number, yEnd: number, uStart: number, vStart: number, uEnd: number, vEnd: number, palNo: number, hiColor: boolean, z = 0, flipH = false, flipV = false) {

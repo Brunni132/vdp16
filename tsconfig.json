@@ -10,6 +10,7 @@
     "allowJs": false,
     "sourceMap": true,
     "declaration": true,
+    "stripInternal": true
   },
   "exclude": [
     "node_modules",

@@ -2,6 +2,8 @@ import { loadVdp, runProgram } from './vdp/runloop';
 import { VDP } from './vdp/vdp';
 import { color } from './vdp/color';
 
+let vdp: VDP;
+
 export function startStandalone(resourceDirectory: string, scriptFile: string) {
 	Promise.all([
 		window.fetch(scriptFile).then((res) => {
@@ -21,13 +23,14 @@ export function startStandalone(resourceDirectory: string, scriptFile: string) {
 
 export function startGame(canvasSelector: string, loadedCb: (vdp: VDP) => IterableIterator<void>) {
 	loadVdp(document.querySelector(canvasSelector), './build')
-		.then(vdp => {
-			window['vdp'] = vdp;
-			runProgram(vdp, loadedCb(vdp));
+		.then(_vdp => {
+			vdp = _vdp;
+			runProgram(_vdp, loadedCb(_vdp));
 		});
 }
 
 export {
+	vdp,
 	VDP,
 	color,
 };

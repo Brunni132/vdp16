@@ -40,6 +40,7 @@ export const DEBUG = true;
 const MAX_BGS = 32, MAX_OBJS = 512, MAX_VRAM_WRITES = 2048, MAX_FRAME_SLOWDOWN = 30, MAX_LINESCROLL_BUFFERS = 2;
 let BG_PIXEL_LIMIT: number, OBJ_CELL_LIMIT: number, OBJ_LIMIT: number;
 export const OBJ_CELL_SIZE = 16;
+let POSTERIZATION_LEVELS;
 
 type TransparencyConfigEffect = 'none' | 'color' | 'blend' | 'premult';
 type TransparencyConfigOperation = 'add' | 'sub';
@@ -91,17 +92,6 @@ export class LineTransformationArray {
 		return this._getLine(lineNo);
   }
 
-	identityAll() {
-		this._assignedId = -1;
-		for (let i = 0; i < this.length; i++) this.identityLine(i);
-	}
-
-	identityLine(lineNo: number) {
-		const mat = mat3.create();
-		mat3.identity(mat);
-		this._setLine(lineNo, mat);
-	}
-
 	resetAll() {
 		this._assignedId = -1;
 		for (let i = 0; i < this.length; i++) this.resetLine(i);
@@ -109,28 +99,38 @@ export class LineTransformationArray {
 
 	resetLine(lineNo: number) {
 		const mat = mat3.create();
-		mat3.fromTranslation(mat, [0, lineNo]);
-		this._setLine(lineNo, mat);
+		mat3.identity(mat);
+		this.setLine(lineNo, mat);
 	}
 
 	rotateLine(lineNo: number, radians: number) {
 		const mat = makeMat3(this._getLine(lineNo));
 		mat3.rotate(mat, mat, radians);
-		this._setLine(lineNo, mat);
+		this.setLine(lineNo, mat);
 	}
 
 	scaleLine(lineNo: number, scaleXY: number[]) {
 		if (!Array.isArray(scaleXY) || scaleXY.length !== 2) throw new Error('Array should be [x, y]');
 		const mat = makeMat3(this._getLine(lineNo));
 		mat3.scale(mat, mat, scaleXY);
-		this._setLine(lineNo, mat);
+		this.setLine(lineNo, mat);
+	}
+
+	setAll(transformation: mat3|Float32Array) {
+		for (let i = 0; i < this.length; i++) this.setLine(i, transformation);
+	}
+
+	setLine(lineNo: number, transformation: mat3|Float32Array) {
+		if (lineNo < 0 || lineNo >= this.length) throw new Error(`setLine: index ${lineNo} out of range`);
+		this._assignedId = -1;
+		this.buffer.set((transformation as Float32Array).subarray(0, 8), lineNo * 8);
 	}
 
 	translateLine(lineNo: number, moveXY: number[]) {
 		if (!Array.isArray(moveXY) || moveXY.length !== 2) throw new Error('Array should be [x, y]');
 		const mat = makeMat3(this._getLine(lineNo));
 		mat3.translate(mat, mat, moveXY);
-		this._setLine(lineNo, mat);
+		this.setLine(lineNo, mat);
 	}
 
 	transformVector(lineNo: number, vectorXY: number): {x: number, y: number} {
@@ -155,16 +155,10 @@ export class LineTransformationArray {
 		if (lineNo < 0 || lineNo >= this.length) throw new Error(`getLine: index ${lineNo} out of range`);
 		return makeMat3(this.buffer.subarray(lineNo * 8, lineNo * 8 + 8));
 	}
-
-	/** @internal */
-	private _setLine(lineNo: number, transformation: mat3) {
-		if (lineNo < 0 || lineNo >= this.length) throw new Error(`setLine: index ${lineNo} out of range`);
-		this._assignedId = -1;
-		this.buffer.set((transformation as Float32Array).subarray(0, 8), lineNo * 8);
-	}
 }
 
 export class LineColorArray {
+	// TODO Florian -- rename to _buffer to hide
 	buffer: Float32Array;
 	length: number;
 	targetPaletteNumber: number;
@@ -177,14 +171,17 @@ export class LineColorArray {
 		this.buffer = new Float32Array(this.length * 4);
 	}
 
-	setAll(paletteIndex: number, paletteNumber: number) {
-		for (let i = 0; i < this.length; i++) this.setLine(i, paletteIndex, paletteNumber);
+	setAll(_color: number) {
+		for (let i = 0; i < this.length; i++) this.setLine(i, _color);
 	}
 
-	setLine(lineNo: number, paletteIndex: number, paletteNumber: number) {
+	setLine(lineNo: number, _color: number) {
 		if (lineNo < 0 || lineNo >= this.length) throw new Error(`setLine: index ${lineNo} out of range`);
-		this.buffer[lineNo * 4] = Math.floor(paletteIndex % 256) / PALETTE_TEX_W;
-		this.buffer[lineNo * 4 + 1] = Math.floor(paletteNumber % 256) / PALETTE_TEX_H;
+
+		const col = color.extract(_color, POSTERIZATION_LEVELS);
+		this.buffer[lineNo * 4] = col.r / 255.0;
+		this.buffer[lineNo * 4 + 1] = col.g / 255.0;
+		this.buffer[lineNo * 4 + 2] = col.b / 255.0;
 	}
 }
 
@@ -230,6 +227,8 @@ export class VDP {
 	private _usedObjCells = 0;
 	private _usedVramWrites = 0;
 
+	public vec2 = vec2;
+	public mat3 = mat3;
 	public input: Input;
 	public LineColorArray = LineColorArray;
 	public LineTransformationArray = LineTransformationArray;
@@ -249,7 +248,7 @@ export class VDP {
 			return res.json();
 		}).then((json) => {
 			this._gameData = json;
-			this._paletteBpp = json.info.paletteBpp;
+			POSTERIZATION_LEVELS = this._paletteBpp = json.info.paletteBpp;
 			if ([2, 3, 4, 5, 8].indexOf(this._paletteBpp) === -1) throw new Error(`Unsupported paletteBpp ${this._paletteBpp}`);
 
 				Promise.all([
@@ -312,8 +311,8 @@ export class VDP {
 			throw new Error(`Invalid operation ${opts.op}`);
 		}
 		this._bgTransparency.operation = opts.op;
-		this._bgTransparency.blendSrc = color.make(opts.blendSrc);
-		this._bgTransparency.blendDst = color.make(opts.blendDst);
+		this._bgTransparency.blendSrc = color.posterize(color.make(opts.blendSrc), this._paletteBpp);
+		this._bgTransparency.blendDst = color.posterize(color.make(opts.blendDst), this._paletteBpp);
 	}
 
 	/**
@@ -371,8 +370,8 @@ export class VDP {
 			throw new Error(`Invalid operation ${opts.op}`);
 		}
 		this._objTransparency.operation = opts.op;
-		this._objTransparency.blendSrc = color.make(opts.blendSrc);
-		this._objTransparency.blendDst = color.make(opts.blendDst);
+		this._objTransparency.blendSrc = color.posterize(color.make(opts.blendSrc), this._paletteBpp);
+		this._objTransparency.blendDst = color.posterize(color.make(opts.blendDst), this._paletteBpp);
 	}
 
 	/**
@@ -725,6 +724,8 @@ export class VDP {
 		this._applyTransparencyConfig(this._objTransparency);
 		drawPendingObj(this, this._obj1Buffer, splitAt, this._obj1Buffer.usedSprites);
 
+		this._obj0Buffer.reset();
+		this._obj1Buffer.reset();
 		this._nextLinescrollBuffer = this._usedObjCells = this._usedBgPixels = 0;
 	}
 

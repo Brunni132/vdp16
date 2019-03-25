@@ -1,3 +1,5 @@
+import {vdp} from "../lib-main";
+
 const mat3 = vdp.mat3, vec2 = vdp.vec2;
 
 // You can play with that for the perspective
@@ -6,7 +8,8 @@ function scaleAtLine(line) { return 100 / (line + 50); }
 function drawSprite(vdp, transformations, x, z, obj) {
 	// I'll leave the computation to someone better at math than me ;) it's super inefficient but does the trick.
 	// Here I just try to find the screen-space line on which the sprite is the most fitted (if any) by doing the inverse
-	// transformation on each line; if it's right, the 'y' component of the transformed vector should be around 0.
+	// transformation on each line; if it's right, the 'y' component of the transformed vector should be mostly equal to
+	// the line number itself.
 	const mat = mat3.create();
 	const untransformed = vec2.fromValues(x, z);
 	const result = vec2.create();
@@ -15,7 +18,7 @@ function drawSprite(vdp, transformations, x, z, obj) {
 		scale = scaleAtLine(line);
 		mat3.invert(mat, transformations[line]);
 		vec2.transformMat3(result, untransformed, mat);
-		if (Math.abs(result[1] ) < scale * 2) {
+		if (Math.abs(result[1] - line) < scale * 2) {
 			break;
 		}
 	}
@@ -43,7 +46,7 @@ function *main() {
 			mat3.translate(mat, mat, viewerPos);
 			mat3.rotate(mat, mat, viewerAngle);
 			mat3.scale(mat, mat, [scale, scale]);
-			mat3.translate(mat, mat, [-128, -256 + line]);
+			mat3.translate(mat, mat, [-128, -256]);
 			transformations.push(mat);
 		}
 

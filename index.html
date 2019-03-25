@@ -41,6 +41,19 @@
     <div id="content">
         <canvas id="glCanvas" width="256" height="256" style="width: 512px; height: 512px;"></canvas>
     </div>
+    <script>
+        var canvas = document.querySelector('#glCanvas');
+        // Resize the canvas for the pixel ratio so that pixels are not stretched (for 100-200%)
+        var ratio = window.devicePixelRatio;
+        if (ratio < 2) {
+            canvas.style.width = `${256 / ratio * 2}px`;
+            canvas.style.height = `${256 / ratio * 2}px`;
+        } else {
+            ratio = Math.floor(ratio);
+            canvas.style.width = `${256 * ratio}px`;
+            canvas.style.height = `${256 * ratio}px`;
+        }
+    </script>
     <script src="build/game.bundle.js"></script>
 </body>
 </html>

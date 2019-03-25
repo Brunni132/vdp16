@@ -106,7 +106,7 @@ export function declareReadPalette(allowDiscard = true): string {
 
 	return `vec4 readColorSwapBuffer(int bufferNo, float horizOffset) {
 	vec4 read = texture2D(uSamplerOthers, vec2((${SCREEN_HEIGHT}.0 - horizOffset) / ${OTHER_TEX_W}.0, float(bufferNo) / ${OTHER_TEX_H}.0));
-	return texture2D(uSamplerPalettes, read.xy);
+	return vec4(read.xyz, 1.0);
 }
 
 vec4 readPalette(highp float x, highp float y) {

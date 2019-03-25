@@ -42,6 +42,7 @@ const mapping = {
 };
 
 export class Input {
+	/** @internal */
 	private readonly keyState: KeyState[];
 	public Key = Key;
 

@@ -1,7 +1,7 @@
 const path = require('path');
 
 module.exports = {
-	entry: './game-main.js',
+	entry: './src/game-main.js',
 	devtool: 'none',
 	module: {
 		rules: [

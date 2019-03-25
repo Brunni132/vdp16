@@ -12,8 +12,6 @@ function *main() {
 		const center = { x: Math.floor(mario.x + mario.w / 2), y: Math.floor(mario.y + mario.h / 2) };
 		const circleRay = Math.max(32, 300 - loop * 3);
 
-		// This is a case where we want to use the row 0 all the time (the tilemap is only 8x1 pixels), so use identity
-		lineTransform.identityAll();
 		for (let y = 0; y < vdp.screenHeight; y++) {
 			let scale = 0;
 			// Circle visible on that line?
@@ -22,7 +20,8 @@ function *main() {
 				scale = Math.cos(angle) * circleRay;
 			}
 
-			// Centered on the 4th pixel of the mask-bg horizontally (the black stripe)
+			// Centered on the 4th pixel of the mask-bg horizontally (the black stripe).
+			// Note that the y position does nothing because the map is 1-pixel tall and autorepeated.
 			lineTransform.translateLine(y, [4, 0]);
 			lineTransform.scaleLine(y, [1 / scale, 1 / scale]);
 			lineTransform.translateLine(y, [-center.x, 0]);

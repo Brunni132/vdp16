@@ -46,7 +46,7 @@ export class MapBuffer {
 
 	/**
 	 * @returns {number} the z component of the BG at the index-th position
-	 * @param index {number}
+	 * @param index {number} index in the existing BGs (based on firstVertice)
 	 */
 	getZOfBG(index: number): number {
 		return this.xyzp[this.firstVertice + BG_BUFFER_STRIDE * 4 * index + 2];
@@ -74,7 +74,7 @@ varying float vPaletteNo;
 varying highp vec2 vMapStart;
 varying highp vec2 vMapSize;
 varying vec2 vTilesetStart;
-varying float vTilesetWidth;
+varying float vTilesetWidth, vScrollY;
 varying vec2 vTileSize;
 varying mat3 vTransformationMatrix;
 // [0] = linescroll buffer, if 0 use vTransformationMatrix always, [1] = whether to wrap around
@@ -100,6 +100,7 @@ void main(void) {
 	vTilesetStart = floor(aMapInfo1.zw);
 	vMapSize = floor(aMapInfo2.xy);
 	vTilesetWidth = floor(aMapInfo2.z);
+	vScrollY = floor(aMapInfo2.w);
 	vTileSize = floor(aMapInfo3.xy);
 	vTextureCoord = floor(aMapInfo3.zw);
 	vOtherInfo = floor(aMapInfo4.xy);
@@ -131,7 +132,7 @@ varying highp vec2 vMapStart;
 varying highp vec2 vMapSize;` +
 // tilesetSize is in tiles!
 `varying vec2 vTilesetStart;
-varying float vTilesetWidth;
+varying float vTilesetWidth, vScrollY;
 varying vec2 vTileSize;
 varying mat3 vTransformationMatrix;
 varying vec2 vOtherInfo;
@@ -184,13 +185,13 @@ ${declareReadTexel()}
 ${declareReadPalette()}
 
 void main(void) {
-	mat3 transformationMatrix;
-	float y = vTextureCoord.y;
+	mat3 transformationMatrix;` +
+	// This is the line, not the actual y position yet (vTextureCoord.x is transformed already, because it doesn't matter)
+`	float lineNo = vTextureCoord.y, y = lineNo + vScrollY;
 	// Per-line info
 	if (vOtherInfo.x >= 256.0) {` +
 		// 2 colors (8 float values) per matrix
-`		transformationMatrix = readLinescrollBuffer(int(vOtherInfo.x) - 256, int(y) * 2);
-		y = 0.0;
+`		transformationMatrix = readLinescrollBuffer(int(vOtherInfo.x) - 256, int(lineNo) * 2);
 	}
 	else {
 		transformationMatrix = vTransformationMatrix;
@@ -213,9 +214,7 @@ void main(void) {
 	// Invisible tile (TODO Florian -- support in the converter)
 `	int mapTileNo = readMap(mapX, mapY);` +
 `	if (mapTileNo >= 65535) {
-		vec4 color = readPalette(0.0, basePalette / ${PALETTE_TEX_H}.0);
-		gl_FragColor = ${makeOutputColor('color')};
-		return;
+		discard;
 	}` +
 
 	// Bits 13-15: palette No
@@ -223,7 +222,7 @@ void main(void) {
 	float paletteOffset = basePalette + float(palOfs);
 	mapTileNo -= palOfs * ${1 << 13};` +
 
-	// Position of tile no in sprite texture, now we need to add the offset
+	// Position of tile no in sprite texture, now we need to add the offset (all this is because the modulus is not working well on integer math in WebGL)
 `	vec2 offsetInTile = vec2(int(texCoord.x) - mapX * int(vTileSize.x), int(texCoord.y) - mapY * int(vTileSize.y));
 	vec2 tilesetPos = positionInTexture(mapTileNo) + offsetInTile;
 	float texel;
@@ -383,21 +382,21 @@ export function enqueueMap(mapBuffer: MapBuffer, uMap: number, vMap: number, uTi
 		uMap, vMap, uTileset, vTileset,
 		uMap, vMap, uTileset, vTileset
 	], 4), 4 * firstVertice);
-	// map width, map height, tileset width, z for hi-prio tiles
+	// map width, map height, tileset width, <unused>
 	mapBuffer.mapInfo2.set(TEMP_MakeDualTriangle([
-		mapWidth, mapHeight, tilesetWidth, 0,
-		mapWidth, mapHeight, tilesetWidth, 0,
-		mapWidth, mapHeight, tilesetWidth, 0,
-		mapWidth, mapHeight, tilesetWidth, 0
+		mapWidth, mapHeight, tilesetWidth, scrollY,
+		mapWidth, mapHeight, tilesetWidth, scrollY,
+		mapWidth, mapHeight, tilesetWidth, scrollY,
+		mapWidth, mapHeight, tilesetWidth, scrollY
 	], 4), 4 * firstVertice);
 	// tile width, tile height, drawing uv
 	mapBuffer.mapInfo3.set(TEMP_MakeDualTriangle([
-		tileWidth, tileHeight, scrollX, scrollY,
-		tileWidth, tileHeight, scrollX + winW, scrollY,
-		tileWidth, tileHeight, scrollX, scrollY + winH,
-		tileWidth, tileHeight, scrollX + winW, scrollY + winH
+		tileWidth, tileHeight, scrollX, 0,
+		tileWidth, tileHeight, scrollX + winW, 0,
+		tileWidth, tileHeight, scrollX, winH,
+		tileWidth, tileHeight, scrollX + winW, winH
 	], 4), 4 * firstVertice);
-	// linescroll buffer (row no in otherTexture), whether to wrap around map size (0=off, 1=on)
+	// linescroll buffer (row no in otherTexture), whether to wrap around map size (0=off, 1=on), <unused>, <unused>
 	mapBuffer.mapInfo4.set(TEMP_MakeDualTriangle([
 		linescrollBuffer, wrap, 0, 0,
 		linescrollBuffer, wrap, 0, 0,
