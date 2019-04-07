@@ -1,11 +1,3 @@
-import {startGame, vdp} from "../lib-main";
-
-startGame('#glCanvas', vdp => {
-	const { input, mat3, vec2, color } = vdp;
-	Object.assign(window, { input, mat3, vec2, color });
-	return main();
-});
-
 function *main() {
 	while (true) {
 		let offset = 15;
@@ -37,7 +29,7 @@ function *main() {
 				intro += 2;
 				for (let i = 0; i < lineTransform.length; i++) {
 					const mat = vdp.mat3.create();
-					let x = Math.max(0, Math.floor(i / 2) - intro);
+					let x = Math.max(0, Math.floor(i / 2) - intro - 40);
 					vdp.mat3.translate(mat, mat, [i % 2 ? x : -x, 0]);
 					lineTransform.setLine(i, mat);
 				}
