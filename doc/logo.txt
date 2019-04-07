@@ -1,0 +1,12 @@
+https://cooltext.com/Edit-Logo?LogoId=3147729827
+I think I started from Glowing Steel and removed the outline
+Font: Han solo
+Size: 85
+Text gradient: default
+Outline gradient: Brushed aluminum
+No Shadow
+
+
+
+Font for text below: LinBiolinum_R_G
+

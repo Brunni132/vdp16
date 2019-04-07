@@ -1,6 +1,4 @@
 // You can play with that for the perspective
-import {vdp} from "../lib-main";
-
 function scaleAtLine(line) { return 100 / (line + 50); }
 
 function drawSprite(transformations, x, z, obj) {
