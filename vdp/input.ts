@@ -21,10 +21,10 @@ enum KeyState {
 }
 
 const mapping = {
-	'ArrowUp': Key.Up,
-	'ArrowDown': Key.Down,
-	'ArrowLeft': Key.Left,
-	'ArrowRight': Key.Right,
+	'arrowup': Key.Up,
+	'arrowdown': Key.Down,
+	'arrowleft': Key.Left,
+	'arrowright': Key.Right,
 	'w': Key.Up,
 	's': Key.Down,
 	'a': Key.Left,
@@ -38,7 +38,7 @@ const mapping = {
 	'x': Key.L,
 	'b': Key.R,
 	' ': Key.Select,
-	'Enter': Key.Start,
+	'enter': Key.Start,
 };
 
 export class Input {
@@ -100,6 +100,7 @@ export class Input {
 	 * Returns -1 if the key doesn't map to an existing key, or the index of the key (Key).
 	 */
 	private _translateKeyEvent(ev: KeyboardEvent): Key {
-		return (ev.key in mapping) ? mapping[ev.key] : -1;
+		const k = ev.key.toLowerCase();
+		return (k in mapping) ? mapping[k] : -1;
 	}
 }
