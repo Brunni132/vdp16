@@ -4,16 +4,20 @@ import { color } from './vdp/color';
 
 let vdp: VDP;
 
-export function startStandalone(resourceDirectory: string, scriptFile: string) {
+// Used by samples
+export function startStandalone({ resourceDir, scriptFile }: { resourceDir: string, scriptFile: string }) {
+	scriptFile = scriptFile || (resourceDir + '/game-main.js');
 	Promise.all([
 		window.fetch(scriptFile).then((res) => {
 			if (!res.ok) throw new Error(`${scriptFile} not found`);
 		 	return res.text();
 		}),
-		loadVdp(document.querySelector('#glCanvas'), resourceDirectory)
+		loadVdp(document.querySelector('#glCanvas'), resourceDir)
 	]).then(([code, vdp]) => {
 		// Strip imports
-		code = code.replace(/^import .*?;/gm, '');
+		code = code
+			.replace(/^import .*?;/gm, '')
+			.replace(/^export function/gm, 'function');
 		code = `(function(vdp){var window ='Please play fair';${code};return main;})`;
 		const mainFunc = eval(code)(vdp);
 		if (!mainFunc) throw new Error('Check that your script contains a function *main()');
@@ -21,6 +25,7 @@ export function startStandalone(resourceDirectory: string, scriptFile: string) {
 	});
 }
 
+// Used in direct mode
 export function startGame(canvasSelector: string, loadedCb: (vdp: VDP) => IterableIterator<void>) {
 	loadVdp(document.querySelector(canvasSelector), './build')
 		.then(_vdp => {
