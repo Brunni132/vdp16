@@ -275,8 +275,6 @@ export class VDP {
 					})
 				]).then(() => {
 					this._otherTexture = createDataTextureFloat(gl, OTHER_TEX_W, OTHER_TEX_H);
-					// Startup color
-					this.configBackdropColor('#008');
 					this.configDisplay({ extraSprites: false });
 
 					initMapShaders(this);
