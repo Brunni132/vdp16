@@ -241,9 +241,8 @@ export class VDP {
 
 		const gl = this._gl;
 
-
 		// TODO Florian -- run all requests at the same time and wait for them all.
-		window.fetch('build/game.json').then((res) => {
+		window.fetch(imageDirectory + 'game.json').then((res) => {
 			if (!res.ok) throw new Error('You need to build your project first; run `npm run convert-gfx`.')
 			return res.json();
 		}).then((json) => {
@@ -252,13 +251,13 @@ export class VDP {
 			if ([2, 3, 4, 5, 8].indexOf(this._paletteBpp) === -1) throw new Error(`Unsupported paletteBpp ${this._paletteBpp}`);
 
 				Promise.all([
-					loadTexture(gl, 'build/sprites.png').then(sprites => {
+					loadTexture(gl, imageDirectory + 'sprites.png').then(sprites => {
 						this._spriteTexture = sprites.texture;
 						this._romSpriteTex = makeShadowFromTexture8(gl, sprites);
 						this._shadowSpriteTex = this._romSpriteTex.clone();
 						setSpriteTextureSize(sprites.width, sprites.height);
 					}),
-					loadTexture(gl, 'build/palettes.png').then(palettes => {
+					loadTexture(gl, imageDirectory + 'palettes.png').then(palettes => {
 						if (!(palettes.width === 256 && palettes.height === 64) && !(palettes.width === 16 && palettes.height === 256))
 							throw new Error('Mismatch in texture size (max {16,256}x256');
 						this._paletteTexture = palettes.texture;
@@ -267,7 +266,7 @@ export class VDP {
 						if (this._paletteBpp !== 8) this._shadowPaletteTex.setPosterization(this._paletteBpp);
 						setPaletteTextureSize(palettes.width, palettes.height);
 					}),
-					loadTexture(gl, 'build/maps.png').then(maps => {
+					loadTexture(gl, imageDirectory + 'maps.png').then(maps => {
 						this._mapTexture = maps.texture;
 						this._romMapTex = makeShadowFromTexture16(gl, maps);
 						this._shadowMapTex = this._romMapTex.clone();
