@@ -569,7 +569,8 @@ export class VDP {
 	sprite(name: string): VdpSprite {
 		const spr = this._gameData.sprites[name];
 		if (!spr) throw new Error(`Sprite ${name} not found`);
-		return new VdpSprite(spr.x, spr.y, spr.w, spr.h, spr.tw, spr.th, spr.tiles, spr.hicol, spr.pal);
+		// tiles member is now ignored
+		return new VdpSprite(spr.x, spr.y, spr.w, spr.h, spr.tw, spr.th, !!spr.hicol, spr.pal);
 	}
 
 	/**

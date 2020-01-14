@@ -4,7 +4,7 @@ export class VdpMap {
 	w: number; // width of sprite (pixels)
 	h: number; // height of sprite (pixels)
 	designTileset: string; // name of the tileset (VdpSprite)
-	designPalette: string; // name of the first palette (takes precedence over the one defined in the tileset); tiles can use this and the next 15 palettes via the bits 12-15 in the tile number.
+	designPalette: string; // name of the first palette (takes precedence over the one defined in the tileset); tiles can use this and the next 7 palettes via the bits 13-15 in the tile number.
 
 	constructor(x: number, y: number, w: number, h: number, designTileset: string, designPalette: string) {
 		this.x = x;
@@ -50,20 +50,22 @@ export class VdpSprite {
 	h: number; // height of sprite or tileset as a whole (pixels)
 	tw: number; // tile width (pixels) if it's a tileset
 	th: number; // tile height (pixels) if it's a tileset
-	tiles: number; // number of (used) tiles in the tileset
 	hiColor: boolean; // whether it's a 8-bit-per-pixel tile (or 4-bit)
 	designPalette: string; // design palette name (can be overriden)
 
-	constructor(x: number, y: number, w: number, h: number, tw: number, th: number, tiles: number, hiColor: boolean, designPalette: string) {
+	constructor(x: number, y: number, w: number, h: number, tw: number, th: number, hiColor: boolean, designPalette: string) {
 		this.x = x;
 		this.y = y;
 		this.w = w;
 		this.h = h;
 		this.tw = tw;
 		this.th = th;
-		this.tiles = tiles;
 		this.hiColor = hiColor;
 		this.designPalette = designPalette;
+	}
+
+	get tiles(): number {
+		return Math.floor(this.w / this.tw) * Math.floor(this.h / this.th);
 	}
 
 	offset(x: number, y: number, w: number, h: number): VdpSprite {
