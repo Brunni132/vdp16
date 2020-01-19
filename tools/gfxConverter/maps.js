@@ -304,7 +304,7 @@ class Map {
 			}
 		}
 
-		if (tileset.tiles.length >= 8192) console.log(`More than 8192 tiles in map ${name} (tileset ${tileset.name})`.formatAs(utils.FG_RED));
+		if (tileset.tiles.length >= 4096) console.log(`More than 4096 tiles in map ${name} (tileset ${tileset.name})`.formatAs(utils.FG_RED));
 		return map;
 	}
 

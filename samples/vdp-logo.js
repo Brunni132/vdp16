@@ -40,7 +40,7 @@ function *main() {
 				for (let j = 0; j < logoMap.height; j++) {
 					for (let i = 0; i < logoMap.width; i++) {
 						// Map cell without palette
-						let el = logoMap.getElement(i, j) & 0x1fff;
+						let el = logoMap.getElement(i, j) & 0x0fff;
 						let dist = Math.sqrt(Math.abs(i - centerX) * Math.abs(i - centerX) + Math.abs(j - centerY) * Math.abs(j - centerY));
 						dist = Math.pow(dist, 0.8);
 						dist = Math.max(0, Math.min(16, Math.floor(dist / 2 + offset)));

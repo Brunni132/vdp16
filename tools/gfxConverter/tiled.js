@@ -91,8 +91,8 @@ function readTmx(tmxFileName) {
 			for (let y = 0; y < mapHeight; y++) {
 				for (let x = 0; x < mapWidth; x++) {
 					const tileNo = Math.max(0, layerData[i++] - tilesetFirstTile);
-					if (tileNo >= 8192 && !warned) {
-						console.log(`More than 8192 tiles in map ${layerName}`.formatAs(utils.FG_RED));
+					if (tileNo >= 4096 && !warned) {
+						console.log(`More than 4096 tiles in map ${layerName}`.formatAs(utils.FG_RED));
 						warned = true;
 					}
 					const paletteFlags = tileset.tiles[tileNo].paletteIndex << 13;

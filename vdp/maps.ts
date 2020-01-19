@@ -211,16 +211,20 @@ void main(void) {
 	if (vPaletteNo >= ${PALETTE_HICOLOR_FLAG}.0) {
 		basePalette -= ${PALETTE_HICOLOR_FLAG}.0;
 	}` +
-	// Invisible tile (TODO Florian -- support in the converter)
+	// Invisible tile (not supported in the converter)
 `	int mapTileNo = readMap(mapX, mapY);` +
-`	if (mapTileNo >= 65535) {
-		discard;
-	}` +
+// `	if (mapTileNo >= 65535) {
+// 		discard;
+// 	}` +
 
 	// Bits 13-15: palette No
 `	int palOfs = mapTileNo / ${1 << 13};
 	float paletteOffset = basePalette + float(palOfs);
 	mapTileNo -= palOfs * ${1 << 13};` +
+
+	// Bit 12: priority
+` int prioBit = mapTileNo / ${1 << 12};
+	mapTileNo -= prioBit;` +
 
 	// Position of tile no in sprite texture, now we need to add the offset (all this is because the modulus is not working well on integer math in WebGL)
 `	vec2 offsetInTile = vec2(int(texCoord.x) - mapX * int(vTileSize.x), int(texCoord.y) - mapY * int(vTileSize.y));
