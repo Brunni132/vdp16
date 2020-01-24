@@ -26,7 +26,7 @@ export function startStandalone({ resourceDir, scriptFile }: { resourceDir: stri
 }
 
 // Used in direct mode
-export function startGame(canvasSelector: string, loadedCb: (vdp: VDP) => IterableIterator<void>, {resourceDir}: { resourceDir: string }) {
+export function startGame(canvasSelector: string, loadedCb: (vdp: VDP) => IterableIterator<void>, {resourceDir}: { resourceDir?: string } = {}) {
 	if (typeof resourceDir !== 'string') resourceDir = './build/';
 	loadVdp(document.querySelector(canvasSelector), resourceDir)
 		.then(_vdp => {

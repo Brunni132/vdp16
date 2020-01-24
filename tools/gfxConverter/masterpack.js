@@ -202,7 +202,7 @@ class MasterPack {
 			const tileset = this.tilesets[i];
 			spriteBaker.bake(tileset.usedWidth, tileset.usedHeight, tileset.name, (destTexture, x, y) => {
 				tileset.copyToTexture(destTexture, x, y);
-				resultJson.sprites[tileset.name] = { x, y, w: tileset.usedWidth, h: tileset.usedHeight, tw: tileset.tileWidth, th: tileset.tileHeight, tiles: tileset.tiles.length, hicol: g_config.hiColorMode ? 1 : 0, pal: tileset.palette.name };
+				resultJson.sprites[tileset.name] = { x, y, w: tileset.usedWidth, h: tileset.usedHeight, tw: tileset.tileWidth, th: tileset.tileHeight, hicol: g_config.hiColorMode ? 1 : 0, pal: tileset.palette.name };
 			});
 		}
 

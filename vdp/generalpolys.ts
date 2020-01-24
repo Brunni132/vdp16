@@ -1,6 +1,6 @@
 import { initShaderProgram, makeBuffer } from "./utils";
 import { VDP } from './vdp';
-import { colorSwaps, declareReadPalette, makeOutputColor } from './shaders';
+import { colorSwaps, declareReadPalette } from './shaders';
 
 // For debugging only
 export function initOpaquePolyShaders(vdp: VDP) {

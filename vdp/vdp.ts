@@ -13,8 +13,6 @@ import {
 	OTHER_TEX_COLORSWAP_INDEX,
 	OTHER_TEX_H,
 	OTHER_TEX_W,
-	PALETTE_TEX_H,
-	PALETTE_TEX_W,
 	SCREEN_HEIGHT,
 	SCREEN_WIDTH,
 	SEMITRANSPARENT_CANVAS,
@@ -37,7 +35,7 @@ import { Input } from './input';
 
 export const DEBUG = true;
 // Specs of the fantasy console, do not modify for now
-const MAX_BGS = 32, MAX_OBJS = 512, MAX_VRAM_WRITES = 2048, MAX_FRAME_SLOWDOWN = 30, MAX_LINESCROLL_BUFFERS = 2;
+const MAX_BGS = 17, MAX_OBJS = 512, MAX_VRAM_WRITES = 2048, MIN_DMA_CYCLES = 16, MAX_FRAME_SLOWDOWN = 30, MAX_LINESCROLL_BUFFERS = 2;
 let BG_PIXEL_LIMIT: number, OBJ_CELL_LIMIT: number, OBJ_LIMIT: number;
 export const OBJ_CELL_SIZE = 16;
 let POSTERIZATION_LEVELS;
@@ -247,7 +245,7 @@ export class VDP {
 			return res.json();
 		}).then((json) => {
 			this._gameData = json;
-			POSTERIZATION_LEVELS = this._paletteBpp = json.info.paletteBpp;
+			POSTERIZATION_LEVELS = this._paletteBpp = json.info.paletteBpp || 4;
 			if ([2, 3, 4, 5, 8].indexOf(this._paletteBpp) === -1) throw new Error(`Unsupported paletteBpp ${this._paletteBpp}`);
 
 				Promise.all([
@@ -258,7 +256,7 @@ export class VDP {
 						setSpriteTextureSize(sprites.width, sprites.height);
 					}),
 					loadTexture(gl, imageDirectory + 'palettes.png').then(palettes => {
-						if (!(palettes.width === 256 && palettes.height === 64) && !(palettes.width === 16 && palettes.height === 256))
+						if (!(palettes.width === 256 && palettes.height === 64) && !(palettes.width === 16 && palettes.height <= 256))
 							throw new Error('Mismatch in texture size (max {16,256}x256');
 						this._paletteTexture = palettes.texture;
 						this._romPaletteTex = makeShadowFromTexture32(gl, palettes);
@@ -582,7 +580,7 @@ export class VDP {
 		const m = this._getMap(map);
 		this._shadowMapTex.writeTo(m.x, m.y, m.w, m.h, data.array);
 		this._shadowMapTex.syncToVramTexture(this._gl, this._mapTexture, m.x, m.y, m.w, m.h);
-		this._usedVramWrites += m.w * m.h;
+		this._usedVramWrites += Math.max(MIN_DMA_CYCLES, m.w * m.h);
 	}
 
 	/**
@@ -605,7 +603,7 @@ export class VDP {
 	writePaletteMemory(x: number, y: number, w: number, h: number, data: Array2D) {
 		this._shadowPaletteTex.writeTo(x, y, w, h, data.array);
 		this._shadowPaletteTex.syncToVramTexture(this._gl, this._paletteTexture, x, y, w, h);
-		this._usedVramWrites += w * h;
+		this._usedVramWrites += Math.max(MIN_DMA_CYCLES, w * h);
 	}
 
 	/**
@@ -628,7 +626,7 @@ export class VDP {
 		// 	width: this._shadowSpriteTex.width,
 		// 	height: this._shadowSpriteTex.height
 		// });
-		this._usedVramWrites += w * s.h;
+		this._usedVramWrites += Math.max(MIN_DMA_CYCLES, w * s.h);
 	}
 
 	// --------------------- PRIVATE ---------------------

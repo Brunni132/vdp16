@@ -7,10 +7,9 @@ import {
 	makeOutputColor,
 	PALETTE_HICOLOR_FLAG,
 	PALETTE_TEX_H,
-	SCREEN_HEIGHT,
 	SCREEN_WIDTH
 } from "./shaders";
-import { DEBUG, VDP, OBJ_CELL_SIZE } from "./vdp";
+import { DEBUG, OBJ_CELL_SIZE, VDP } from "./vdp";
 
 const OBJ_BUFFER_STRIDE = 6;
 
