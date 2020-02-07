@@ -1,5 +1,6 @@
 const path = require("path");
 const TerserPlugin = require('terser-webpack-plugin');
+const CopyPlugin = require('copy-webpack-plugin');
 
 var PATHS = {
 	entryPoint: path.resolve(__dirname, 'lib-main.ts'),
@@ -78,6 +79,11 @@ var config = {
 			},
 		})],
 	},
+  plugins: [
+    new CopyPlugin([
+      { from: 'vdp-lib.d.ts', to: '.' },
+    ]),
+  ],
 };
 
 module.exports = config;

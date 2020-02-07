@@ -1,8 +1,11 @@
 import { loadVdp, runProgram } from './vdp/runloop';
-import { VDP } from './vdp/vdp';
+import { CopySource, LineColorArray, LineTransformationArray, VDP } from './vdp/vdp';
 import { color } from './vdp/color';
+import { Input } from './vdp/input';
+import { vec2, mat3 } from 'gl-matrix';
 
 let vdp: VDP;
+let input: Input;
 
 // Used by samples
 export function startStandalone({ resourceDir, scriptFile }: { resourceDir: string, scriptFile: string }) {
@@ -26,17 +29,28 @@ export function startStandalone({ resourceDir, scriptFile }: { resourceDir: stri
 }
 
 // Used in direct mode
-export function startGame(canvasSelector: string, loadedCb: (vdp: VDP) => IterableIterator<void>, {resourceDir}: { resourceDir?: string } = {}) {
+export function startGame(canvasSelector: string, loadedCb: (vdp: VDP) => IterableIterator<void>, {resourceDir, onError}: { resourceDir?: string, onError?: (Error) => void } = {}) {
+	function onException(exception) {
+		onError && onError(exception);
+		console.error('Exception in the game', exception);
+	}
 	if (typeof resourceDir !== 'string') resourceDir = './build/';
+
 	loadVdp(document.querySelector(canvasSelector), resourceDir)
 		.then(_vdp => {
 			vdp = _vdp;
-			runProgram(_vdp, loadedCb(_vdp));
-		});
+			input = vdp.input;
+			try {
+				runProgram(_vdp, loadedCb(_vdp), onException);
+			} catch (error) {
+				onException(error);
+			}
+		})
+		.catch(onException);
 }
 
 export {
-	vdp,
-	VDP,
-	color,
+	vdp, color, input,
+	vec2, mat3,
+	VDP, CopySource, LineColorArray, LineTransformationArray
 };
