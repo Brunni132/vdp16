@@ -511,6 +511,28 @@ export class VDP {
 	}
 
 	/**
+	 * Reads an object list (a type of map configured as such from the editor).
+	 * @param map name of the object list
+	 * @param source the most sensible option here is to read from the ROM, as object lists are not meant to be written
+	 * to, and if you write something inadvertently in the VRAM, you may corrupt an object list at that place.
+	 * @return an object representing an array of items with id (tile ID), x and y position, and optional custom properties.
+	 */
+	readObjectList(map: string|VdpMap, source = CopySource.rom): object {
+		const data16 = this.readMap(map, source).array;
+		const data8 = new Uint8Array(data16.buffer);
+		let json = '';
+		for (let i = 0; i < data8.length && data8[i] > 0; i++)
+			json += String.fromCharCode(data8[i]);
+
+		try {
+			return JSON.parse(json);
+		} catch (e) {
+			console.log('Parse error in JSON', e);
+			return [];
+		}
+	}
+
+	/**
 	 * @param palette name of the palette (or palette itself). You may also query an arbitrary portion
 	 * of the palette memory using new VdpPalette(…) or offset an existing map, using vdp.map('myMap').offset(…).
 	 * @param source look at readMap for more info.

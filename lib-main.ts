@@ -9,7 +9,8 @@ let input: Input;
 
 // Used by samples
 export function startStandalone({ resourceDir, scriptFile }: { resourceDir: string, scriptFile: string }) {
-	scriptFile = scriptFile || (resourceDir + '/game-main.js');
+	resourceDir = resourceDir || 'build/';
+	scriptFile = scriptFile || (resourceDir + 'game-main.js');
 	Promise.all([
 		window.fetch(scriptFile).then((res) => {
 			if (!res.ok) throw new Error(`${scriptFile} not found`);
