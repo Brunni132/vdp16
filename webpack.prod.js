@@ -68,16 +68,16 @@ var config = {
 	//}
 	// Crashes the resulting code
 	optimization: {
-		minimizer: [new TerserPlugin({
-			sourceMap: false,
-			terserOptions: {
-				mangle: {
-					properties: {
-						regex: /^_.+$/,
-					},
-				},
-			},
-		})],
+		//minimizer: [new TerserPlugin({
+		//	sourceMap: false,
+		//	terserOptions: {
+		//		mangle: {
+		//			properties: {
+		//				regex: /^_.+$/,
+		//			},
+		//		},
+		//	},
+		//})],
 	},
   plugins: [
     new CopyPlugin([
