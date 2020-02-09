@@ -9,7 +9,7 @@ export function loadVdp(canvas: HTMLCanvasElement, resourceDirectory: string): P
 	setParams(canvas.width, canvas.height, false);
 	return new Promise(function (resolve) {
 		const vdp = new VDP(canvas, resourceDirectory, () => {
-			vdp._startFrame();
+			vdp._startFrame(true);
 			vdp.input = new Input();
 			resolve(vdp);
 		});
@@ -50,11 +50,11 @@ export function runProgram(vdp: VDP, coroutine: IterableIterator<void>, onError?
 			// Render the expected number of frames
 			for (let i = 0; i < toRender; i++) {
 				if (extraFrameCost-- > 1) continue;
-				const before = window.performance.now();
-				vdp._startFrame();
+				const before = window.performance.now(), skip = i < toRender - 1;
+				vdp._startFrame(skip);
 				coroutine.next();
 				extraFrameCost = vdp._endFrame();
-				times.push(window.performance.now() - before);
+				if (!skip) times.push(window.performance.now() - before);
 			}
 
 			if (DEBUG) {

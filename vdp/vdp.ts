@@ -225,6 +225,10 @@ export class VDP {
 	private _usedObjCells = 0;
 	private _usedVramWrites = 0;
 
+	/**
+	 * Set to true if the frame is not going to be rendered (because the host machine is too slow for full 60 FPS).
+	 */
+	public skip = false;
 	public vec2 = vec2;
 	public mat3 = mat3;
 	public input: Input;
@@ -696,52 +700,55 @@ export class VDP {
 		// Do before drawing stuff since it flushes the buffer
 		if (DEBUG) this._computeStats();
 
-		// Only the first time per frame (allow multiple render per frames)
-		if (this._frameStarted) {
-			// const clearColor = color.extract(this._shadowPaletteTex.buffer[0], this._paletteBpp);
-			// gl.clearColor(clearColor.r / 255, clearColor.g / 255, clearColor.b / 255, 0);
+		if (!this.skip) {
+			// Only the first time per frame (allow multiple render per frames)
+			if (this._frameStarted) {
+				// const clearColor = color.extract(this._shadowPaletteTex.buffer[0], this._paletteBpp);
+				// gl.clearColor(clearColor.r / 255, clearColor.g / 255, clearColor.b / 255, 0);
 
-			gl.clearColor(0, 0, 0, 0);
-			if (USE_PRIORITIES) {
-				gl.clearDepth(1.0);
-				gl.clear(gl.DEPTH_BUFFER_BIT | gl.COLOR_BUFFER_BIT);
-			}
-			else {
-				gl.clear(gl.COLOR_BUFFER_BIT);
+				gl.clearColor(0, 0, 0, 0);
+				if (USE_PRIORITIES) {
+					gl.clearDepth(1.0);
+					gl.clear(gl.DEPTH_BUFFER_BIT | gl.COLOR_BUFFER_BIT);
+				} else {
+					gl.clear(gl.COLOR_BUFFER_BIT);
+				}
+
+				// Clear with BD color
+				gl.disable(gl.DEPTH_TEST);
+				drawOpaquePoly(this, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, 0, 0, 0, 0);
+				this._frameStarted = false;
+
+				if (USE_PRIORITIES) {
+					// PERF: This is a lot slower if there's a discard in the fragment shader (and we need one?) because the GPU can't test & write to the depth buffer until after the fragment shader has been executed. So there's no point in using it I guess.
+					gl.depthFunc(gl.LESS);			// Near things obscure far things
+					gl.enable(gl.DEPTH_TEST);
+				}
 			}
 
-			// Clear with BD color
-			gl.disable(gl.DEPTH_TEST);
-			drawOpaquePoly(this, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, 0, 0, 0, 0);
-			this._frameStarted = false;
+			// OBJ0 and BG (both opaque, OBJ0 first to appear above
+			this._applyTransparencyConfig(NO_TRANSPARENCY);
+			drawPendingMap(this, this._bgBuffer);
+			drawPendingObj(this, this._obj0Buffer, 0, this._obj0Buffer.usedSprites);
 
-			if (USE_PRIORITIES) {
-				// PERF: This is a lot slower if there's a discard in the fragment shader (and we need one?) because the GPU can't test & write to the depth buffer until after the fragment shader has been executed. So there's no point in using it I guess.
-				gl.depthFunc(gl.LESS);			// Near things obscure far things
-				gl.enable(gl.DEPTH_TEST);
-			}
+			// We need to split the render in 2: once for the objects behind the TBG and once for those in front
+			const splitAt = this._obj1Buffer.sort(this._tbgBuffer.getZOfBG(0));
+
+			// Objects in front of the BG
+			this._applyTransparencyConfig(this._objTransparency);
+			drawPendingObj(this, this._obj1Buffer, 0, splitAt);
+
+			// OBJ1 then TBG, so OBJ1 can be used as mask
+			this._applyTransparencyConfig(this._bgTransparency);
+			drawPendingMap(this, this._tbgBuffer);
+
+			// Objects behind the BG
+			this._applyTransparencyConfig(this._objTransparency);
+			drawPendingObj(this, this._obj1Buffer, splitAt, this._obj1Buffer.usedSprites);
 		}
 
-		// OBJ0 and BG (both opaque, OBJ0 first to appear above
-		this._applyTransparencyConfig(NO_TRANSPARENCY);
-		drawPendingMap(this, this._bgBuffer);
-		drawPendingObj(this, this._obj0Buffer, 0, this._obj0Buffer.usedSprites);
-
-		// We need to split the render in 2: once for the objects behind the TBG and once for those in front
-		const splitAt = this._obj1Buffer.sort(this._tbgBuffer.getZOfBG(0));
-
-		// Objects in front of the BG
-		this._applyTransparencyConfig(this._objTransparency);
-		drawPendingObj(this, this._obj1Buffer, 0, splitAt);
-
-		// OBJ1 then TBG, so OBJ1 can be used as mask
-		this._applyTransparencyConfig(this._bgTransparency);
-		drawPendingMap(this, this._tbgBuffer);
-
-		// Objects behind the BG
-		this._applyTransparencyConfig(this._objTransparency);
-		drawPendingObj(this, this._obj1Buffer, splitAt, this._obj1Buffer.usedSprites);
-
+		this._bgBuffer.reset();
+		this._tbgBuffer.reset();
 		this._obj0Buffer.reset();
 		this._obj1Buffer.reset();
 		this._nextLinescrollBuffer = this._usedObjCells = this._usedBgPixels = 0;
@@ -755,14 +762,16 @@ export class VDP {
 	public _endFrame(): number {
 		this._doRender();
 
-		// Draw fade
-		const {r, g, b, a} = color.extract(this._fadeColor, this._paletteBpp);
-		if (a > 0) {
-			const gl = this._gl;
+		if (!this.skip) {
+			// Draw fade
+			const { r, g, b, a } = color.extract(this._fadeColor, this._paletteBpp);
+			if (a > 0) {
+				const gl = this._gl;
 
-			this._applyTransparencyConfig(STANDARD_TRANSPARENCY);
-			gl.disable(gl.DEPTH_TEST);
-			drawOpaquePoly(this, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, r / 255, g / 255, b / 255, a / 255);
+				this._applyTransparencyConfig(STANDARD_TRANSPARENCY);
+				gl.disable(gl.DEPTH_TEST);
+				drawOpaquePoly(this, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, r / 255, g / 255, b / 255, a / 255);
+			}
 		}
 
 		const cost = Math.min(MAX_FRAME_SLOWDOWN, Math.ceil(this._usedVramWrites / MAX_VRAM_WRITES));
@@ -821,7 +830,8 @@ export class VDP {
 		// mat4.translate(this.modelViewMatrix, this.modelViewMatrix, [-0.0, 0.0, -0.1]);
 	}
 
-	public _startFrame() {
+	public _startFrame(skip) {
+		this.skip = skip;
 		this._frameStarted = true;
 	}
 }

@@ -52,6 +52,10 @@ export class MapBuffer {
 		return this.xyzp[this.firstVertice + BG_BUFFER_STRIDE * 4 * index + 2];
 	}
 
+	reset() {
+		this.usedVertices = 0;
+	}
+
 	get usedLayers(): number {
 		return this.usedVertices / BG_BUFFER_STRIDE;
 	}
@@ -352,8 +356,6 @@ export function drawPendingMap(vdp: VDP, mapBuffer: MapBuffer) {
 	gl.uniform4f(prog.uniformLocations.colorSwaps, colorSwaps[0], colorSwaps[1], colorSwaps[2], colorSwaps[3]);
 
 	gl.drawArrays(gl.TRIANGLES, 0, mapBuffer.usedVertices);
-
-	mapBuffer.usedVertices = 0;
 }
 
 export function enqueueMap(mapBuffer: MapBuffer, uMap: number, vMap: number, uTileset: number, vTileset: number, mapWidth: number, mapHeight: number, tilesetWidth: number, tileWidth: number, tileHeight: number, winX: number, winY: number, winW: number, winH: number, scrollX: number, scrollY: number, palNo: number, hiColor: boolean, linescrollBuffer: number = -1, wrap: number = 1, z: number = 0) {
