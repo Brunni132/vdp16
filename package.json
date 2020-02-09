@@ -5,6 +5,7 @@
   "main": "lib-main.ts",
   "typings": "Temp/lib-main.d.ts",
   "dependencies": {
+    "arraybuffer-to-buffer": "0.0.7",
     "awesome-typescript-loader": "^3.0.4-rc.2",
     "express": "^4.16.4",
     "gl-matrix": "^3.4.3",

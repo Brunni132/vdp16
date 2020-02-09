@@ -1,12 +1,10 @@
-import { createDataTextureFloat, loadTexture, writeToTextureFloat } from "./utils";
 import {
 	computeObjectPixels,
 	drawPendingObj,
 	enqueueObj,
-	initObjShaders,
 	makeObjBuffer,
-} from "./sprites";
-import { drawPendingMap, enqueueMap, initMapShaders, makeMapBuffer } from "./maps";
+} from "./spritesSoft";
+import { drawPendingMap, enqueueMap, makeMapBuffer } from "./mapsSoft";
 import {
 	colorSwaps,
 	envColor,
@@ -21,17 +19,26 @@ import {
 	setSpriteTextureSize,
 	USE_PRIORITIES
 } from "./shaders";
-import { drawOpaquePoly, initOpaquePolyShaders } from "./generalpolys";
 import { Array2D, VdpMap, VdpPalette, VdpSprite } from "./memory";
 import {
 	makeShadowFromTexture16,
 	makeShadowFromTexture32,
 	makeShadowFromTexture8,
 	ShadowTexture
-} from "./shadowtexture";
+} from "./shadowTextureSoft";
 import { color } from "./color";
 import { mat3, mat4, ReadonlyVec2, vec2 } from 'gl-matrix';
 import { Input } from './input';
+import { loadSoftwareTexture } from './utils';
+import {
+	clearScreen, createColorDataTexture,
+	createMat3DataTexture,
+	ScreenBuffer,
+	setRenderingBuffer, setTransparency,
+	transparencyEnable,
+	transparencyOperatorMinus, updateColorSwapLut, writeColorDataTexture,
+	writeMat3DataTexture,
+} from './softwareRenderer';
 
 export const DEBUG = true;
 // Specs of the fantasy console, do not modify for now
@@ -43,7 +50,7 @@ let POSTERIZATION_LEVELS;
 type TransparencyConfigEffect = 'none' | 'color' | 'blend' | 'premult';
 type TransparencyConfigOperation = 'add' | 'sub';
 
-class TransparencyConfig {
+export class TransparencyConfig {
 	effect: TransparencyConfigEffect;
 	operation: TransparencyConfigOperation;
 	blendSrc: number;
@@ -88,11 +95,11 @@ export class LineTransformationArray {
 		this.length = SCREEN_HEIGHT;
 		this.buffer = new Float32Array(this.length * 8);
 		this.resetAll();
-  }
+	}
 
-  getLine(lineNo: number): Float32Array {
+	getLine(lineNo: number): Float32Array {
 		return this._getLine(lineNo) as Float32Array;
-  }
+	}
 
 	resetAll() {
 		this._assignedId = -1;
@@ -160,8 +167,8 @@ export class LineTransformationArray {
 }
 
 export class LineColorArray {
-	// TODO Florian -- rename to _buffer to hide
-	buffer: Float32Array;
+	/** @internal */
+	_buffer: Uint32Array;
 	length: number;
 	targetPaletteNumber: number;
 	targetPaletteIndex: number;
@@ -170,7 +177,7 @@ export class LineColorArray {
 		this.targetPaletteNumber = targetPaletteNumber;
 		this.targetPaletteIndex = targetPaletteIndex;
 		this.length = SCREEN_HEIGHT;
-		this.buffer = new Float32Array(this.length * 4);
+		this._buffer = new Uint32Array(this.length);
 	}
 
 	setAll(_color: number) {
@@ -180,27 +187,15 @@ export class LineColorArray {
 	setLine(lineNo: number, _color: number) {
 		if (lineNo < 0 || lineNo >= this.length) throw new Error(`setLine: index ${lineNo} out of range`);
 
-		const col = color.extract(_color, POSTERIZATION_LEVELS);
-		this.buffer[lineNo * 4] = col.r / 255.0;
-		this.buffer[lineNo * 4 + 1] = col.g / 255.0;
-		this.buffer[lineNo * 4 + 2] = col.b / 255.0;
+		this._buffer[lineNo] = color.posterize(_color, POSTERIZATION_LEVELS);
 	}
 }
 
 export class VDP {
-	_gl: WebGLRenderingContext;
+	_screenBuffer: ScreenBuffer;
 	_gameData: any;
-	_mapProgram: any;
-	_modelViewMatrix: mat3;
-	_projectionMatrix: mat4;
-	_spriteProgram: any;
-	_opaquePolyProgram: any;
-	_mapTexture: WebGLTexture;
-	_paletteTexture: WebGLTexture;
-	_spriteTexture: WebGLTexture;
-	_otherTexture: WebGLTexture;
 	// 2 = 64 colors (SMS), 3 = 512 colors (Mega Drive), 4 = 4096 (System 16), 5 = 32k (SNES), 8 = unmodified (PC)
-	_paletteBpp;
+	_paletteBpp: number;
 
 	// Fade color (factor is the upper 8 bits).
 	private _fadeColor = 0x00000000;
@@ -219,11 +214,13 @@ export class VDP {
 	// Original data (ROM) for sprites
 	private _romSpriteTex: ShadowTexture;
 	// Copy of the VRAM data for fast read access from the program
-	private _shadowSpriteTex: ShadowTexture;
+	_shadowSpriteTex: ShadowTexture;
 	private _romPaletteTex: ShadowTexture;
-	private _shadowPaletteTex: ShadowTexture;
+	_shadowPaletteTex: ShadowTexture;
 	private _romMapTex: ShadowTexture;
-	private _shadowMapTex: ShadowTexture;
+	_shadowMapTex: ShadowTexture;
+	_lineTransformations: Float32Array;
+	_colorSwapTexture: Uint32Array;
 	private _nextLinescrollBuffer = 0;
 	private _usedBgPixels = 0;
 	private _usedObjCells = 0;
@@ -240,12 +237,11 @@ export class VDP {
 	public LineTransformationArray = LineTransformationArray;
 	public CopySource = CopySource;
 	public color = color;
+	private _context: CanvasRenderingContext2D;
+	private _imgData: ImageData;
 
 	constructor(canvas: HTMLCanvasElement, imageDirectory: string, done: () => void) {
 		this._initContext(canvas);
-		this._initMatrices();
-
-		const gl = this._gl;
 
 		// TODO Florian -- run all requests at the same time and wait for them all.
 		window.fetch(imageDirectory + 'game.json').then((res) => {
@@ -256,38 +252,33 @@ export class VDP {
 			POSTERIZATION_LEVELS = this._paletteBpp = json.info.paletteBpp || 4;
 			if ([2, 3, 4, 5, 8].indexOf(this._paletteBpp) === -1) throw new Error(`Unsupported paletteBpp ${this._paletteBpp}`);
 
-				Promise.all([
-					loadTexture(gl, imageDirectory + 'sprites.png').then(sprites => {
-						this._spriteTexture = sprites.texture;
-						this._romSpriteTex = makeShadowFromTexture8(gl, sprites);
-						this._shadowSpriteTex = this._romSpriteTex.clone();
-						setSpriteTextureSize(sprites.width, sprites.height);
-					}),
-					loadTexture(gl, imageDirectory + 'palettes.png').then(palettes => {
-						if (!((palettes.width === 256 || palettes.width === 16) && palettes.height <= 256))
-							throw new Error('Mismatch in texture size (max {16,256}x256');
-						this._paletteTexture = palettes.texture;
-						this._romPaletteTex = makeShadowFromTexture32(gl, palettes);
-						this._shadowPaletteTex = this._romPaletteTex.clone();
-						if (this._paletteBpp !== 8) this._shadowPaletteTex.setPosterization(this._paletteBpp);
-						setPaletteTextureSize(palettes.width, palettes.height);
-					}),
-					loadTexture(gl, imageDirectory + 'maps.png').then(maps => {
-						this._mapTexture = maps.texture;
-						this._romMapTex = makeShadowFromTexture16(gl, maps);
-						this._shadowMapTex = this._romMapTex.clone();
-						setMapTextureSize(maps.width, maps.height);
-					})
-				]).then(() => {
-					this._otherTexture = createDataTextureFloat(gl, OTHER_TEX_W, OTHER_TEX_H);
-					this.configDisplay({ extraSprites: false });
-
-					initMapShaders(this);
-					initObjShaders(this);
-					initOpaquePolyShaders(this);
-					done();
-				});
+			Promise.all([
+				loadSoftwareTexture(imageDirectory + 'sprites.png').then(sprites => {
+					this._romSpriteTex = makeShadowFromTexture8(sprites);
+					this._shadowSpriteTex = this._romSpriteTex.clone();
+					setSpriteTextureSize(sprites.width, sprites.height);
+				}),
+				loadSoftwareTexture(imageDirectory + 'palettes.png').then(palettes => {
+					if (!(palettes.width === 256 && palettes.height === 64) && !(palettes.width === 16 && palettes.height <= 256))
+						throw new Error('Mismatch in texture size (max {16,256}x256');
+					this._romPaletteTex = makeShadowFromTexture32(palettes);
+					this._shadowPaletteTex = this._romPaletteTex.clone();
+					if (this._paletteBpp !== 8) this._shadowPaletteTex.setPosterization(this._paletteBpp);
+					setPaletteTextureSize(palettes.width, palettes.height);
+				}),
+				loadSoftwareTexture(imageDirectory + 'maps.png').then(maps => {
+					this._romMapTex = makeShadowFromTexture16(maps);
+					this._shadowMapTex = this._romMapTex.clone();
+					setMapTextureSize(maps.width, maps.height);
+				})
+			]).then(() => {
+				this._lineTransformations = createMat3DataTexture(OTHER_TEX_W, OTHER_TEX_H);
+				this._colorSwapTexture = createColorDataTexture(OTHER_TEX_W, OTHER_TEX_H);
+				updateColorSwapLut(this._colorSwapTexture);
+				this.configDisplay({ extraSprites: false });
+				done();
 			});
+		});
 	}
 
 	/**
@@ -326,9 +317,10 @@ export class VDP {
 		if (colorTable.length > 4) throw new Error('Can only swap up to 4 colors at a time');
 		colorTable.forEach((t, i) => {
 			colorSwaps[i] = t.targetPaletteNumber << 8 | t.targetPaletteIndex;
-			writeToTextureFloat(this._gl, this._otherTexture, 0, i + OTHER_TEX_COLORSWAP_INDEX, t.buffer.length / 4, 1, t.buffer);
+			writeColorDataTexture(this._colorSwapTexture, OTHER_TEX_W, i, t._buffer);
 		});
 		for (let i = colorTable.length; i < 4; i++) colorSwaps[i] = -1; // Unreachable color
+		updateColorSwapLut(this._colorSwapTexture);
 	}
 
 	/**
@@ -420,6 +412,7 @@ export class VDP {
 		}
 		this._usedBgPixels += pixels;
 
+		// TODO Florian -- Needs to be redone fully though
 		let linescrollBuffer = -1;
 		if (opts.lineTransform) {
 			linescrollBuffer = opts.lineTransform._assignedId;
@@ -429,12 +422,12 @@ export class VDP {
 					if (DEBUG) console.log(`Only ${MAX_LINESCROLL_BUFFERS} LineTransformationArray are allowed`);
 					return;
 				}
-				opts.lineTransform._assignedId = linescrollBuffer = 256 + this._nextLinescrollBuffer;
-				writeToTextureFloat(this._gl, this._otherTexture, 0, this._nextLinescrollBuffer++, opts.lineTransform.buffer.length / 4, 1, opts.lineTransform.buffer);
+				opts.lineTransform._assignedId = linescrollBuffer = this._nextLinescrollBuffer;
+				writeMat3DataTexture(this._lineTransformations, OTHER_TEX_W, this._nextLinescrollBuffer++, opts.lineTransform.buffer);
 			}
 		}
 
-		enqueueMap(buffer, map.x, map.y, til.x, til.y, map.w, map.h, til.w, til.tw, til.th, winX, winY, winW, winH, scrollX, scrollY, pal.y, til.hiColor, linescrollBuffer, wrap ? 1 : 0, prio);
+		enqueueMap(buffer, map.x, map.y, til.x, til.y, map.w, map.h, til.w, til.tw, til.th, winX, winY, winW, winH, scrollX, scrollY, pal.y, til.hiColor, linescrollBuffer, !!wrap, prio);
 	}
 
 	/**
@@ -609,7 +602,6 @@ export class VDP {
 	writeMap(map: string|VdpMap, data: Array2D) {
 		const m = this._getMap(map);
 		this._shadowMapTex.writeTo(m.x, m.y, m.w, m.h, data.array);
-		this._shadowMapTex.syncToVramTexture(this._gl, this._mapTexture, m.x, m.y, m.w, m.h);
 		this._usedVramWrites += Math.max(MIN_DMA_CYCLES, m.w * m.h);
 	}
 
@@ -632,7 +624,6 @@ export class VDP {
 	 */
 	writePaletteMemory(x: number, y: number, w: number, h: number, data: Array2D) {
 		this._shadowPaletteTex.writeTo(x, y, w, h, data.array);
-		this._shadowPaletteTex.syncToVramTexture(this._gl, this._paletteTexture, x, y, w, h);
 		this._usedVramWrites += Math.max(MIN_DMA_CYCLES, w * h);
 	}
 
@@ -650,7 +641,6 @@ export class VDP {
 		const w = s.hiColor ? s.w : Math.ceil(s.w / 2);
 
 		this._shadowSpriteTex.writeTo(x, s.y, w, s.h, data.array);
-		this._shadowSpriteTex.syncToVramTexture(this._gl, this._spriteTexture, x, s.y, w, s.h);
 		// this._shadowSpriteTex = makeShadowFromTexture8(this._gl, {
 		// 	texture: this._spriteTexture,
 		// 	width: this._shadowSpriteTex.width,
@@ -660,34 +650,8 @@ export class VDP {
 	}
 
 	// --------------------- PRIVATE ---------------------
-	private _applyTransparencyConfig(transparencyConfig) {
-		const gl = this._gl;
-		const {effect, blendSrc, blendDst, operation} = transparencyConfig;
-
-		envColor[0] = envColor[1] = envColor[2] = envColor[3] = 1;
-		gl.blendEquation(operation === 'sub' ? gl.FUNC_REVERSE_SUBTRACT : gl.FUNC_ADD);
-
-		if (effect === 'blend') { // Used internally for the fade
-			gl.enable(gl.BLEND);
-			gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-		} else if (effect === 'premult') {
-			gl.enable(gl.BLEND);
-			gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-		} else if (effect === 'color') {
-			const dst = color.extract(blendDst, this._paletteBpp);
-			const src = color.extract(blendSrc, this._paletteBpp);
-			// Background blend factor
-			gl.blendColor(dst.r / 255, dst.g / 255, dst.b / 255, dst.a / 255);
-			// Source blend factor defined in shader
-			envColor[0] = src.r / 255;
-			envColor[1] = src.g / 255;
-			envColor[2] = src.b / 255;
-			envColor[3] = src.a / 255;
-			gl.blendFunc(gl.SRC_ALPHA, gl.CONSTANT_COLOR);
-			gl.enable(gl.BLEND);
-		} else {
-			gl.disable(gl.BLEND);
-		}
+	private _applyTransparencyConfig(transparencyConfig: TransparencyConfig) {
+		setTransparency(transparencyConfig);
 	}
 
 	// Take one frame in account for the stats. Read with _readStats.
@@ -700,34 +664,17 @@ export class VDP {
 	 * Renders the machine in the current state. Only available for the extended version of the GPU.
 	 */
 	private _doRender() {
-		const gl = this._gl;
+		// const gl = this._gl;
 		// Do before drawing stuff since it flushes the buffer
 		if (DEBUG) this._computeStats();
 
 		if (!this.skip) {
 			// Only the first time per frame (allow multiple render per frames)
 			if (this._frameStarted) {
-				// const clearColor = color.extract(this._shadowPaletteTex.buffer[0], this._paletteBpp);
-				// gl.clearColor(clearColor.r / 255, clearColor.g / 255, clearColor.b / 255, 0);
-
-				gl.clearColor(0, 0, 0, 0);
-				if (USE_PRIORITIES) {
-					gl.clearDepth(1.0);
-					gl.clear(gl.DEPTH_BUFFER_BIT | gl.COLOR_BUFFER_BIT);
-				} else {
-					gl.clear(gl.COLOR_BUFFER_BIT);
-				}
-
 				// Clear with BD color
-				gl.disable(gl.DEPTH_TEST);
-				drawOpaquePoly(this, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, 0, 0, 0, 0);
+				setRenderingBuffer(this._screenBuffer);
+				clearScreen(this._shadowPaletteTex.buffer[0], -1);
 				this._frameStarted = false;
-
-				if (USE_PRIORITIES) {
-					// PERF: This is a lot slower if there's a discard in the fragment shader (and we need one?) because the GPU can't test & write to the depth buffer until after the fragment shader has been executed. So there's no point in using it I guess.
-					gl.depthFunc(gl.LESS);			// Near things obscure far things
-					gl.enable(gl.DEPTH_TEST);
-				}
 			}
 
 			// OBJ0 and BG (both opaque, OBJ0 first to appear above
@@ -736,7 +683,8 @@ export class VDP {
 			drawPendingObj(this, this._obj0Buffer, 0, this._obj0Buffer.usedSprites);
 
 			// We need to split the render in 2: once for the objects behind the TBG and once for those in front
-			const splitAt = this._obj1Buffer.sort(this._tbgBuffer.getZOfBG(0));
+			const zOfTbg = this._tbgBuffer.usedLayers > 0 ? this._tbgBuffer.getZOfBG(0) : Infinity;
+			const splitAt = this._obj1Buffer.sort(zOfTbg);
 
 			// Objects in front of the BG
 			this._applyTransparencyConfig(this._objTransparency);
@@ -767,14 +715,16 @@ export class VDP {
 		this._doRender();
 
 		if (!this.skip) {
+			this._imgData.data.set(this._screenBuffer.color8);
+			this._context.putImageData(this._imgData, 0, 0);
+
 			// Draw fade
 			const { r, g, b, a } = color.extract(this._fadeColor, this._paletteBpp);
 			if (a > 0) {
-				const gl = this._gl;
-
-				this._applyTransparencyConfig(STANDARD_TRANSPARENCY);
-				gl.disable(gl.DEPTH_TEST);
-				drawOpaquePoly(this, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, r / 255, g / 255, b / 255, a / 255);
+				const oldFillStyle = this._context.fillStyle;
+				this._context.fillStyle = `rgba(${r}, ${g}, ${b}, ${a / 255})`;
+				this._context.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+				this._context.fillStyle = oldFillStyle;
 			}
 		}
 
@@ -814,24 +764,12 @@ export class VDP {
 	}
 
 	private _initContext(canvas: HTMLCanvasElement) {
-		this._gl = canvas.getContext("webgl", { premultipliedAlpha: true, alpha: SEMITRANSPARENT_CANVAS, antialias: false });
-
-		// Only continue if WebGL is available and working
-		if (this._gl === null) {
-			alert("Unable to initialize WebGL. Your browser or machine may not support it.");
+		this._context = canvas.getContext('2d');
+		if (!this._context) {
+			alert("Unable to initialize Canvas. Your browser or machine may not support it.");
 		}
-	}
-
-	private _initMatrices() {
-		this._projectionMatrix = mat4.create();
-		// note: glmatrix.js always has the first argument as the destination to receive the result.
-		mat4.ortho(this._projectionMatrix, 0.0, SCREEN_WIDTH, SCREEN_HEIGHT, 0.0, -16, 16);
-
-		// Normally set in modelViewMatrix, but we want to allow an empty model view matrix
-		//mat4.translate(this.projectionMatrix, this.projectionMatrix, [-0.0, 0.0, -0.1]);
-
-		this._modelViewMatrix = mat3.create();
-		// mat4.translate(this.modelViewMatrix, this.modelViewMatrix, [-0.0, 0.0, -0.1]);
+		this._imgData = this._context.createImageData(SCREEN_WIDTH, SCREEN_HEIGHT);
+		this._screenBuffer = new ScreenBuffer(this._imgData.data.length);
 	}
 
 	public _startFrame(skip) {
