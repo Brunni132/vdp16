@@ -101,7 +101,7 @@ class MasterPack {
 			this.spriteTex = Texture.blank('sprites', g_config.hiColorMode ? 1024 : 2048, 512, g_config.hiColorMode ? 8 : 4);
 		}
 		/** @type {Texture} */
-		this.paletteTex = Texture.blank('palettes', g_config.hiColorMode ? 256 : 16, g_config.hiColorMode ? 64 : 256, 32);
+		this.paletteTex = Texture.blank('palettes', g_config.hiColorMode ? 256 : 16, 32, 32);
 
 		/** @type {Palette[]} */
 		this.palettes = [];
@@ -212,7 +212,7 @@ class MasterPack {
 			const m = this.maps[i];
 			mapBaker.bake(m.width, m.height, m.name, (destTexture, x, y) => {
 				m.copyToTexture(destTexture, x, y);
-				resultJson.maps[m.name] = { x, y, w: m.width, h: m.height, til: m.tileset.name, pal: m.tileset.palette.name };
+				resultJson.maps[m.name] = { x, y, w: m.width, h: m.height, til: m.tileset.name, pal: m.tileset.palette.name, type: 'map' };
 			});
 		}
 

@@ -22,8 +22,8 @@ export function startStandalone({ resourceDir, scriptFile }: { resourceDir: stri
 		code = code
 			.replace(/^import .*?;/gm, '')
 			.replace(/^export function/gm, 'function');
-		code = `(function(vdp){var window ='Please play fair';${code};return main;})`;
-		const mainFunc = eval(code)(vdp);
+		code = `(function(vdp,input,color,vec2,mat3){var window ='Please play fair';${code};return main;})`;
+		const mainFunc = eval(code)(vdp, vdp.input, vdp.color, vdp.vec2, vdp.mat3);
 		if (!mainFunc) throw new Error('Check that your script contains a function *main()');
 		runProgram(vdp, mainFunc());
 	});

@@ -7,4 +7,7 @@ better that you keep the file in sync yourself, by keeping the methods and prope
 If you need to regenerate the file, be sure to remove the private properties afterwards, to not clog
 the editor for people using the lib (typically, strip everything that starts with an underscore).
 
+# Software renderer bugs
+* Doesn't seem to always fill the background color (cf. VDP logo)
+* Doesn't posterize colors properly (cf. fade sample), maybe the same with per-line color swap
 
