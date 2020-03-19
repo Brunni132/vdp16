@@ -4,11 +4,9 @@ export class color {
 	 * Extract a 32-bit color, made by color.make or as gotten by readPalette, into it's red, green, blue and alpha
 	 * sub-components.
 	 * @param c color (32 bits)
-	 * @param [bitsPerComponent=8] {number} can be 2, 3, 4, 5 to return a reduced color value (x bits per component)
 	 * @returns {{r: number, g: number, b: number, a: number}}
 	 */
-	static extract(c: number, bitsPerComponent: number = 8): { a: number; b: number; r: number; g: number } {
-		c = color.posterize(c, bitsPerComponent);
+	static extract(c: number): { a: number; b: number; r: number; g: number } {
 		return { a: c >>> 24, b: c >>> 16 & 0xff, g: c >>> 8 & 0xff, r: c & 0xff };
 	}
 

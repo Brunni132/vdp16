@@ -183,7 +183,7 @@ export class LineColorArray {
 	setLine(lineNo: number, _color: number) {
 		if (lineNo < 0 || lineNo >= this.length) throw new Error(`setLine: index ${lineNo} out of range`);
 
-		this._buffer[lineNo] = color.posterize(_color, POSTERIZATION_LEVELS);
+		this._buffer[lineNo] = color.posterize(_color, POSTERIZATION_LEVELS) | 0xff000000;
 	}
 }
 
@@ -301,8 +301,8 @@ export class VDP {
 			throw new Error(`Invalid operation ${opts.op}`);
 		}
 		this._bgTransparency.operation = opts.op;
-		this._bgTransparency.blendSrc = color.posterize(color.make(opts.blendSrc), this._paletteBpp);
-		this._bgTransparency.blendDst = color.posterize(color.make(opts.blendDst), this._paletteBpp);
+		this._bgTransparency.blendSrc = color.posterize(color.make(opts.blendSrc), this._paletteBpp) & 0xffffff;
+		this._bgTransparency.blendDst = color.posterize(color.make(opts.blendDst), this._paletteBpp) & 0xffffff;
 	}
 
 	/**
@@ -346,7 +346,7 @@ export class VDP {
 	configFade(opts: { color?: number|string, factor: number }) {
 		const c = opts.color || 0;
 		opts.factor = Math.min(255, Math.max(0, opts.factor));
-		this._fadeColor = (color.make(c) & 0xffffff) | (opts.factor << 24);
+		this._fadeColor = color.posterize((color.make(c) & 0xffffff) | opts.factor << 24, this._paletteBpp);
 	}
 
 	/**
@@ -361,8 +361,8 @@ export class VDP {
 			throw new Error(`Invalid operation ${opts.op}`);
 		}
 		this._objTransparency.operation = opts.op;
-		this._objTransparency.blendSrc = color.posterize(color.make(opts.blendSrc), this._paletteBpp);
-		this._objTransparency.blendDst = color.posterize(color.make(opts.blendDst), this._paletteBpp);
+		this._objTransparency.blendSrc = color.posterize(color.make(opts.blendSrc), this._paletteBpp) & 0xffffff;
+		this._objTransparency.blendDst = color.posterize(color.make(opts.blendDst), this._paletteBpp) & 0xffffff;
 	}
 
 	/**
@@ -715,7 +715,7 @@ export class VDP {
 			this._context.putImageData(this._imgData, 0, 0);
 
 			// Draw fade
-			const { r, g, b, a } = color.extract(this._fadeColor, this._paletteBpp);
+			const { r, g, b, a } = color.extract(this._fadeColor);
 			if (a > 0) {
 				const oldFillStyle = this._context.fillStyle;
 				this._context.fillStyle = `rgba(${r}, ${g}, ${b}, ${a / 255})`;

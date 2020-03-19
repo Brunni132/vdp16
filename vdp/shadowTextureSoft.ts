@@ -1,4 +1,5 @@
 import { LoadedGLTexture } from "./utils";
+import { color } from './color';
 
 // TODO Florian -- can actually be merged with shadowGLTexture, just find a clean way
 
@@ -79,7 +80,12 @@ export class ShadowTexture {
 		const texWidth = this.width * this.pixelsPerTexel;
 		let src = 0, dst = x + y * texWidth;
 		for (let i = 0; i < h; i++) {
-			this.buffer.set(data.subarray(src, src + w), dst);
+			if (this.posterizeToBpp !== -1) {
+				const posterized = data.subarray(src, src + w).map(c => color.posterize(c | 0xff000000, this.posterizeToBpp));
+				this.buffer.set(posterized, dst);
+			} else {
+				this.buffer.set(data.subarray(src, src + w), dst);
+			}
 			src += w;
 			dst += texWidth;
 		}
