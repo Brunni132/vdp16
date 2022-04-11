@@ -1,3 +1,14 @@
+# VDP-16
+This repository contains the core library only.
+
+**Recommended for beginners** To start a project with the editor and everything: https://github.com/Brunni132/vdp16-starter
+
+To see what this can do: https://brunni132.github.io/vdp16-samples/
+
+Important: if you use the samples above, you need to copy the files [here](https://github.com/Brunni132/vdp16-samples/tree/gh-pages/build) into your `dist` directory. It contains the sprites, palettes and maps that are referenced by the samples.
+
+Game made using this technology: https://github.com/Brunni132/patrickball
+
 # About the doc
 The library should be accompanied with a file vdp-lib.d.ts side-by-side with the library.
 
