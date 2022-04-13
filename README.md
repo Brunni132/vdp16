@@ -23,6 +23,10 @@ Game made using this technology: https://github.com/Brunni132/patrickball
 # Branches
 There are two branches. The main one (`master`) runs on the GPU, and the `software-renderer` branch runs on the CPU. For compatibility reasons, I generally use the `software-renderer` one when making demos and workshops, so that I am sure that it will run for everyone, no matter their GPU, VM, etc. Note that iOS still used lossy textures when I tested (around 2019) so it's not really supported, which is a good reason for using the `software-renderer` one. I would appreciate anyone who could help me debug why that happens.
 
+## Software renderer bugs
+* Doesn't seem to always fill the background color (cf. VDP logo)
+* Doesn't posterize colors properly (cf. fade sample), maybe the same with per-line color swap
+* Nevertheless, this branch should become the main one because this project uses little power and runs well on the CPU. Any help in fixing those would be greatly appreciated!
 
 # About the doc
 The library should be accompanied with a file vdp-lib.d.ts side-by-side with the library.
@@ -32,8 +36,3 @@ better that you keep the file in sync yourself, by keeping the methods and prope
 
 If you need to regenerate the file, be sure to remove the private properties afterwards, to not clog
 the editor for people using the lib (typically, strip everything that starts with an underscore).
-
-# Software renderer bugs
-* Doesn't seem to always fill the background color (cf. VDP logo)
-* Doesn't posterize colors properly (cf. fade sample), maybe the same with per-line color swap
-
