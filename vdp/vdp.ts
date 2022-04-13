@@ -30,7 +30,7 @@ import {
 	ShadowTexture
 } from "./shadowtexture";
 import { color } from "./color";
-import { mat3, mat4, vec2 } from 'gl-matrix';
+import { mat3, mat4, ReadonlyVec2, vec2 } from 'gl-matrix';
 import { Input } from './input';
 
 export const DEBUG = true;
@@ -70,6 +70,10 @@ function makeMat3(array: Float32Array): mat3 {
 	return mat3.fromValues(array[0], array[1], array[2], array[3], array[4], array[5], array[6], array[7], 1);
 }
 
+function makeReadonlyVec2(array: number[]): ReadonlyVec2 {
+	return [array[0], array[1]] as ReadonlyVec2;
+}
+
 /**
  * Use this class to provide a transformation for each line of the BG when drawing. You can create many kind of effects
  * using this, look at the samples.
@@ -87,7 +91,7 @@ export class LineTransformationArray {
   }
 
   getLine(lineNo: number): Float32Array {
-		return this._getLine(lineNo);
+		return this._getLine(lineNo) as Float32Array;
   }
 
 	resetAll() {
@@ -102,15 +106,15 @@ export class LineTransformationArray {
 	}
 
 	rotateLine(lineNo: number, radians: number) {
-		const mat = makeMat3(this._getLine(lineNo));
+		const mat = makeMat3(this._getLine(lineNo) as Float32Array);
 		mat3.rotate(mat, mat, radians);
 		this.setLine(lineNo, mat);
 	}
 
 	scaleLine(lineNo: number, scaleXY: number[]) {
 		if (!Array.isArray(scaleXY) || scaleXY.length !== 2) throw new Error('Array should be [x, y]');
-		const mat = makeMat3(this._getLine(lineNo));
-		mat3.scale(mat, mat, scaleXY);
+		const mat = makeMat3(this._getLine(lineNo) as Float32Array);
+		mat3.scale(mat, mat, makeReadonlyVec2(scaleXY));
 		this.setLine(lineNo, mat);
 	}
 
@@ -126,25 +130,25 @@ export class LineTransformationArray {
 
 	translateLine(lineNo: number, moveXY: number[]) {
 		if (!Array.isArray(moveXY) || moveXY.length !== 2) throw new Error('Array should be [x, y]');
-		const mat = makeMat3(this._getLine(lineNo));
-		mat3.translate(mat, mat, moveXY);
+		const mat = makeMat3(this._getLine(lineNo) as Float32Array);
+		mat3.translate(mat, mat, makeReadonlyVec2(moveXY));
 		this.setLine(lineNo, mat);
 	}
 
 	transformVector(lineNo: number, vectorXY: number): {x: number, y: number} {
 		if (!Array.isArray(vectorXY) || vectorXY.length !== 2) throw new Error('Array should be [x, y]');
 		const result = vec2.create();
-		const mat = makeMat3(this._getLine(lineNo));
-		vec2.transformMat3(result, vectorXY, mat);
+		const mat = makeMat3(this._getLine(lineNo) as Float32Array);
+		vec2.transformMat3(result, makeReadonlyVec2(vectorXY), mat);
 		return {x: result[0], y: result[1]};
 	}
 
 	transformVectorInverse(lineNo: number, vectorXY: number): {x: number, y: number} {
 		if (!Array.isArray(vectorXY) || vectorXY.length !== 2) throw new Error('Array should be [x, y]');
 		const result = vec2.create();
-		const mat = makeMat3(this._getLine(lineNo));
+		const mat = makeMat3(this._getLine(lineNo) as Float32Array);
 		mat3.invert(mat, mat);
-		vec2.transformMat3(result, vectorXY, mat);
+		vec2.transformMat3(result, makeReadonlyVec2(vectorXY), mat);
 		return {x: result[0], y: result[1]};
 	}
 

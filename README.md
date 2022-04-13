@@ -9,6 +9,21 @@ Important: if you use the samples above, you need to copy the files [here](https
 
 Game made using this technology: https://github.com/Brunni132/patrickball
 
+# Building
+* Clone the repository, `npm install`
+* Running the test game:
+    * `npm run dev`
+    * Open http://localhost:8080 in your browser
+    * Edit the file `src/game-main.js`
+* Building the library
+    * `npm run build-lib`
+    * Copy the files from `lib/` into the `lib` folder of your game (example: `vdp16-starter/lib`).
+
+
+# Branches
+There are two branches. The main one (`master`) runs on the GPU, and the `software-renderer` branch runs on the CPU. For compatibility reasons, I generally use the `software-renderer` one when making demos and workshops, so that I am sure that it will run for everyone, no matter their GPU, VM, etc. Note that iOS still used lossy textures when I tested (around 2019) so it's not really supported, which is a good reason for using the `software-renderer` one. I would appreciate anyone who could help me debug why that happens.
+
+
 # About the doc
 The library should be accompanied with a file vdp-lib.d.ts side-by-side with the library.
 
